@@ -1,0 +1,11 @@
+*.xlsx
+.env
+.env.*
+evals/private/
+data/private/
+docs/private/
+media/
+__pycache__/
+.venv/
+node_modules/
+.next/
