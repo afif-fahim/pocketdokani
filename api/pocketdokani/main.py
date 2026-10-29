@@ -18,9 +18,10 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from pocketdokani.business import orders_payload, payouts_payload, stock_payload
 from pocketdokani.config import settings
-from pocketdokani.db import database, utc_iso
-from pocketdokani.demo import screenshots, seed_catalogue
+from pocketdokani.db import database
+from pocketdokani.demo import product_photo, screenshots, seed_shop
 from pocketdokani.imports import (
     LAYOUT,
     MAX_BATCH_BYTES,
@@ -32,7 +33,7 @@ from pocketdokani.imports import (
     validate_original,
     workspace_payload,
 )
-from pocketdokani.records import BrowserSession, Sku, SourceImage, Workspace
+from pocketdokani.records import BrowserSession, Product, SourceImage, Workspace
 from pocketdokani.security import (
     Context,
     authenticate,
@@ -165,15 +166,17 @@ def login(
 def start_judge(request: Request, response: Response, db: Database) -> dict[str, str]:
     require_mutation(request)
     try:
-        authenticate(db, request, "judge")
+        actor = authenticate(db, request, "judge", lock=True)
+        seed_shop(db, actor.owner)
+        db.commit()
         return {"context": "judge"}
     except HTTPException as error:
         if error.status_code != 401:
             raise
     address = request.client.host if request.client else "unknown"
     budget(db, "judge-session:" + digest(address), 10)
-    issue_session(db, response, "judge")
-    seed_catalogue(db)
+    actor = issue_session(db, response, "judge")
+    seed_shop(db, actor.owner)
     db.commit()
     return {"context": "judge"}
 
@@ -335,28 +338,45 @@ def reset_example(
         db.delete(prior)
         db.flush()
     workspace = create_workspace(db, actor, "right", screenshots())
+    seed_shop(db, actor.owner, reset=True)
     commit_workspace(db, workspace)
     cleanup_objects(old_keys)
     return workspace_payload(db, workspace)
 
 
 @app.get("/api/{context}/catalogue")
+@app.get("/api/{context}/stock")
 def catalogue(
     context: Context, request: Request, db: Database
 ) -> list[dict[str, object]]:
-    authenticate(db, request, context)
-    owner = "shop" if context == "seller" else "judge-catalogue"
-    rows = db.scalars(select(Sku).where(Sku.owner == owner).order_by(Sku.sku)).all()
-    return [
-        {
-            "sku": row.sku,
-            "product_name": row.product_name,
-            "variant": row.variant,
-            "lot": row.lot,
-            "eligible": row.lot_received,
-            "constructed": row.constructed,
-            "reviewed_by": row.reviewed_by,
-            "reviewed_at": utc_iso(row.reviewed_at),
-        }
-        for row in rows
-    ]
+    return stock_payload(db, authenticate(db, request, context))
+
+
+@app.get("/api/{context}/orders")
+def list_orders(
+    context: Context, request: Request, db: Database
+) -> list[dict[str, object]]:
+    return orders_payload(db, authenticate(db, request, context))
+
+
+@app.get("/api/{context}/payouts")
+def list_payouts(
+    context: Context, request: Request, db: Database
+) -> list[dict[str, object]]:
+    return payouts_payload(db, authenticate(db, request, context))
+
+
+@app.get("/api/{context}/products/{product_id}/photo")
+def catalogue_photo(
+    context: Context, product_id: str, request: Request, db: Database
+) -> Response:
+    actor = authenticate(db, request, context)
+    product = db.get(Product, (actor.owner, product_id))
+    if product is None or not product.photo_key:
+        raise HTTPException(404, "Product photo not found in this shop.")
+    data = (
+        product_photo(product_id)
+        if context == "judge"
+        else ObjectStorage().get(product.photo_key)
+    )
+    return Response(data, media_type=product.photo_media_type)

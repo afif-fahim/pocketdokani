@@ -1,13 +1,17 @@
 from datetime import datetime
-from uuid import uuid4
+from decimal import Decimal
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
+    Numeric,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -17,6 +21,10 @@ from pocketdokani.db import Base, now
 
 def identifier() -> str:
     return str(uuid4())
+
+
+def historical_order_id(owner: str, source_id: str) -> str:
+    return str(uuid5(NAMESPACE_URL, f"pocketdokani/{owner}/historical/{source_id}"))
 
 
 class BrowserSession(Base):
@@ -75,6 +83,12 @@ class SourceImage(Base):
 
 class Sku(Base):
     __tablename__ = "skus"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["owner", "product_id"], ["products.owner", "products.product_id"]
+        ),
+        CheckConstraint("unit_cost >= 0 AND list_price >= 0 AND stock_qty >= 0"),
+    )
 
     owner: Mapped[str] = mapped_column(String(64), primary_key=True)
     sku: Mapped[str] = mapped_column(String(80), primary_key=True)
@@ -85,3 +99,93 @@ class Sku(Base):
     constructed: Mapped[bool] = mapped_column(Boolean)
     reviewed_by: Mapped[str] = mapped_column(String(100))
     reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    product_id: Mapped[str | None] = mapped_column(String(80))
+    unit_cost: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2), default=Decimal(0), server_default="0"
+    )
+    list_price: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2), default=Decimal(0), server_default="0"
+    )
+    stock_qty: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    owner: Mapped[str] = mapped_column(String(64), primary_key=True)
+    product_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    name: Mapped[str] = mapped_column(String(160))
+    photo_key: Mapped[str | None] = mapped_column(String(200))
+    photo_media_type: Mapped[str | None] = mapped_column(String(30))
+
+
+class Order(Base):
+    __tablename__ = "orders"
+    __table_args__ = (
+        UniqueConstraint("owner", "reference"),
+        UniqueConstraint("owner", "source_id"),
+        CheckConstraint(
+            "status IN ('draft', 'confirmed', 'packed', 'booked', 'delivered', 'returned', 'cancelled')"
+        ),
+        CheckConstraint(
+            "customer_delivery_charge >= 0 AND verified_prior_payment >= 0 AND cod_amount >= 0"
+        ),
+    )
+
+    owner: Mapped[str] = mapped_column(String(64), primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
+    reference: Mapped[str] = mapped_column(String(40))
+    source_id: Mapped[str | None] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(16))
+    customer_name: Mapped[str | None] = mapped_column(String(160))
+    phone: Mapped[str | None] = mapped_column(String(40))
+    address: Mapped[str | None] = mapped_column(Text)
+    customer_delivery_charge: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    verified_prior_payment: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    cod_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    consignment_id: Mapped[str | None] = mapped_column(String(100))
+    tracking_code: Mapped[str | None] = mapped_column(String(100))
+    source_workspace_id: Mapped[str | None] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="SET NULL")
+    )
+    payout_source_id: Mapped[str | None] = mapped_column(String(100))
+    note: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class OrderLine(Base):
+    __tablename__ = "order_lines"
+    __table_args__ = (
+        ForeignKeyConstraint(["owner", "order_id"], ["orders.owner", "orders.id"]),
+        ForeignKeyConstraint(["owner", "sku"], ["skus.owner", "skus.sku"]),
+        CheckConstraint("quantity > 0 AND unit_price >= 0 AND line_discount >= 0"),
+        CheckConstraint("line_discount <= quantity * unit_price"),
+    )
+
+    owner: Mapped[str] = mapped_column(String(64), primary_key=True)
+    order_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    line_number: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sku: Mapped[str] = mapped_column(String(80))
+    quantity: Mapped[int] = mapped_column(Integer)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    line_discount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    source_quote: Mapped[str | None] = mapped_column(Text)
+
+
+class Payout(Base):
+    __tablename__ = "payouts"
+    owner: Mapped[str] = mapped_column(String(64), primary_key=True)
+    source_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    paid_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    note: Mapped[str] = mapped_column(Text)
+    __table_args__ = (CheckConstraint("amount >= 0"),)
+
+
+class BusinessImport(Base):
+    __tablename__ = "business_imports"
+    owner: Mapped[str] = mapped_column(String(64), primary_key=True)
+    sha256: Mapped[str] = mapped_column(String(64))
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    reviewed_by: Mapped[str] = mapped_column(String(100))

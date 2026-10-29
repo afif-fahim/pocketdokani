@@ -7,6 +7,11 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import BusinessLists, {
+  type Order,
+  type Payout,
+  type StockItem,
+} from "./business-lists";
 
 type Context = "seller" | "judge";
 type Source = {
@@ -28,14 +33,6 @@ type Workspace = {
   confirmed_by: string;
   confirmed_at: string;
   sources: Source[];
-};
-type Sku = {
-  sku: string;
-  product_name: string;
-  variant: string;
-  lot: string;
-  eligible: boolean;
-  constructed: boolean;
 };
 type Pending = { key: string; file: File; url: string };
 
@@ -96,7 +93,12 @@ export default function WorkspaceApp({ context }: { context: Context }) {
   const [passcode, setPasscode] = useState("");
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [active, setActive] = useState<Workspace | null>(null);
-  const [catalogue, setCatalogue] = useState<Sku[]>([]);
+  const [stock, setStock] = useState<StockItem[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [section, setSection] = useState<"orders" | "stock" | "conversations">(
+    "orders",
+  );
   const [pending, setPending] = useState<Pending[]>([]);
   const pendingRef = useRef<Pending[]>([]);
   const nextPendingKey = useRef(0);
@@ -108,11 +110,15 @@ export default function WorkspaceApp({ context }: { context: Context }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
-    const [items, skus] = await Promise.all([
+    const [items, skus, orderRecords, payoutRecords] = await Promise.all([
       api<Workspace[]>(`${base}/workspaces`),
-      api<Sku[]>(`${base}/catalogue`),
+      api<StockItem[]>(`${base}/stock`),
+      api<Order[]>(`${base}/orders`),
+      api<Payout[]>(`${base}/payouts`),
     ]);
-    setCatalogue(skus);
+    setStock(skus);
+    setOrders(orderRecords);
+    setPayouts(payoutRecords);
     const id = new URLSearchParams(window.location.search).get("workspace");
     const selected = id
       ? items.find((item) => item.id === id) ||
@@ -124,12 +130,16 @@ export default function WorkspaceApp({ context }: { context: Context }) {
         : items,
     );
     setActive(selected);
+    if (selected) setSection("conversations");
   }, [base]);
 
   useEffect(() => {
     let stopped = false;
     api(`${base}/session`)
       .then(async () => {
+        if (stopped) return;
+        // Upgrade an existing screenshot-only judge session without replacing it.
+        if (judge) await api(`${base}/session`, { method: "POST" });
         if (stopped) return;
         setSignedIn(true);
         await load();
@@ -148,7 +158,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
     return () => {
       stopped = true;
     };
-  }, [base, load]);
+  }, [base, judge, load]);
 
   useEffect(() => {
     pendingRef.current = pending;
@@ -161,6 +171,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
 
   function chooseWorkspace(workspace: Workspace | null) {
     setActive(workspace);
+    setSection("conversations");
     const url = new URL(window.location.href);
     if (workspace) url.searchParams.set("workspace", workspace.id);
     else url.searchParams.delete("workspace");
@@ -177,7 +188,9 @@ export default function WorkspaceApp({ context }: { context: Context }) {
       if (cause instanceof ApiError && cause.status === 401) {
         setSignedIn(false);
         setWorkspaces([]);
-        setCatalogue([]);
+        setStock([]);
+        setOrders([]);
+        setPayouts([]);
         setActive(null);
         dialogRef.current?.close();
         setView(null);
@@ -210,11 +223,12 @@ export default function WorkspaceApp({ context }: { context: Context }) {
       const workspace = await api<Workspace>(
         `${base}/example`,
         json("POST", {
-          workspace_id: reset ? active?.id : undefined,
+          workspace_id: reset ? (active?.id ?? workspaces[0]?.id) : undefined,
         }),
       );
-      setWorkspaces([workspace]);
       chooseWorkspace(workspace);
+      await load();
+      setSection(section);
       setNotice(
         reset
           ? "Your constructed example has been reset."
@@ -331,7 +345,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
             with a conversation.
           </h1>
           <p className="lead">
-            Keep the original screenshots, in order, in one place.
+            Your orders, stock and original conversations, in one place.
             <br />A clear trail for the work that comes next.
           </p>
         </div>
@@ -353,7 +367,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
             <h2>{judge ? "Take a look around." : "Open your shop."}</h2>
             <p>
               {judge
-                ? "Start a separate session with hand-authored screenshots and a constructed catalogue. Only your own example can be reset."
+                ? "Explore constructed orders, stock, payouts and screenshots. Only your own example can be reset."
                 : "Enter the shop passcode to import and reopen private conversations."}
             </p>
             <form onSubmit={signIn} className="stack">
@@ -392,6 +406,14 @@ export default function WorkspaceApp({ context }: { context: Context }) {
                 {judge ? "Judge session" : "Shop signed in"}
               </p>
               <div className="button-row">
+                {judge && (
+                  <button
+                    disabled={busy}
+                    onClick={() => openExample(Boolean(workspaces.length))}
+                  >
+                    {busy ? "Restoring…" : "Reset judge shop"}
+                  </button>
+                )}
                 {!judge && active && (
                   <button disabled={busy} onClick={() => chooseWorkspace(null)}>
                     New import +
@@ -405,7 +427,9 @@ export default function WorkspaceApp({ context }: { context: Context }) {
                       setSignedIn(false);
                       setActive(null);
                       setWorkspaces([]);
-                      setCatalogue([]);
+                      setStock([]);
+                      setOrders([]);
+                      setPayouts([]);
                       discardPending();
                       dialogRef.current?.close();
                       setView(null);
@@ -416,333 +440,326 @@ export default function WorkspaceApp({ context }: { context: Context }) {
                 </button>
               </div>
             </nav>
-            <div className="workspace-layout">
-              <section className="panel workspace-main">
-                {active ? (
-                  <>
-                    <div className="section-heading">
-                      <div>
-                        <p className="eyebrow">SAVED CONVERSATION</p>
-                        <h2 className="reference">{active.reference}</h2>
-                      </div>
-                      <span className="pill">
-                        {active.sources.length} originals
-                      </span>
-                    </div>
-                    <p className="coverage-note">
-                      Selected screenshots only. This batch may leave out parts
-                      of the conversation.
-                    </p>
-                    <div className="confirmation">
-                      <strong>Seller: {active.seller_side} bubbles</strong>
-                      <span>
-                        Customer:{" "}
-                        {active.seller_side === "right" ? "left" : "right"}{" "}
-                        bubbles
-                      </span>
-                      <small>
-                        Confirmed by {active.confirmed_by} ·{" "}
-                        {new Date(active.confirmed_at).toLocaleString()}
-                      </small>
-                    </div>
-                    <ol className="saved-sources">
-                      {active.sources.map((source) => (
-                        <li key={source.id} className="saved-source">
-                          <button
-                            className="image-button"
-                            onClick={() => preview(source)}
-                            aria-label={`Open original screenshot ${source.sequence}`}
-                          >
-                            <img
-                              src={source.url}
-                              alt={`Original screenshot ${source.sequence}`}
-                              loading="lazy"
-                            />
-                          </button>
-                          <div className="source-details">
-                            <p className="eyebrow">
-                              SCREENSHOT{" "}
-                              {String(source.sequence).padStart(2, "0")}
-                            </p>
-                            <h3>{source.filename}</h3>
-                            <p>
-                              {source.width} × {source.height} ·{" "}
-                              {bytes(source.size)}
-                            </p>
-                            <button onClick={() => preview(source)}>
-                              Open original ↗
-                            </button>
-                            <details>
-                              <summary>Original fingerprint</summary>
-                              <code>{source.sha256}</code>
-                            </details>
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
-                    <p className="fine-print">
-                      Original files and upload order are preserved. Extraction,
-                      order review and approval come in later slices.
-                    </p>
-                    {judge && (
-                      <button
-                        className="danger"
-                        disabled={busy}
-                        onClick={() => openExample(true)}
-                      >
-                        {busy ? "Resetting…" : "Reset my constructed example"}
-                      </button>
-                    )}
-                  </>
-                ) : judge ? (
-                  <div className="empty-state">
-                    <span className="step-number">01</span>
-                    <h2>A safe place to try it.</h2>
-                    <p>
-                      Open two constructed Messenger-style screenshots. The
-                      seller speaks on the right. The catalogue includes
-                      received and in-transit lots.
-                    </p>
-                    <button
-                      className="primary"
-                      disabled={busy}
-                      onClick={() => openExample()}
-                    >
-                      {busy ? "Loading…" : "Load constructed example ↗"}
-                    </button>
-                  </div>
-                ) : (
-                  <form className="import-form" onSubmit={importBatch}>
-                    <div className="section-heading">
-                      <div>
-                        <p className="eyebrow">NEW CONVERSATION</p>
-                        <h2>Start with the evidence.</h2>
-                      </div>
-                      <span className="step-number">01</span>
-                    </div>
-                    <p>
-                      Choose screenshots from one conversation, then put them in
-                      reading order.
-                    </p>
-                    <label className="upload-box">
-                      <span className="upload-icon" aria-hidden="true">
-                        ↥
-                      </span>
-                      <strong>Choose screenshots</strong>
-                      <span>
-                        PNG, JPEG or WebP · 8 MiB each
-                        <br />
-                        Up to 12 files, 32 MiB per batch
-                      </span>
-                      <input
-                        ref={fileRef}
-                        type="file"
-                        multiple
-                        accept="image/png,image/jpeg,image/webp"
-                        disabled={busy}
-                        onChange={(event) => selectFiles(event.target.files)}
-                      />
-                    </label>
-                    {pending.length > 0 && (
-                      <>
-                        <div className="section-heading">
-                          <h3>Reading order</h3>
-                          <span className="pill">
-                            {pending.length} selected
-                          </span>
+            <nav className="business-nav" aria-label="Shop sections">
+              {(["orders", "stock", "conversations"] as const).map((item) => (
+                <button
+                  key={item}
+                  aria-current={section === item ? "page" : undefined}
+                  disabled={busy}
+                  onClick={() => setSection(item)}
+                >
+                  {item === "orders"
+                    ? "Orders"
+                    : item === "stock"
+                      ? "Stock"
+                      : "Conversations"}
+                </button>
+              ))}
+            </nav>
+            {section !== "conversations" ? (
+              <BusinessLists
+                view={section}
+                orders={orders}
+                stock={stock}
+                payouts={payouts}
+              />
+            ) : (
+              <div className="workspace-layout">
+                <section className="panel workspace-main">
+                  {active ? (
+                    <>
+                      <div className="section-heading">
+                        <div>
+                          <p className="eyebrow">SAVED CONVERSATION</p>
+                          <h2 className="reference">{active.reference}</h2>
                         </div>
-                        <p className="fine-print">
-                          Phone pickers can change selection order. Check it
-                          here before saving.
-                        </p>
-                        <ol className="pending-sources">
-                          {pending.map((item, index) => (
-                            <li className="pending-source" key={item.key}>
-                              <button
-                                type="button"
-                                className="image-button"
-                                onClick={() => preview(item)}
-                                aria-label={`Preview screenshot ${index + 1}`}
-                              >
-                                <img
-                                  src={item.url}
-                                  alt={`Selected screenshot ${index + 1}`}
-                                />
-                              </button>
-                              <div className="pending-details">
-                                <strong>
-                                  {String(index + 1).padStart(2, "0")} ·{" "}
-                                  {item.file.name}
-                                </strong>
-                                <span>{bytes(item.file.size)}</span>
-                                <div className="button-row">
-                                  <button
-                                    type="button"
-                                    disabled={busy || index === 0}
-                                    onClick={() => move(index, -1)}
-                                    aria-label={`Move screenshot ${index + 1} earlier`}
-                                  >
-                                    ↑
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={
-                                      busy || index === pending.length - 1
-                                    }
-                                    onClick={() => move(index, 1)}
-                                    aria-label={`Move screenshot ${index + 1} later`}
-                                  >
-                                    ↓
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={busy}
-                                    onClick={() => {
-                                      URL.revokeObjectURL(item.url);
-                                      setPending((items) =>
-                                        items.filter(
-                                          (value) => value.key !== item.key,
-                                        ),
-                                      );
-                                      setConfirmed(false);
-                                    }}
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              </div>
-                            </li>
-                          ))}
-                        </ol>
-                        <fieldset>
-                          <legend>Confirm the speaker sides</legend>
-                          <p>
-                            Supported layout: a one-to-one Messenger mobile
-                            conversation with left and right message bubbles,
-                            read from top to bottom. Other layouts need to be
-                            re-captured.
-                          </p>
-                          <label>
-                            Seller messages are on the
-                            <select
-                              value={sellerSide}
-                              disabled={busy}
-                              onChange={(event) => {
-                                setSellerSide(
-                                  event.target.value as "left" | "right",
-                                );
-                                setConfirmed(false);
-                              }}
+                        <span className="pill">
+                          {active.sources.length} originals
+                        </span>
+                      </div>
+                      <p className="coverage-note">
+                        Selected screenshots only. This batch may leave out
+                        parts of the conversation.
+                      </p>
+                      <div className="confirmation">
+                        <strong>Seller: {active.seller_side} bubbles</strong>
+                        <span>
+                          Customer:{" "}
+                          {active.seller_side === "right" ? "left" : "right"}{" "}
+                          bubbles
+                        </span>
+                        <small>
+                          Confirmed by {active.confirmed_by} ·{" "}
+                          {new Date(active.confirmed_at).toLocaleString()}
+                        </small>
+                      </div>
+                      <ol className="saved-sources">
+                        {active.sources.map((source) => (
+                          <li key={source.id} className="saved-source">
+                            <button
+                              className="image-button"
+                              onClick={() => preview(source)}
+                              aria-label={`Open original screenshot ${source.sequence}`}
                             >
-                              <option value="right">
-                                Right — customer on the left
-                              </option>
-                              <option value="left">
-                                Left — customer on the right
-                              </option>
-                            </select>
-                          </label>
-                          <label className="checkbox-label">
-                            <input
-                              type="checkbox"
-                              required
-                              checked={confirmed}
-                              disabled={busy}
-                              onChange={(event) =>
-                                setConfirmed(event.target.checked)
-                              }
-                            />
-                            <span>
-                              I checked the previews, reading order and speaker
-                              sides. These screenshots use the supported layout.
-                            </span>
-                          </label>
-                        </fieldset>
-                        <p className="coverage-note">
-                          This preserves the selected batch; it does not
-                          establish that the whole conversation is present.
-                        </p>
+                              <img
+                                src={source.url}
+                                alt={`Original screenshot ${source.sequence}`}
+                                loading="lazy"
+                              />
+                            </button>
+                            <div className="source-details">
+                              <p className="eyebrow">
+                                SCREENSHOT{" "}
+                                {String(source.sequence).padStart(2, "0")}
+                              </p>
+                              <h3>{source.filename}</h3>
+                              <p>
+                                {source.width} × {source.height} ·{" "}
+                                {bytes(source.size)}
+                              </p>
+                              <button onClick={() => preview(source)}>
+                                Open original ↗
+                              </button>
+                              <details>
+                                <summary>Original fingerprint</summary>
+                                <code>{source.sha256}</code>
+                              </details>
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                      <p className="fine-print">
+                        Original files and upload order are preserved.
+                        Extraction, order review and approval come in later
+                        slices.
+                      </p>
+                      {judge && (
                         <button
-                          className="primary"
-                          disabled={busy || !confirmed}
+                          className="danger"
+                          disabled={busy}
+                          onClick={() => openExample(true)}
                         >
-                          {busy ? "Saving originals…" : "Save conversation ↗"}
+                          {busy ? "Resetting…" : "Reset my constructed example"}
                         </button>
-                      </>
-                    )}
-                  </form>
-                )}
-              </section>
-              <aside className="workspace-aside stack">
-                <section className="panel compact">
-                  <p className="eyebrow">YOUR TRAIL</p>
-                  <h2>Conversations</h2>
-                  {workspaces.length ? (
-                    <ul className="workspace-list">
-                      {workspaces.map((item) => (
-                        <li key={item.id}>
-                          <button
-                            disabled={busy}
-                            aria-current={
-                              active?.id === item.id ? "page" : undefined
-                            }
-                            onClick={() => chooseWorkspace(item)}
-                          >
-                            <strong>{item.reference}</strong>
-                            <span>
-                              {item.sources.length} screenshots ·{" "}
-                              {new Date(item.created_at).toLocaleDateString()}
+                      )}
+                    </>
+                  ) : judge ? (
+                    <div className="empty-state">
+                      <span className="step-number">01</span>
+                      <h2>A safe place to try it.</h2>
+                      <p>
+                        Open two constructed Messenger-style screenshots. The
+                        seller speaks on the right. The catalogue includes
+                        received and in-transit lots.
+                      </p>
+                      <button
+                        className="primary"
+                        disabled={busy}
+                        onClick={() => openExample()}
+                      >
+                        {busy ? "Loading…" : "Load constructed example ↗"}
+                      </button>
+                    </div>
+                  ) : (
+                    <form className="import-form" onSubmit={importBatch}>
+                      <div className="section-heading">
+                        <div>
+                          <p className="eyebrow">NEW CONVERSATION</p>
+                          <h2>Start with the evidence.</h2>
+                        </div>
+                        <span className="step-number">01</span>
+                      </div>
+                      <p>
+                        Choose screenshots from one conversation, then put them
+                        in reading order.
+                      </p>
+                      <label className="upload-box">
+                        <span className="upload-icon" aria-hidden="true">
+                          ↥
+                        </span>
+                        <strong>Choose screenshots</strong>
+                        <span>
+                          PNG, JPEG or WebP · 8 MiB each
+                          <br />
+                          Up to 12 files, 32 MiB per batch
+                        </span>
+                        <input
+                          ref={fileRef}
+                          type="file"
+                          multiple
+                          accept="image/png,image/jpeg,image/webp"
+                          disabled={busy}
+                          onChange={(event) => selectFiles(event.target.files)}
+                        />
+                      </label>
+                      {pending.length > 0 && (
+                        <>
+                          <div className="section-heading">
+                            <h3>Reading order</h3>
+                            <span className="pill">
+                              {pending.length} selected
                             </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="muted">
-                      Your saved conversations will appear here.
-                    </p>
-                  )}
-                </section>
-                <section className="panel compact">
-                  <p className="eyebrow">
-                    {judge ? "CONSTRUCTED CATALOGUE" : "SHOP CATALOGUE"}
-                  </p>
-                  <h2>A lot matters.</h2>
-                  <p>
-                    Only received lots are eligible for seller selection in the
-                    order review slice.
-                  </p>
-                  {catalogue.length ? (
-                    <ul className="sku-list">
-                      {catalogue.map((sku) => (
-                        <li key={sku.sku}>
-                          <strong>
-                            {sku.product_name} · {sku.variant}
-                          </strong>
-                          <code>{sku.sku}</code>
-                          <span
-                            className={`pill ${sku.eligible ? "eligible" : "ineligible"}`}
+                          </div>
+                          <p className="fine-print">
+                            Phone pickers can change selection order. Check it
+                            here before saving.
+                          </p>
+                          <ol className="pending-sources">
+                            {pending.map((item, index) => (
+                              <li className="pending-source" key={item.key}>
+                                <button
+                                  type="button"
+                                  className="image-button"
+                                  onClick={() => preview(item)}
+                                  aria-label={`Preview screenshot ${index + 1}`}
+                                >
+                                  <img
+                                    src={item.url}
+                                    alt={`Selected screenshot ${index + 1}`}
+                                  />
+                                </button>
+                                <div className="pending-details">
+                                  <strong>
+                                    {String(index + 1).padStart(2, "0")} ·{" "}
+                                    {item.file.name}
+                                  </strong>
+                                  <span>{bytes(item.file.size)}</span>
+                                  <div className="button-row">
+                                    <button
+                                      type="button"
+                                      disabled={busy || index === 0}
+                                      onClick={() => move(index, -1)}
+                                      aria-label={`Move screenshot ${index + 1} earlier`}
+                                    >
+                                      ↑
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        busy || index === pending.length - 1
+                                      }
+                                      onClick={() => move(index, 1)}
+                                      aria-label={`Move screenshot ${index + 1} later`}
+                                    >
+                                      ↓
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={busy}
+                                      onClick={() => {
+                                        URL.revokeObjectURL(item.url);
+                                        setPending((items) =>
+                                          items.filter(
+                                            (value) => value.key !== item.key,
+                                          ),
+                                        );
+                                        setConfirmed(false);
+                                      }}
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                </div>
+                              </li>
+                            ))}
+                          </ol>
+                          <fieldset>
+                            <legend>Confirm the speaker sides</legend>
+                            <p>
+                              Supported layout: a one-to-one Messenger mobile
+                              conversation with left and right message bubbles,
+                              read from top to bottom. Other layouts need to be
+                              re-captured.
+                            </p>
+                            <label>
+                              Seller messages are on the
+                              <select
+                                value={sellerSide}
+                                disabled={busy}
+                                onChange={(event) => {
+                                  setSellerSide(
+                                    event.target.value as "left" | "right",
+                                  );
+                                  setConfirmed(false);
+                                }}
+                              >
+                                <option value="right">
+                                  Right — customer on the left
+                                </option>
+                                <option value="left">
+                                  Left — customer on the right
+                                </option>
+                              </select>
+                            </label>
+                            <label className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                required
+                                checked={confirmed}
+                                disabled={busy}
+                                onChange={(event) =>
+                                  setConfirmed(event.target.checked)
+                                }
+                              />
+                              <span>
+                                I checked the previews, reading order and
+                                speaker sides. These screenshots use the
+                                supported layout.
+                              </span>
+                            </label>
+                          </fieldset>
+                          <p className="coverage-note">
+                            This preserves the selected batch; it does not
+                            establish that the whole conversation is present.
+                          </p>
+                          <button
+                            className="primary"
+                            disabled={busy || !confirmed}
                           >
-                            {sku.eligible
-                              ? "Received · eligible"
-                              : "In transit · ineligible"}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="coverage-note">
-                      No reviewed shop catalogue yet. A seller-reviewed seed
-                      must be supplied before real SKU selection.
-                    </p>
+                            {busy ? "Saving originals…" : "Save conversation ↗"}
+                          </button>
+                        </>
+                      )}
+                    </form>
                   )}
                 </section>
-                <p className="aside-note">
-                  ↳ Every original stays linked to its conversation. A
-                  screenshot of a voice note does not provide its audio.
-                </p>
-              </aside>
-            </div>
+                <aside className="workspace-aside stack">
+                  <section className="panel compact">
+                    <p className="eyebrow">YOUR TRAIL</p>
+                    <h2>Conversations</h2>
+                    {workspaces.length ? (
+                      <ul className="workspace-list">
+                        {workspaces.map((item) => (
+                          <li key={item.id}>
+                            <button
+                              disabled={busy}
+                              aria-current={
+                                active?.id === item.id ? "page" : undefined
+                              }
+                              onClick={() => chooseWorkspace(item)}
+                            >
+                              <strong>{item.reference}</strong>
+                              <span>
+                                {item.sources.length} screenshots ·{" "}
+                                {new Date(item.created_at).toLocaleDateString()}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="muted">
+                        Your saved conversations will appear here.
+                      </p>
+                    )}
+                  </section>
+                  <p className="aside-note">
+                    ↳ Every original stays linked to its conversation. A
+                    screenshot of a voice note does not provide its audio.
+                  </p>
+                </aside>
+              </div>
+            )}
           </>
         )}
         <footer>

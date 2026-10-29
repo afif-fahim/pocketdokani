@@ -8,7 +8,7 @@ export default defineConfig([
   ...nextTypescript,
   prettier,
   {
-    files: ["app/workspace-app.tsx"],
+    files: ["app/workspace-app.tsx", "app/business-lists.tsx"],
     rules: {
       // Preserve original evidence and session-protected image URLs without optimization.
       "@next/next/no-img-element": "off",

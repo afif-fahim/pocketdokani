@@ -57,6 +57,27 @@ class ObjectStorage:
             return path.read_bytes()
         return self._request("GET", key).content
 
+    def get_if_exists(self, key: str) -> bytes | None:
+        """Return None only for a missing object; preserve provider failures."""
+        try:
+            return self.get(key)
+        except FileNotFoundError:
+            return None
+        except httpx.HTTPStatusError as error:
+            # Supabase serves NoSuchKey as HTTP 400 with statusCode "404".
+            # A missing bucket or failed authorization must still abort imports.
+            if error.response.status_code in (400, 404):
+                try:
+                    payload = error.response.json()
+                except ValueError:
+                    payload = None
+                if (
+                    isinstance(payload, dict)
+                    and payload.get("code", payload.get("error")) == "NoSuchKey"
+                ):
+                    return None
+            raise
+
     def delete(self, key: str) -> None:
         if self.config.storage_backend == "local":
             path = self._local_path(key)
