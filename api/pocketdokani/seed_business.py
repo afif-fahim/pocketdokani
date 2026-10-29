@@ -4,7 +4,6 @@ import argparse
 import subprocess
 from pathlib import Path
 
-import httpx
 from sqlalchemy import delete, text
 from sqlalchemy.orm import Session
 
@@ -25,14 +24,7 @@ def import_business(db: Session, data: BusinessData, reviewed_by: str) -> bool:
     uploaded: list[str] = []
     try:
         for key, photo in data.photos.items():
-            try:
-                existing = storage.get(key)
-            except FileNotFoundError:
-                existing = None
-            except httpx.HTTPStatusError as error:
-                if error.response.status_code != 404:
-                    raise
-                existing = None
+            existing = storage.get_if_exists(key)
             if existing is None:
                 storage.put(key, photo, "image/webp")
                 uploaded.append(key)

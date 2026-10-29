@@ -72,3 +72,13 @@ No remaining missing requirements, scope creep or incorrect implementations. The
 Standards: 0 remaining findings. Spec: 0 remaining findings.
 
 For issue #2, `npm run check`, `npm run test`, the Next.js production build and the staged privacy guard passed.
+
+## Follow-up review: hosted photo imports
+
+Independent review reproduced an import failure when Supabase returned HTTP 400 with `code: NoSuchKey` for a new photo. The storage adapter now recognises that specific missing-object response (and its HTTP 404 form); missing buckets, authorization failures and other provider errors still propagate. The importer uses the adapter's optional read, and strict image reads retain their existing behaviour. See [Supabase's renderer](https://github.com/supabase/storage/blob/master/src/storage/renderer/renderer.ts#L98-L105) for the response contract.
+
+A temporary synthetic HTTP-boundary reproduction failed before the fix, then verified new-photo import, SKU persistence, unchanged repeated imports and reuse of existing photos. It also checked that bucket/auth/server errors, malformed or non-object JSON, non-JSON responses and timeouts are not treated as missing objects. This used no hosted service or real credentials and does not establish live Supabase acceptance. No additional test files are committed, respecting the issue's COD-only exception.
+
+The review's pricing-duplication observation is also addressed: `LinePrice.total()` owns line validation, discounts and totals, and is shared by COD calculation, workbook reconciliation and order display. The existing COD check continues to pass.
+
+Follow-up standards review: 0 remaining findings. Follow-up spec review: 0 remaining findings. Local read payloads retain the imported order-line totals and all three payouts after the shared-pricing change.

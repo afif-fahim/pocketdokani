@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from pocketdokani.db import utc_iso
+from pocketdokani.money import LinePrice
 from pocketdokani.records import BrowserSession, Order, OrderLine, Payout, Product, Sku
 
 
@@ -66,7 +67,11 @@ def orders_payload(db: Session, actor: BrowserSession) -> list[dict[str, object]
                 "quantity": line.quantity,
                 "unit_price": str(line.unit_price),
                 "line_discount": str(line.line_discount),
-                "line_total": str(line.quantity * line.unit_price - line.line_discount),
+                "line_total": str(
+                    LinePrice(
+                        line.quantity, line.unit_price, line.line_discount
+                    ).total()
+                ),
                 "source_quote": line.source_quote,
             }
         )

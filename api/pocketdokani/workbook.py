@@ -251,11 +251,7 @@ def read_workbook(path: Path, reviewed_by: str) -> BusinessData:
                     amount(row[11]),
                     amount(row[13], blank_zero=True),
                 )
-                if price.line_discount > price.quantity * price.unit_price:
-                    raise ValueError("Line discount exceeds its line total.")
-                if price.quantity * price.unit_price - price.line_discount != amount(
-                    row[14]
-                ):
+                if price.total() != amount(row[14]):
                     raise ValueError("Cached line total does not reconcile.")
                 line_prices.append(price)
                 result.lines.append(
