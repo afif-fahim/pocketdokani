@@ -10,9 +10,11 @@ Built for the Meta Global AI Developer Hackathon with Muse Spark, Muse Voice Tra
 
 Implemented: a Next.js phone layout and FastAPI service that preserve ordered screenshot batches, original images, source hashes, speaker-side confirmation and stable references. Seller workspaces require the shop passcode; each judge session gets its own constructed example.
 
+Live: [seller workspace](https://pocketdokani.vercel.app/) (shop passcode required) and [constructed judge example](https://pocketdokani.vercel.app/judge). The first screenshot-import slice is deployed on Vercel and Render with PostgreSQL and private object storage on Supabase. Hosted checks were recorded on October 30, 2026; see the [verification record](docs/verification.md#hosted-verification--october-30-2026).
+
 Not yet implemented: business data seed, order drafting, the voice assistant, pack check, courier booking, evaluation and pilot results.
 
-Production configuration targets PostgreSQL and private Supabase storage. Local development also supports SQLite/private files. See [local setup and acceptance checks](docs/development.md), [deployment setup](docs/deployment.md), [evaluation partitions](evals/README.md) and the [verification record](docs/verification.md).
+Local development also supports SQLite/private files. See [local setup and acceptance checks](docs/development.md), [deployment setup](docs/deployment.md), [evaluation partitions](evals/README.md) and the [verification record](docs/verification.md).
 
 ## Planned scope
 
