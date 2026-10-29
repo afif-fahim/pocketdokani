@@ -1,0 +1,14 @@
+.git
+.env
+.env.*
+.venv
+.mypy_cache
+.ruff_cache
+.scratch
+docs/private
+data
+media
+evals/private
+**/node_modules
+web/.next
+**/__pycache__
