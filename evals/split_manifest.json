@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "source_groups": [
+    {
+      "source_id": "constructed-conversation-001",
+      "kind": "conversation",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": ["constructed-screenshot-001", "constructed-screenshot-002"]
+    }
+  ]
+}

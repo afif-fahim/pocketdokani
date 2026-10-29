@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: ordertrail-api
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: STORAGE_BACKEND
+        value: supabase
+      - key: DATABASE_URL
+        sync: false
+      - key: SHOP_PASSCODE
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: ordertrail-evidence

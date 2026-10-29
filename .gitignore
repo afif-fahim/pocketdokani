@@ -9,3 +9,8 @@ __pycache__/
 .venv/
 node_modules/
 .next/
+!.env.example
+!web/.env.example
+*.tsbuildinfo
+.mypy_cache/
+.scratch/

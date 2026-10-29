@@ -1,0 +1,2 @@
+#!/bin/sh
+exec uv run --frozen python scripts/check_staged_privacy.py

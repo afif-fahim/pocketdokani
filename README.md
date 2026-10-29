@@ -9,9 +9,20 @@ approved version before shipping.
 
 ## Status
 
-Planning and repository setup. The application, model integrations,
-deployment, evaluation results, and pilot outcomes are not implemented or
-validated yet.
+The first import slice is implemented: a Next.js phone layout and FastAPI
+service preserve ordered screenshot batches, original images, source hashes,
+speaker-side confirmation and stable OrderTrail references. Seller workspaces
+require the shop passcode; each judge session gets its own constructed example.
+
+Production configuration targets PostgreSQL and private Supabase storage.
+Local development also supports SQLite/private files. Hosting, physical-phone
+acceptance, model integrations, order extraction/approval, label checking,
+evaluation results and pilot outcomes remain unvalidated or unimplemented.
+
+See [local setup and acceptance checks](docs/development.md),
+[deployment setup](docs/deployment.md), and [evaluation partitions](evals/README.md).
+The [verification record](docs/verification.md) lists the local checks and
+the hosted/physical-phone gates that remain.
 
 ## Initial scope
 
