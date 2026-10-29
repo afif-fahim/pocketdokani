@@ -48,7 +48,7 @@ def validate_original(filename: str, data: bytes, declared_type: str) -> Origina
             # verify() checks file structure; load() also catches truncated image data.
             with Image.open(io.BytesIO(data)) as image:
                 image.load()
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError,
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError, Image.DecompressionBombError,
             Image.DecompressionBombWarning):
         raise HTTPException(415, "This image could not be read. Export a PNG or JPEG and try again.") from None
     safe_name = filename.replace("\\", "/").rsplit("/", 1)[-1][:160] or "screenshot"
