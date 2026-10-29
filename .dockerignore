@@ -3,11 +3,12 @@
 .env.*
 .venv
 .mypy_cache
+.ruff_cache
 .scratch
 docs/private
 data
 media
 evals/private
-web/node_modules
+**/node_modules
 web/.next
 **/__pycache__

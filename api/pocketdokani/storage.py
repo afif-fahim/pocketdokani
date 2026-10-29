@@ -18,15 +18,24 @@ class ObjectStorage:
             raise ValueError("Invalid object key")
         return self.config.local_storage_path.joinpath(*parts)
 
-    def _request(self, method: str, key: str, data: bytes | None = None,
-                 media_type: str = "application/octet-stream") -> httpx.Response:
+    def _request(
+        self,
+        method: str,
+        key: str,
+        data: bytes | None = None,
+        media_type: str = "application/octet-stream",
+    ) -> httpx.Response:
         secret = self.config.supabase_service_role_key.get_secret_value()
         response = httpx.request(
             method,
             f"{self.config.supabase_url}/storage/v1/object/"
             f"{self.config.supabase_bucket}/{key}",
-            headers={"Authorization": f"Bearer {secret}", "apikey": secret,
-                     "Content-Type": media_type, "x-upsert": "false"},
+            headers={
+                "Authorization": f"Bearer {secret}",
+                "apikey": secret,
+                "Content-Type": media_type,
+                "x-upsert": "false",
+            },
             content=data,
             timeout=30,
         )
@@ -55,8 +64,10 @@ class ObjectStorage:
         else:
             secret = self.config.supabase_service_role_key.get_secret_value()
             response = httpx.request(
-                "DELETE", f"{self.config.supabase_url}/storage/v1/object/{self.config.supabase_bucket}",
+                "DELETE",
+                f"{self.config.supabase_url}/storage/v1/object/{self.config.supabase_bucket}",
                 headers={"Authorization": f"Bearer {secret}", "apikey": secret},
-                json={"prefixes": [key]}, timeout=30,
+                json={"prefixes": [key]},
+                timeout=30,
             )
             response.raise_for_status()

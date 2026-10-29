@@ -13,7 +13,11 @@ def now() -> datetime:
 
 def utc_iso(value: datetime) -> str:
     # SQLite's development-only driver drops timezone metadata on round trips.
-    return value.replace(tzinfo=timezone.utc).isoformat() if value.tzinfo is None else value.astimezone(timezone.utc).isoformat()
+    return (
+        value.replace(tzinfo=timezone.utc).isoformat()
+        if value.tzinfo is None
+        else value.astimezone(timezone.utc).isoformat()
+    )
 
 
 class Base(DeclarativeBase):

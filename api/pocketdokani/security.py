@@ -29,19 +29,26 @@ def require_mutation(request: Request) -> None:
 def budget(db: Session, key: str, maximum: int, minutes: int = 60) -> None:
     # A transaction-scoped lock also serialises the first INSERT on PostgreSQL.
     if db.bind is not None and db.bind.dialect.name == "postgresql":
-        lock = int.from_bytes(hashlib.sha256(key.encode()).digest()[:8], "big", signed=True)
+        lock = int.from_bytes(
+            hashlib.sha256(key.encode()).digest()[:8], "big", signed=True
+        )
         db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock})
     record = db.get(RequestBudget, key, with_for_update=True)
     timestamp = now()
     if record is None:
-        record = RequestBudget(key=key, used=0, resets_at=timestamp + timedelta(minutes=minutes))
+        record = RequestBudget(
+            key=key, used=0, resets_at=timestamp + timedelta(minutes=minutes)
+        )
         db.add(record)
     elif record.resets_at.replace(tzinfo=timezone.utc) <= timestamp:
         record.used = 0
         record.resets_at = timestamp + timedelta(minutes=minutes)
     if record.used >= maximum:
-        raise HTTPException(429, "Too many attempts. Please try again later.",
-                            headers={"Retry-After": str(minutes * 60)})
+        raise HTTPException(
+            429,
+            "Too many attempts. Please try again later.",
+            headers={"Retry-After": str(minutes * 60)},
+        )
     record.used += 1
     db.commit()
 
@@ -49,20 +56,32 @@ def budget(db: Session, key: str, maximum: int, minutes: int = 60) -> None:
 def issue_session(db: Session, response: Response, context: Context) -> BrowserSession:
     token = secrets.token_urlsafe(32)
     owner = "shop" if context == "seller" else secrets.token_hex(24)
-    session = BrowserSession(token_hash=digest(token), context=context, owner=owner,
-                             expires_at=now() + timedelta(hours=settings().session_hours))
+    session = BrowserSession(
+        token_hash=digest(token),
+        context=context,
+        owner=owner,
+        expires_at=now() + timedelta(hours=settings().session_hours),
+    )
     db.add(session)
-    response.set_cookie(f"pd_{context}", token, httponly=True,
-                        secure=settings().environment == "production", samesite="strict",
-                        max_age=settings().session_hours * 3600, path="/")
+    response.set_cookie(
+        f"pd_{context}",
+        token,
+        httponly=True,
+        secure=settings().environment == "production",
+        samesite="strict",
+        max_age=settings().session_hours * 3600,
+        path="/",
+    )
     return session
 
 
-def authenticate(db: Session, request: Request, context: Context,
-                 lock: bool = False) -> BrowserSession:
+def authenticate(
+    db: Session, request: Request, context: Context, lock: bool = False
+) -> BrowserSession:
     token = request.cookies.get(f"pd_{context}", "")
     statement = select(BrowserSession).where(
-        BrowserSession.token_hash == digest(token), BrowserSession.context == context,
+        BrowserSession.token_hash == digest(token),
+        BrowserSession.context == context,
         BrowserSession.expires_at > now(),
     )
     if lock:

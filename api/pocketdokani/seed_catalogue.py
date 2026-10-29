@@ -1,4 +1,5 @@
 """Load only seller-reviewed catalogue data, from an ignored JSON file."""
+
 import argparse
 from pathlib import Path
 
@@ -26,15 +27,24 @@ def main() -> None:
     if not 1 <= len(args.reviewed_by) <= 100:
         parser.error("Supply a reviewer identifier of 1–100 characters.")
     try:
-        rows = TypeAdapter(list[ReviewedSku]).validate_json(args.file.read_text(encoding="utf-8"))
+        rows = TypeAdapter(list[ReviewedSku]).validate_json(
+            args.file.read_text(encoding="utf-8")
+        )
     except (OSError, ValidationError):
         parser.error("Could not read reviewed SKU JSON. Check the documented schema.")
     if len({row.sku for row in rows}) != len(rows):
         parser.error("SKU identifiers must be unique, including lot-specific variants.")
     with Session(engine) as db:
         for row in rows:
-            db.merge(Sku(owner="shop", **row.model_dump(), constructed=False,
-                         reviewed_by=args.reviewed_by, reviewed_at=now()))
+            db.merge(
+                Sku(
+                    owner="shop",
+                    **row.model_dump(),
+                    constructed=False,
+                    reviewed_by=args.reviewed_by,
+                    reviewed_at=now(),
+                )
+            )
         db.commit()
     print(f"Loaded {len(rows)} reviewed shop SKUs. Judge catalogue unchanged.")
 

@@ -13,4 +13,5 @@ node_modules/
 !web/.env.example
 *.tsbuildinfo
 .mypy_cache/
+.ruff_cache/
 .scratch/

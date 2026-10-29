@@ -1,0 +1,20 @@
+# Private inputs and credentials, including when formatting from an editor.
+docs/private/
+data/private/
+evals/private/
+media/
+.env
+.env.*
+
+# Dependencies, caches and generated files.
+node_modules/
+.venv/
+.next/
+.mypy_cache/
+.ruff_cache/
+.scratch/
+*.tsbuildinfo
+**/package-lock.json
+uv.lock
+web/next-env.d.ts
+web/AGENTS.md

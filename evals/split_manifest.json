@@ -6,7 +6,10 @@
       "kind": "conversation",
       "split": "development",
       "provenance": "constructed",
-      "artifact_ids": ["constructed-screenshot-001", "constructed-screenshot-002"]
+      "artifact_ids": [
+        "constructed-screenshot-001",
+        "constructed-screenshot-002"
+      ]
     }
   ]
 }

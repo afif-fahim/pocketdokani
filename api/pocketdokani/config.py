@@ -7,7 +7,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
+    model_config = SettingsConfigDict(
+        env_file=".env", extra="ignore", hide_input_in_errors=True
+    )
 
     environment: Literal["development", "production"] = "production"
     database_url: SecretStr
@@ -30,10 +32,16 @@ class Settings(BaseSettings):
         ):
             raise ValueError("Configure Supabase URL and server-side service role key")
         if self.environment == "production":
-            if not self.database_url.get_secret_value().startswith("postgresql+psycopg://"):
+            if not self.database_url.get_secret_value().startswith(
+                "postgresql+psycopg://"
+            ):
                 raise ValueError("Production requires PostgreSQL with psycopg")
-            if self.storage_backend != "supabase" or not self.web_origin.startswith("https://"):
-                raise ValueError("Production requires HTTPS and Supabase object storage")
+            if self.storage_backend != "supabase" or not self.web_origin.startswith(
+                "https://"
+            ):
+                raise ValueError(
+                    "Production requires HTTPS and Supabase object storage"
+                )
         if self.web_origin.endswith("/"):
             raise ValueError("WEB_ORIGIN must have no trailing slash")
         return self

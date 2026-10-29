@@ -39,29 +39,50 @@ def validate_original(filename: str, data: bytes, declared_type: str) -> Origina
                 media_type = MEDIA_TYPES.get(image.format or "")
                 width, height = image.size
                 if media_type is None or declared_type != media_type:
-                    raise HTTPException(415, "Choose a PNG, JPEG or WebP screenshot with the correct file type.")
+                    raise HTTPException(
+                        415,
+                        "Choose a PNG, JPEG or WebP screenshot with the correct file type.",
+                    )
                 if getattr(image, "n_frames", 1) != 1:
-                    raise HTTPException(415, "Animated images are not supported. Choose a still screenshot.")
+                    raise HTTPException(
+                        415,
+                        "Animated images are not supported. Choose a still screenshot.",
+                    )
                 if width * height > 20_000_000:
-                    raise HTTPException(413, "Screenshots must be at most 20 megapixels.")
+                    raise HTTPException(
+                        413, "Screenshots must be at most 20 megapixels."
+                    )
                 image.verify()
             # verify() checks file structure; load() also catches truncated image data.
             with Image.open(io.BytesIO(data)) as image:
                 image.load()
-    except (UnidentifiedImageError, OSError, ValueError, SyntaxError, Image.DecompressionBombError,
-            Image.DecompressionBombWarning):
-        raise HTTPException(415, "This image could not be read. Export a PNG or JPEG and try again.") from None
+    except (
+        UnidentifiedImageError,
+        OSError,
+        ValueError,
+        SyntaxError,
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+    ):
+        raise HTTPException(
+            415, "This image could not be read. Export a PNG or JPEG and try again."
+        ) from None
     safe_name = filename.replace("\\", "/").rsplit("/", 1)[-1][:160] or "screenshot"
     return Original(safe_name, data, media_type, width, height)
 
 
-def create_workspace(db: Session, actor: BrowserSession, seller_side: str,
-                     originals: list[Original]) -> Workspace:
+def create_workspace(
+    db: Session, actor: BrowserSession, seller_side: str, originals: list[Original]
+) -> Workspace:
     """Publish a complete initial batch or roll it back; originals never get replaced."""
     workspace_id = str(uuid4())
     workspace = Workspace(
-        id=workspace_id, reference=f"PD-{uuid4().hex[:16].upper()}",
-        context=actor.context, owner=actor.owner, layout=LAYOUT, seller_side=seller_side,
+        id=workspace_id,
+        reference=f"PD-{uuid4().hex[:16].upper()}",
+        context=actor.context,
+        owner=actor.owner,
+        layout=LAYOUT,
+        seller_side=seller_side,
         confirmed_by="shop-seller" if actor.context == "seller" else "judge-visitor",
     )
     storage = ObjectStorage()
@@ -74,13 +95,20 @@ def create_workspace(db: Session, actor: BrowserSession, seller_side: str,
             key = f"{actor.context}/{actor.owner}/{workspace_id}/{source_id}"
             attempted_keys.append(key)
             storage.put(key, original.data, original.media_type)
-            db.add(SourceImage(
-                id=source_id, workspace_id=workspace_id, sequence=sequence,
-                filename=original.filename, storage_key=key,
-                sha256=hashlib.sha256(original.data).hexdigest(),
-                media_type=original.media_type, size=len(original.data),
-                width=original.width, height=original.height,
-            ))
+            db.add(
+                SourceImage(
+                    id=source_id,
+                    workspace_id=workspace_id,
+                    sequence=sequence,
+                    filename=original.filename,
+                    storage_key=key,
+                    sha256=hashlib.sha256(original.data).hexdigest(),
+                    media_type=original.media_type,
+                    size=len(original.data),
+                    width=original.width,
+                    height=original.height,
+                )
+            )
         db.flush()
         return workspace
     except Exception:
@@ -99,12 +127,20 @@ def cleanup_objects(keys: list[str]) -> None:
             # An inaccessible orphan can be removed by the documented storage sweep.
             import logging
 
-            logging.getLogger("pocketdokani").warning("Object cleanup incomplete; run storage sweep.")
+            logging.getLogger("pocketdokani").warning(
+                "Object cleanup incomplete; run storage sweep."
+            )
 
 
 def commit_workspace(db: Session, workspace: Workspace) -> None:
     """Never delete originals after an ambiguous database commit."""
-    keys = list(db.scalars(select(SourceImage.storage_key).where(SourceImage.workspace_id == workspace.id)))
+    keys = list(
+        db.scalars(
+            select(SourceImage.storage_key).where(
+                SourceImage.workspace_id == workspace.id
+            )
+        )
+    )
     workspace_id = workspace.id
     try:
         db.commit()
@@ -122,19 +158,36 @@ def commit_workspace(db: Session, workspace: Workspace) -> None:
 
 
 def workspace_payload(db: Session, workspace: Workspace) -> dict[str, object]:
-    images = db.scalars(select(SourceImage).where(
-        SourceImage.workspace_id == workspace.id,
-    ).order_by(SourceImage.sequence)).all()
+    images = db.scalars(
+        select(SourceImage)
+        .where(
+            SourceImage.workspace_id == workspace.id,
+        )
+        .order_by(SourceImage.sequence)
+    ).all()
     return {
-        "id": workspace.id, "reference": workspace.reference,
-        "context": workspace.context, "created_at": utc_iso(workspace.created_at),
-        "layout": workspace.layout, "seller_side": workspace.seller_side,
-        "confirmed_by": workspace.confirmed_by, "confirmed_at": utc_iso(workspace.confirmed_at),
-        "coverage": "selected_screenshots_only", "model_calls": 0,
-        "sources": [{
-            "id": image.id, "sequence": image.sequence, "filename": image.filename,
-            "sha256": image.sha256, "media_type": image.media_type, "size": image.size,
-            "width": image.width, "height": image.height,
-            "url": f"/api/{workspace.context}/workspaces/{workspace.id}/sources/{image.id}",
-        } for image in images],
+        "id": workspace.id,
+        "reference": workspace.reference,
+        "context": workspace.context,
+        "created_at": utc_iso(workspace.created_at),
+        "layout": workspace.layout,
+        "seller_side": workspace.seller_side,
+        "confirmed_by": workspace.confirmed_by,
+        "confirmed_at": utc_iso(workspace.confirmed_at),
+        "coverage": "selected_screenshots_only",
+        "model_calls": 0,
+        "sources": [
+            {
+                "id": image.id,
+                "sequence": image.sequence,
+                "filename": image.filename,
+                "sha256": image.sha256,
+                "media_type": image.media_type,
+                "size": image.size,
+                "width": image.width,
+                "height": image.height,
+                "url": f"/api/{workspace.context}/workspaces/{workspace.id}/sources/{image.id}",
+            }
+            for image in images
+        ],
     }
