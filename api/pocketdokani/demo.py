@@ -1,11 +1,21 @@
 import io
+from datetime import datetime, timezone
+from decimal import Decimal
 
 from PIL import Image, ImageDraw, ImageFont
-from sqlalchemy import text
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from pocketdokani.imports import Original
-from pocketdokani.records import Sku
+from pocketdokani.money import LinePrice, calculate_cod
+from pocketdokani.records import (
+    Order,
+    OrderLine,
+    Payout,
+    Product,
+    Sku,
+    historical_order_id,
+)
 
 # Hand-authored constructed source; no real seller/customer identifiers or phones.
 DEMO_SOURCE_ID = "constructed-conversation-001"
@@ -66,24 +76,136 @@ def screenshots() -> list[Original]:
     return result
 
 
-def seed_catalogue(db: Session) -> None:
-    if db.bind is not None and db.bind.dialect.name == "postgresql":
-        db.execute(text("SELECT pg_advisory_xact_lock(73012001)"))
-    for sku, colour, lot, received in [
-        ("DEMO-TOTE-BLUE-R1", "Blue", "DEMO-RECEIVED", True),
-        ("DEMO-TOTE-BLACK-R1", "Black", "DEMO-RECEIVED", True),
-        ("DEMO-TOTE-BLUE-T2", "Blue", "DEMO-IN-TRANSIT", False),
-    ]:
-        if db.get(Sku, ("judge-catalogue", sku)) is None:
+DEMO_PRODUCTS = [
+    ("DEMO-TOTE", "Canvas tote", "Blue"),
+    ("DEMO-SHOULDER", "Shoulder bag", "Black"),
+    ("DEMO-CROSSBODY", "Crossbody bag", "Green"),
+    ("DEMO-HANDBAG", "Small handbag", "Brown"),
+    ("DEMO-POUCH", "Travel pouch", "Plum"),
+]
+
+
+def product_photo(product_id: str) -> bytes:
+    colour = next(
+        colour.lower() for key, _, colour in DEMO_PRODUCTS if key == product_id
+    )
+    photo = Image.new("RGB", (360, 300), "#f3f1e9")
+    draw = ImageDraw.Draw(photo)
+    draw.arc((125, 35, 235, 170), 180, 360, fill=colour, width=14)
+    draw.rounded_rectangle((70, 95, 290, 250), radius=25, fill=colour)
+    draw.text((18, 275), "CONSTRUCTED PRODUCT", fill="#203831")
+    result = io.BytesIO()
+    photo.save(result, format="WEBP")
+    return result.getvalue()
+
+
+def seed_shop(db: Session, owner: str, *, reset: bool = False) -> None:
+    if owner == "shop" or owner == "judge-catalogue":
+        raise ValueError("A constructed shop must belong to a judge session.")
+    if not reset and db.get(Product, (owner, DEMO_PRODUCTS[0][0])) is not None:
+        return
+    if reset:
+        for table in (OrderLine, Order, Payout, Sku, Product):
+            db.execute(delete(table).where(table.owner == owner))
+        db.flush()
+    for product_id, name, _ in DEMO_PRODUCTS:
+        db.add(
+            Product(
+                owner=owner,
+                product_id=product_id,
+                name=f"Constructed {name.lower()}",
+                photo_key=f"constructed/{product_id}.webp",
+                photo_media_type="image/webp",
+            )
+        )
+    db.flush()
+    for index, (product_id, name, colour) in enumerate(DEMO_PRODUCTS):
+        for received in (True, False):
             db.add(
                 Sku(
-                    owner="judge-catalogue",
-                    sku=sku,
-                    product_name="Constructed canvas tote",
+                    owner=owner,
+                    sku=f"{product_id}-{'R1' if received else 'T2'}",
+                    product_id=product_id,
+                    product_name=f"Constructed {name.lower()}",
                     variant=colour,
-                    lot=lot,
+                    lot="DEMO-RECEIVED" if received else "DEMO-IN-TRANSIT",
                     lot_received=received,
                     constructed=True,
-                    reviewed_by="constructed-fixture-review",
+                    reviewed_by="constructed-fixture",
+                    unit_cost=Decimal(250 + index * 50),
+                    list_price=Decimal(500 + index * 100),
+                    stock_qty=(0 if index == 4 else index + 1) if received else 3,
                 )
             )
+    db.flush()
+    for index, status in enumerate(
+        (
+            "draft",
+            "confirmed",
+            "packed",
+            "booked",
+            "delivered",
+            "delivered",
+            "returned",
+            "cancelled",
+        ),
+        1,
+    ):
+        source_id = f"DEMO-ORDER-{index:02}"
+        order_id = historical_order_id(owner, source_id)
+        lines = [LinePrice(1, Decimal("600.00"), Decimal("50.00"))]
+        if index == 2:
+            lines.append(LinePrice(2, Decimal("500.00"), Decimal("100.00")))
+        created = datetime(2026, 10, 10 + index, 6, tzinfo=timezone.utc)
+        db.add(
+            Order(
+                owner=owner,
+                id=order_id,
+                reference=f"PD-DEMO-{index:04}",
+                source_id=source_id,
+                status=status,
+                customer_name=f"Demo customer {index}",
+                phone=None,
+                address=f"Constructed address {index}; demonstration only",
+                customer_delivery_charge=Decimal("80.00"),
+                verified_prior_payment=Decimal("100.00"),
+                cod_amount=calculate_cod(
+                    lines,
+                    customer_delivery_charge=Decimal("80.00"),
+                    verified_prior_payment=Decimal("100.00"),
+                ),
+                consignment_id=f"FAKE-CONSIGNMENT-{index}"
+                if status in ("booked", "delivered", "returned")
+                else None,
+                payout_source_id=f"DEMO-PAYOUT-{index - 4}"
+                if status == "delivered"
+                else None,
+                note="Hand-authored constructed order; no real customer or booking.",
+                created_at=created,
+                updated_at=created,
+            )
+        )
+        db.flush()
+        for sequence, line in enumerate(lines, 1):
+            db.add(
+                OrderLine(
+                    owner=owner,
+                    order_id=order_id,
+                    line_number=sequence,
+                    sku=f"{DEMO_PRODUCTS[(index + sequence) % len(DEMO_PRODUCTS)][0]}-R1",
+                    quantity=line.quantity,
+                    unit_price=line.unit_price,
+                    line_discount=line.line_discount,
+                    source_quote="Constructed historical example",
+                )
+            )
+    for index, value in ((1, "450.00"), (2, "430.00")):
+        db.add(
+            Payout(
+                owner=owner,
+                source_id=f"DEMO-PAYOUT-{index}",
+                paid_at=datetime(2026, 10, 20 + index, 6, tzinfo=timezone.utc),
+                amount=Decimal(value),
+                note="Constructed courier payout",
+            )
+        )

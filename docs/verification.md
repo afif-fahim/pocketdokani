@@ -48,3 +48,27 @@ The owner reported that the app worked on phone and desktop, then confirmed comp
 Large-upload limits, invalid-file handling and judge reset were not independently repeated during the hosted browser check. No request-level trace of the reported boundary checks was captured, so this record does not independently establish the host's exact ingress ceiling or an API-generated 413 response. The earlier local cross-judge, storage-failure and security-header checks above were not all repeated against the hosts.
 
 The private shop catalogue remains empty pending seller-reviewed data. No live model calls, order drafting, courier bookings or pilot outcomes are claimed. Switching both deployment sources to `main` and a smoke check remain part of the post-merge procedure.
+
+# Business records, issue #2 — October 30, 2026
+
+Local verification uses a separate SQLite database and private file storage. The updated private workbook validates and imports; counts reconcile with its source sheets, all product variants have accessible photos, the multi-item order retains both lines and the expected COD, and all three recorded payouts are present. A second import reports no writes. Customer details, workbook contents and photos remain ignored.
+
+Request-level checks used a seller session and two separate judge sessions. Each judge received ten SKUs, eight orders across states, and two constructed payouts. A judge could not read seller lists or seller product photos. Reset restored altered synthetic stock, replaced the screenshot workspace, rejected a stale reset request, and left seller records and the other judge's orders unchanged. In-transit stock was visible with zero available quantity.
+
+The COD calculator's focused standard-library check covers multi-item totals, a discount applied once per line, delivery and verified prior payment applied once per order, zero COD, negative COD rejection and invalid money/quantities. These checks do not establish model quality, real courier behaviour or hosted acceptance of this branch.
+
+Browser checks at 390 × 844 covered the constructed Orders list, expanded multi-item pricing, Stock cards and product illustrations. This was viewport emulation, not a physical-phone check. SQLite migration upgrade/downgrade/upgrade and Alembic schema parity passed. PostgreSQL migration SQL generated successfully, including RLS and client-role grant revocation; a live PostgreSQL run was unavailable because the local Docker daemon was stopped.
+
+Review found two UI edge cases, both fixed and checked in the browser: New import now opens Conversations when triggered from Stock or Orders, and an existing judge session from the screenshot-only version receives the new synthetic records on reload. The latter was checked by removing only one local judge's constructed fixture while preserving its browser session; reload restored eight orders and ten SKUs.
+
+## Standards review
+
+No remaining documented-standard violations, actionable baseline smells or correctness/security findings. The New import navigation regression was fixed and re-reviewed.
+
+## Spec review
+
+No remaining missing requirements, scope creep or incorrect implementations. The existing judge-session upgrade path was fixed and re-reviewed.
+
+Standards: 0 remaining findings. Spec: 0 remaining findings.
+
+For issue #2, `npm run check`, `npm run test`, the Next.js production build and the staged privacy guard passed.

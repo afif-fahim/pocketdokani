@@ -1,6 +1,6 @@
-# Running the import slice
+# Running PocketDokani locally
 
-Issue #1 implements one initial screenshot batch per conversation workspace. It preserves originals and speaker-side confirmation. It does not extract messages, approve orders, invoke models or book couriers.
+Issue #1 implements one initial screenshot batch per conversation workspace. Issue #2 adds business records from a private workbook and isolated synthetic judge shops, with Orders and Stock lists. The app does not extract messages, invoke models or book couriers yet.
 
 ## Local setup
 
@@ -14,7 +14,7 @@ Requirements: Python 3.12+, `uv`, npm and Node 24+ (or 20.19+/22.13+). Run comma
 
 The example configuration uses SQLite and private local files for offline development. Production settings refuse these backends. For local PostgreSQL, set `LOCAL_DB_PASSWORD`, run `docker compose up -d`, and set `DATABASE_URL` to `postgresql+psycopg://pocketdokani:YOUR_URL_ENCODED_PASSWORD@localhost:5432/pocketdokani`. Run the same migration. Database URLs, passcodes and storage credentials belong only in ignored environment files or the host's secret settings.
 
-Use `npm run check` for formatting, lint, Python/TypeScript typechecks and the source-partition validator. The web typecheck generates Next.js route types before running TypeScript, so it works on a clean checkout without a build. Run `npm --prefix web run build` separately for a production build. No test files or test framework are included, as requested by the issue.
+Use `npm run check` for formatting, lint, Python/TypeScript typechecks and the source-partition validator. The web typecheck generates Next.js route types before running TypeScript, so it works on a clean checkout without a build. Run `npm --prefix web run build` separately for a production build. Run `npm run test` for the small COD calculation check; it uses Python's standard library and is the issue's sole automated test exception. Other acceptance checks remain manual.
 
 To preview on a physical phone on your LAN, bind the API only to localhost, keep Next's default `0.0.0.0` binding, and set `WEB_ORIGIN` to the exact `http://YOUR_LAN_HOST:3000` address used by the phone. Use constructed data on unencrypted local connections. Production requires HTTPS.
 
@@ -52,7 +52,29 @@ There is no append/merge endpoint. Later imports belong to future attributed sel
 
 ## Catalogue
 
-The judge catalogue is constructed and separate from the private shop. It has two received lots and an in-transit example that is explicitly ineligible. The shop catalogue starts empty until the seller reviews real SKU data.
+Each judge session starts with five constructed products, ten SKUs across received and in-transit lots, eight orders across lifecycle states (including a multi-item order), and two payouts. Product illustrations and recipients are hand-authored; phones are absent. Reset judge shop restores these records and screenshots only for that session. The seller shop starts empty until reviewed records are imported.
+
+### Private business workbook
+
+Keep the seller's workbook in an ignored path, for example `data/private/business.xlsx`. After configuring the server environment and running `uv run alembic upgrade head`, validate it without writes:
+
+```sh
+uv run --frozen python -m pocketdokani.seed_business data/private/business.xlsx --reviewed-by seller --dry-run
+```
+
+Then import using the same command without `--dry-run`. This targets the database and private storage configured in the server environment; use local settings for a local copy, and the production settings only when intentionally loading the hosted shop. `--reviewed-by` records who reviewed the historical records, including advances and other direct payments. It does not mark payments verified based on customer text.
+
+The reader supports the existing workbook layout with headers on row 4: Products, Stock, Orders, Payouts, and the column-oriented Lots sheet. Recalculate and save the workbook in Excel or LibreOffice before importing. Cached product names, landed costs, retail list prices, remaining stock, line totals and COD amounts must be available. The command reconciles stock and money against source inputs; missing or inconsistent results stop the import before any writes. It never evaluates formulas or replaces missing agreed prices with current catalogue prices.
+
+Rows sharing an Order ID become one order with separate lines. Order-level money is read once from the first line. Historical IDs are preserved in private notes; stable `PD-` references are generated independently of consignment IDs. Historical Pending maps to confirmed, Shipped to booked, and Delivered/Returned/Cancelled retain their meanings. Missing recipient details remain missing. Embedded product photos are normalised into private WebP objects and shared by that product's variants.
+
+Stock quantity is the workbook's remaining quantity after reserved, delivered, unreturned and written-off units. Received/Selling/Closed lots require an arrival date. In-transit units remain visible, but their available quantity is zero. An empty received SKU is also unavailable. Unit costs are stored to two decimal places in BDT.
+
+An identical workbook fingerprint causes no writes. A changed workbook upserts by stable product, SKU, historical order and statement IDs; matching orders' lines are replaced, and new statements are added. Records absent from the changed workbook are preserved. This is a one-time historical seed: a later import intentionally overwrites matching historical snapshots, so do not use it to synchronise operational edits. Validation completes before photos are uploaded; database writes commit together. Interrupted uploads or an ambiguous commit may leave unreferenced objects; the orphan sweep must compare against both `source_images.storage_key` and `products.photo_key` and preserve every referenced photo.
+
+### Catalogue-only input
+
+The earlier catalogue-only command remains available for reviewed SKU names and lot eligibility. It leaves existing business quantities, prices and photos unchanged and is not a replacement for the workbook import.
 
 Save reviewed data to ignored `data/private/reviewed-skus.json`:
 
@@ -76,9 +98,17 @@ Seller and judge contexts use separate opaque, HttpOnly, SameSite=Strict cookies
 
 Changing requests require a custom request header and validate the browser Origin against `WEB_ORIGIN`. CORS is not enabled. The web server proxies same-origin `/api/` requests; the browser receives no Supabase credentials, database URL, shop passcode configuration or model API key. Login attempts, imports, judge session creation and resets have database-backed request budgets. No model endpoint is exposed: the model-call budget is zero in this slice.
 
-Every file is validated before object creation. Failed uploads roll back the workspace and attempt to remove any staged objects. An interrupted process or failed cleanup can leave **inaccessible orphan objects**, never a partially published workspace. When operating hosted storage, compare object keys with `source_images.storage_key` and remove only unreferenced keys older than a day after verifying no upload is active. Apply a retention policy to expired judge sessions/examples; never sweep the seller prefix as a judge reset. Object storage and PostgreSQL cannot share a transaction.
+Every file is validated before object creation. Failed uploads roll back the workspace and attempt to remove any staged objects. An interrupted process or failed cleanup can leave **inaccessible orphan objects**, never a partially published workspace. When operating hosted storage, compare object keys with both `source_images.storage_key` and `products.photo_key` and remove only unreferenced keys older than a day after verifying no upload is active. Apply a retention policy to expired judge sessions/examples; never sweep the seller prefix as a judge reset. Object storage and PostgreSQL cannot share a transaction.
 
 The pre-commit privacy guard blocks ignored private paths, environment files and likely Bangladesh phone numbers in staged text (values are withheld from output). It is a backstop; anonymise public fixtures and inspect staged changes.
+
+### Business-record acceptance
+
+1. Validate the ignored workbook, import it, then compare product, SKU, order-line and payout counts with its source sheets. Open the multi-item order and check both lines, its single delivery charge, verified prior payment and COD. Missing historical details must stay empty.
+2. Import the identical workbook again. References, lines, timestamps, photo object counts and all records must remain unchanged.
+3. Open Orders and Stock at phone width in seller and judge sessions. Check product photos, list prices, costs, out-of-stock records, and visible in-transit units with zero available quantity.
+4. Start two independent judge sessions. Each has ten SKUs, eight orders and two payouts. A judge cannot list seller records or open a seller photo. Reset one judge shop; its fixture is restored, old screenshot URLs stop working, and seller records and the other judge's records remain unchanged.
+5. Run `npm run test`, `npm run check`, the production build and the staged privacy check before committing. Do not commit the workbook, imported records, product photos or server credentials.
 
 ## Manual acceptance
 

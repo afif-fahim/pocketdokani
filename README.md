@@ -10,15 +10,16 @@ Built for the Meta Global AI Developer Hackathon with Muse Spark, Muse Voice Tra
 
 Implemented: a Next.js phone layout and FastAPI service that preserve ordered screenshot batches, original images, source hashes, speaker-side confirmation and stable references. Seller workspaces require the shop passcode; each judge session gets its own constructed example.
 
+Issue #2 adds a private workbook import for products, SKU photos, stock, historical orders and payouts, plus phone Orders and Stock lists. Each judge session has a separate synthetic shop that resets with its screenshot example. COD uses the single calculation in ADR 0002. This business-data slice is verified locally; the hosted verification below covers the earlier screenshot slice.
+
 Live: [seller workspace](https://pocketdokani.vercel.app/) (shop passcode required) and [constructed judge example](https://pocketdokani.vercel.app/judge). The first screenshot-import slice is deployed on Vercel and Render with PostgreSQL and private object storage on Supabase. Hosted checks were recorded on October 30, 2026; see the [verification record](docs/verification.md#hosted-verification--october-30-2026).
 
-Not yet implemented: business data seed, order drafting, the voice assistant, pack check, courier booking, evaluation and pilot results.
+Not yet implemented: order drafting, the voice assistant, pack check, courier booking, evaluation and pilot results.
 
 Local development also supports SQLite/private files. See [local setup and acceptance checks](docs/development.md), [deployment setup](docs/deployment.md), [evaluation partitions](evals/README.md) and the [verification record](docs/verification.md).
 
 ## Planned scope
 
-- Seed products, stock, orders and payouts from the seller's existing records.
 - Draft single- and multi-item orders from chat screenshots and voice notes.
 - Ask questions and propose changes by voice in Bangla; nothing changes until the seller confirms.
 - Check a packed parcel's label and visible bag against the confirmed order.
