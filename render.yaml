@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: ordertrail-api
+    name: pocketdokani-api
     runtime: docker
     plan: starter
     healthCheckPath: /api/health
@@ -20,4 +20,4 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: SUPABASE_BUCKET
-        value: ordertrail-evidence
+        value: pocketdokani-evidence

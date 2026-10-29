@@ -1,13 +1,13 @@
 # Issue tracker: GitHub
 
-Issues and specs live in https://github.com/afif-fahim/ordertrail.
+Issues and specs live in https://github.com/afif-fahim/pocketdokani.
 Use the `gh` CLI from this repository.
 
 ## Conventions
 
 - Verify the target before the first issue write:
   `gh repo view --json nameWithOwner`.
-  The expected repository is `afif-fahim/ordertrail`.
+  The expected repository is `afif-fahim/pocketdokani`.
 - Create: `gh issue create --title "..." --body-file <file>`.
   Use UTF-8 files for multiline bodies and comments.
 - Read: `gh issue view <number> --json number,title,body,labels,comments`.

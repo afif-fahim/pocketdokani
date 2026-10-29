@@ -5,8 +5,8 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 from sqlalchemy.orm import Session
 
-from ordertrail.db import engine, now
-from ordertrail.records import Sku
+from pocketdokani.db import engine, now
+from pocketdokani.records import Sku
 
 
 class ReviewedSku(BaseModel):

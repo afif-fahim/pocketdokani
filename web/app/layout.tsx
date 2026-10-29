@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OrderTrail · Conversation workspace",
+  title: "PocketDokani · Conversation workspace",
   description: "Keep an ordered conversation and its original evidence together.",
   robots: { index: false, follow: false },
 };

@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     local_storage_path: Path = Path("data/private/objects")
     supabase_url: str = ""
     supabase_service_role_key: SecretStr = SecretStr("")
-    supabase_bucket: str = "ordertrail-evidence"
+    supabase_bucket: str = "pocketdokani-evidence"
     session_hours: int = 12
 
     @model_validator(mode="after")

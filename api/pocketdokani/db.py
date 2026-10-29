@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session
 
-from ordertrail.config import settings
+from pocketdokani.config import settings
 
 
 def now() -> datetime:

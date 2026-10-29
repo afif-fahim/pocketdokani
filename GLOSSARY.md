@@ -1,37 +1,37 @@
-# OrderTrail
+# PocketDokani
 
-OrderTrail carries the evidence for a seller-approved order from a sales conversation to a parcel-label check.
+PocketDokani is a phone copilot for small Messenger sellers. It drafts orders from sales conversations, checks packed parcels, books the courier and answers business questions in Bangla. The seller confirms every order, amount and change.
 
 ## Language
 
 **Order**:
-A seller-reviewed set of item lines for one recipient, delivery address, parcel label and COD amount.
+A seller-confirmed set of order lines for one recipient, delivery address, parcel and COD amount.
+
+**Draft order**:
+An order the seller has not confirmed yet. Model-extracted values live only in drafts until the seller confirms them.
+_Avoid_: Pending order
+
+**Order confirmation**:
+The seller's authorization of the order's current lines, amounts and recipient details. Editing a confirmed order returns it to a draft.
+_Avoid_: Customer agreement
 
 **Order line**:
-A distinct product variant in an order, with a quantity, unit price and any line discount. Its price may come from customer agreement or an explicitly attributed seller decision.
+A distinct product variant in an order, with a quantity, unit price and line discount.
 _Avoid_: Parcel, shipment
 
 **Multi-item order**:
-An order containing more than one distinct product or variant. Multiple units of a single product variant do not by themselves make an order multi-item.
+An order containing more than one distinct product or variant. Multiple units of one variant do not by themselves make an order multi-item.
 
-**OrderTrail reference**:
-The seller's reference for an order in OrderTrail, also written in the designated reference field on its parcel label. It is distinct from any identifier assigned by a courier.
+**Order reference**:
+PocketDokani's identifier for an order, such as `PD-0012`. The seller writes it on the parcel label, and it is sent to the courier as the invoice. It is distinct from any identifier the courier assigns.
 _Avoid_: Consignment ID, tracking number
 
 **Consignment ID**:
-An identifier assigned by a courier to a shipment. It does not identify the seller's order independently of that courier shipment.
-_Avoid_: OrderTrail reference
-
-**Customer agreement**:
-Evidence that the customer and seller accepted the same terms for the same item. Acceptance of an earlier item or superseded proposal does not establish agreement on revised terms.
-_Avoid_: Seller approval
-
-**Seller approval**:
-The seller's authorization of a particular version of the order after reviewing its terms and evidence. Approval does not itself establish that the customer agreed to every term.
-_Avoid_: Customer agreement
+An identifier assigned by a courier to a booked shipment.
+_Avoid_: Order reference
 
 **COD amount**:
-The amount the courier is asked to collect from the customer, calculated from item charges, discounts, customer delivery charge and verified prior payments.
+The amount the courier collects from the customer: line totals plus customer delivery charge, minus verified prior payment.
 _Avoid_: Order total, courier payout
 
 **Line discount**:
@@ -39,34 +39,29 @@ The total amount deducted from one order line's quantity multiplied by its unit 
 _Avoid_: Per-unit discount
 
 **Bundle allocation**:
-The seller's assignment of a negotiated bundle amount or overall discount across individual order lines. It records the seller's pricing decision without claiming that the customer agreed to those individual line prices.
-
-**Item cancellation**:
-Removal of an identified item line while the remaining order stays active. Removing the final item cancels the order.
-_Avoid_: Whole-order cancellation
+The seller's assignment of a bundle price or overall discount across individual order lines.
 
 **Customer delivery charge**:
-The delivery amount charged to the customer as part of the order. It is separate from the courier's cost to the seller.
+The delivery amount charged to the customer as part of the order. It is separate from the courier's fee to the seller.
 _Avoid_: Courier delivery cost
 
 **Verified prior payment**:
-An advance or other direct payment confirmed through seller-side evidence. A customer's statement that payment was made is not sufficient confirmation.
+An advance or other direct payment the seller has confirmed. A customer's statement that they paid is not enough.
 
-**Label check**:
-A comparison of the visible parcel-label fields with a seller-approved order version. It establishes no fact about sealed contents or courier booking.
-_Avoid_: Parcel verification, dispatch confirmation
+**Pack check**:
+A photo-based comparison of a packed parcel's visible label, and any visible bag, with the confirmed order. Its verdict is pass, fail or unsure. It establishes nothing about sealed contents.
+_Avoid_: Parcel verification
 
-**Automatic label match**:
-An automated label-check result indicating that all required visible fields meet the comparison rules for the approved order version. It is distinct from a seller's manual confirmation.
-_Avoid_: Manually confirmed
+**Seller override**:
+The seller's decision to proceed after an unsure pack check. It is recorded and shown separately from a pass, and is not allowed after a fail.
+_Avoid_: Automatic pass
 
-**Assisted label review**:
-A seller's inspection of the original label image alongside the approved order and any extracted readings. Any manual confirmation remains a human judgment, separate from the automatic label-check result.
+**Courier booking**:
+Creating a consignment with the courier from a packed order, using the order reference as the invoice.
 
-**Seller checked**:
-A manual completion outcome recording that the seller checked every required label field against the approved order and resolved any reading errors. It applies only to that order version and label photo, retains the separate automatic result, and cannot excuse an actual label mismatch.
-_Avoid_: Automatic label match
+**Assistant**:
+The voice and chat helper that answers questions from stored business records and proposes changes.
 
-**Trail**:
-The history connecting an order's source evidence, corrections, approvals and label checks.
-_Avoid_: Shipment tracking
+**Proposal card**:
+A change suggested by the assistant, such as a draft order or courier booking. Nothing changes until the seller confirms the card.
+_Avoid_: Automatic action

@@ -6,4 +6,4 @@ COPY api ./api
 RUN uv sync --frozen --no-dev
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && uvicorn ordertrail.main:app --host 0.0.0.0 --port ${PORT:-8000} --no-access-log"]
+CMD ["sh", "-c", "alembic upgrade head && uvicorn pocketdokani.main:app --host 0.0.0.0 --port ${PORT:-8000} --no-access-log"]

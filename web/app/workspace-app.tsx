@@ -20,7 +20,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(path, {
       ...init, cache: "no-store", credentials: "same-origin",
-      headers: { "X-OrderTrail-Request": "1", ...init?.headers },
+      headers: { "X-PocketDokani-Request": "1", ...init?.headers },
     });
   } catch {
     throw new Error("Could not connect. Check your connection and try again.");
@@ -176,7 +176,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
 
   return <>
     <header className="site-header content-grid"><div className="header-row">
-      <a className="wordmark" href={judge ? "/judge" : "/"}><span className="brand-mark" aria-hidden="true">↗</span>OrderTrail</a>
+      <a className="wordmark" href={judge ? "/judge" : "/"}><span className="brand-mark" aria-hidden="true">↗</span>PocketDokani</a>
       <span className={`context-tag ${judge ? "judge" : ""}`}>{judge ? "Constructed judge example" : "Private shop workspace"}</span>
       <a className="quiet-link" href={judge ? "/" : "/judge"}>{judge ? "Seller sign-in" : "Try judge example"} ↗</a>
     </div></header>
@@ -253,7 +253,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
             </aside>
           </div>
         </>}
-      <footer><span>OrderTrail</span><span>From chat to parcel, with evidence.</span></footer>
+      <footer><span>PocketDokani</span><span>From chat to parcel, with evidence.</span></footer>
     </main>
     <dialog ref={dialogRef} className="source-dialog" onClose={() => setView(null)}>
       {view && <><div className="section-heading"><h2>{"file" in view ? "Selected screenshot" : `Original · screenshot ${view.sequence}`}</h2><button onClick={() => dialogRef.current?.close()} autoFocus>Close ×</button></div><p>{"file" in view ? view.file.name : view.filename}</p>{imageFailed ? <p role="alert">This image could not be opened. Your session may have expired; close this preview and sign in again.</p> : <img src={view.url} alt="Full original conversation screenshot" onError={() => setImageFailed(true)} />}{!("file" in view) && <details><summary>SHA-256 of the unchanged original</summary><code>{view.sha256}</code></details>}</>}

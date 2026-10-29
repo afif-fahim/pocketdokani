@@ -1,3 +1,3 @@
-# Keep OrderTrail references independent of courier consignments
+# Keep order references independent of courier consignments
 
-OrderTrail assigns its own order reference, which the seller writes in the designated field on the supported parcel-label layout. Courier consignment identifiers remain separate because label checking must work before, and without, courier booking. This adds a handwritten reference to the initial workflow but gives the order and its evidence a stable identity independent of a courier integration.
+PocketDokani assigns its own order reference (for example `PD-0012`). The seller writes it on the parcel label, and courier booking sends it as the courier invoice. Courier consignment identifiers remain separate because the pack check must work before, and without, courier booking. This adds a handwritten reference to the packing workflow, but gives the order a stable identity independent of any courier. The courier's unique-invoice rule also prevents a second booking for the same order.

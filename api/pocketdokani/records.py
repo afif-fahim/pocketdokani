@@ -4,7 +4,7 @@ from uuid import uuid4
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ordertrail.db import Base, now
+from pocketdokani.db import Base, now
 
 
 def identifier() -> str:

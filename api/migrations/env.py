@@ -1,7 +1,7 @@
 from alembic import context
 
-from ordertrail.db import Base, engine
-from ordertrail import records  # noqa: F401 - register table metadata
+from pocketdokani.db import Base, engine
+from pocketdokani import records  # noqa: F401 - register table metadata
 
 target_metadata = Base.metadata
 

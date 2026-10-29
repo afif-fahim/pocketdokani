@@ -9,18 +9,18 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from ordertrail.config import settings
-from ordertrail.db import database, utc_iso
-from ordertrail.demo import screenshots, seed_catalogue
-from ordertrail.imports import (
+from pocketdokani.config import settings
+from pocketdokani.db import database, utc_iso
+from pocketdokani.demo import screenshots, seed_catalogue
+from pocketdokani.imports import (
     LAYOUT, MAX_BATCH_BYTES, MAX_FILE_BYTES, MAX_FILES, cleanup_objects, commit_workspace,
     create_workspace, validate_original, workspace_payload,
 )
-from ordertrail.records import BrowserSession, Sku, SourceImage, Workspace
-from ordertrail.security import Context, authenticate, budget, digest, issue_session, require_mutation
-from ordertrail.storage import ObjectStorage
+from pocketdokani.records import BrowserSession, Sku, SourceImage, Workspace
+from pocketdokani.security import Context, authenticate, budget, digest, issue_session, require_mutation
+from pocketdokani.storage import ObjectStorage
 
-app = FastAPI(title="OrderTrail", docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="PocketDokani", docs_url=None, redoc_url=None, openapi_url=None)
 Database = Annotated[Session, Depends(database)]
 
 
@@ -72,7 +72,7 @@ class RequestBoundary:
             # Provider exceptions can contain URLs or credentials. Do not rethrow
             # them into Uvicorn's error logger or include them in the response.
             if response_started:
-                raise RuntimeError("OrderTrail response interrupted") from None
+                raise RuntimeError("PocketDokani response interrupted") from None
             await JSONResponse({"detail": "Storage is temporarily unavailable. Please retry; no incomplete workspace was saved."},
                                status_code=503)(scope, receive, private_send)
 
@@ -105,7 +105,7 @@ def login(payload: Login, request: Request, response: Response, db: Database) ->
                                    settings().shop_passcode.get_secret_value().encode()):
         raise HTTPException(401, "That shop passcode is incorrect.")
     # Rotate an existing browser token without disturbing its independent judge session.
-    prior = request.cookies.get("ot_seller")
+    prior = request.cookies.get("pd_seller")
     if prior:
         db.execute(delete(BrowserSession).where(BrowserSession.token_hash == digest(prior)))
     issue_session(db, response, "seller")
@@ -143,7 +143,7 @@ def logout(context: Context, request: Request, response: Response, db: Database)
     session = authenticate(db, request, context)
     db.delete(session)
     db.commit()
-    response.delete_cookie(f"ot_{context}", path="/")
+    response.delete_cookie(f"pd_{context}", path="/")
     return {"signed_out": True}
 
 

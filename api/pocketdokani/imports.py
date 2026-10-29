@@ -9,9 +9,9 @@ from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ordertrail.db import utc_iso
-from ordertrail.records import BrowserSession, SourceImage, Workspace
-from ordertrail.storage import ObjectStorage
+from pocketdokani.db import utc_iso
+from pocketdokani.records import BrowserSession, SourceImage, Workspace
+from pocketdokani.storage import ObjectStorage
 
 MAX_FILES = 12
 MAX_FILE_BYTES = 8 * 1024 * 1024
@@ -60,7 +60,7 @@ def create_workspace(db: Session, actor: BrowserSession, seller_side: str,
     """Publish a complete initial batch or roll it back; originals never get replaced."""
     workspace_id = str(uuid4())
     workspace = Workspace(
-        id=workspace_id, reference=f"OT-{uuid4().hex[:16].upper()}",
+        id=workspace_id, reference=f"PD-{uuid4().hex[:16].upper()}",
         context=actor.context, owner=actor.owner, layout=LAYOUT, seller_side=seller_side,
         confirmed_by="shop-seller" if actor.context == "seller" else "judge-visitor",
     )
@@ -99,7 +99,7 @@ def cleanup_objects(keys: list[str]) -> None:
             # An inaccessible orphan can be removed by the documented storage sweep.
             import logging
 
-            logging.getLogger("ordertrail").warning("Object cleanup incomplete; run storage sweep.")
+            logging.getLogger("pocketdokani").warning("Object cleanup incomplete; run storage sweep.")
 
 
 def commit_workspace(db: Session, workspace: Workspace) -> None:

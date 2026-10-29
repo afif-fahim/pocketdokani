@@ -4,8 +4,8 @@ from PIL import Image, ImageDraw, ImageFont
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ordertrail.imports import Original
-from ordertrail.records import Sku
+from pocketdokani.imports import Original
+from pocketdokani.records import Sku
 
 # Hand-authored constructed source; no real seller/customer identifiers or phones.
 DEMO_SOURCE_ID = "constructed-conversation-001"

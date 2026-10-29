@@ -1,7 +1,7 @@
-# OrderTrail
+# PocketDokani
 
 For product scope and requirements, read
-`docs/private/OrderTrail_Blueprint.md` when available locally.
+`docs/private/PocketDokani_Blueprint.md` when available locally.
 Keep ignored private documents and real customer data out of commits,
 GitHub issues, and pull requests; use anonymised examples.
 
@@ -9,7 +9,7 @@ GitHub issues, and pull requests; use anonymised examples.
 
 ### Issue tracker
 
-Track issues and specs in `afif-fahim/ordertrail` on GitHub.
+Track issues and specs in `afif-fahim/pocketdokani` on GitHub.
 Before ticket operations, read `docs/agents/issue-tracker.md`.
 
 ### Triage labels

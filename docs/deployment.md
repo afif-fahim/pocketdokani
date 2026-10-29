@@ -4,7 +4,7 @@ Deployment is prepared for FastAPI on Render, the Next.js web app on Vercel,
 and PostgreSQL/private object storage on Supabase. Hosting was deferred while
 implementing issue #1; no public phone URL is claimed by this branch.
 
-1. Create a Supabase project and a **private** `ordertrail-evidence` storage
+1. Create a Supabase project and a **private** `pocketdokani-evidence` storage
    bucket. Keep the service role key on the API host only. Do not enable public
    reads or anonymous/client writes on the bucket or the import tables. The app
    proxies authorised reads instead of exposing public or signed original URLs.

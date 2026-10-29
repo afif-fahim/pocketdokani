@@ -14,7 +14,7 @@ repository root unless a different directory is shown.
    Otherwise merge the example's settings without overwriting existing keys.
    Replace `SHOP_PASSCODE` with a random value of at least 12 characters.
 3. Create `data/private/`, then run `uv run alembic upgrade head`.
-4. Run `uv run uvicorn ordertrail.main:app --host 127.0.0.1 --port 8000 --no-access-log`.
+4. Run `uv run uvicorn pocketdokani.main:app --host 127.0.0.1 --port 8000 --no-access-log`.
 5. In another terminal run `npm --prefix web run dev` and open
    [the seller workspace](http://localhost:3000) or
    [the constructed judge example](http://localhost:3000/judge).
@@ -22,11 +22,11 @@ repository root unless a different directory is shown.
 The example configuration uses SQLite and private local files for offline
 development. Production settings refuse these backends. For local PostgreSQL,
 set `LOCAL_DB_PASSWORD`, run `docker compose up -d`, and set `DATABASE_URL` to
-`postgresql+psycopg://ordertrail:YOUR_URL_ENCODED_PASSWORD@localhost:5432/ordertrail`.
+`postgresql+psycopg://pocketdokani:YOUR_URL_ENCODED_PASSWORD@localhost:5432/pocketdokani`.
 Run the same migration. Database URLs, passcodes and storage credentials belong
 only in ignored environment files or the host's secret settings.
 
-Use `uv run mypy api/ordertrail`, `npm --prefix web run typecheck`, and
+Use `uv run mypy api/pocketdokani`, `npm --prefix web run typecheck`, and
 `npm --prefix web run build` for checks. A clean checkout needs a Next.js build
 or dev start before a standalone typecheck, since Next generates route types.
 No test files or test framework are included, as requested by the issue.
@@ -48,7 +48,7 @@ Choose 1–12 still PNG/JPEG/WebP files, at most 8 MiB and 20 megapixels each,
 and at most 32 MiB total. HEIC, SVG, animated images, corrupt files and MIME
 mismatches are refused. Selection order is shown explicitly and can be changed
 before saving. Exact original bytes, SHA-256, dimensions, sequence and an
-independent OrderTrail reference survive reload. The batch never claims to
+independent PocketDokani reference survive reload. The batch never claims to
 cover the whole conversation. Voice-note screenshots contain no playable audio.
 
 There is no append/merge endpoint. Later imports belong to future attributed
@@ -74,7 +74,7 @@ Save reviewed data to ignored `data/private/reviewed-skus.json`:
 ]
 ```
 
-Run `uv run python -m ordertrail.seed_catalogue data/private/reviewed-skus.json
+Run `uv run python -m pocketdokani.seed_catalogue data/private/reviewed-skus.json
 --reviewed-by seller` on one line. Received-lot eligibility is explicit; a
 repeated product/colour in another lot requires a distinct SKU. This command
 updates only the shop catalogue and does not import the historical workbook.

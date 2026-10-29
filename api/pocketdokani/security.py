@@ -7,9 +7,9 @@ from fastapi import HTTPException, Request, Response
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from ordertrail.config import settings
-from ordertrail.db import now
-from ordertrail.records import BrowserSession, RequestBudget
+from pocketdokani.config import settings
+from pocketdokani.db import now
+from pocketdokani.records import BrowserSession, RequestBudget
 
 Context = Literal["seller", "judge"]
 
@@ -19,8 +19,8 @@ def digest(value: str) -> str:
 
 
 def require_mutation(request: Request) -> None:
-    if request.headers.get("x-ordertrail-request") != "1":
-        raise HTTPException(403, "Use the OrderTrail application to make changes.")
+    if request.headers.get("x-pocketdokani-request") != "1":
+        raise HTTPException(403, "Use the PocketDokani application to make changes.")
     origin = request.headers.get("origin")
     if origin and origin != settings().web_origin:
         raise HTTPException(403, "This origin is not allowed.")
@@ -52,7 +52,7 @@ def issue_session(db: Session, response: Response, context: Context) -> BrowserS
     session = BrowserSession(token_hash=digest(token), context=context, owner=owner,
                              expires_at=now() + timedelta(hours=settings().session_hours))
     db.add(session)
-    response.set_cookie(f"ot_{context}", token, httponly=True,
+    response.set_cookie(f"pd_{context}", token, httponly=True,
                         secure=settings().environment == "production", samesite="strict",
                         max_age=settings().session_hours * 3600, path="/")
     return session
@@ -60,7 +60,7 @@ def issue_session(db: Session, response: Response, context: Context) -> BrowserS
 
 def authenticate(db: Session, request: Request, context: Context,
                  lock: bool = False) -> BrowserSession:
-    token = request.cookies.get(f"ot_{context}", "")
+    token = request.cookies.get(f"pd_{context}", "")
     statement = select(BrowserSession).where(
         BrowserSession.token_hash == digest(token), BrowserSession.context == context,
         BrowserSession.expires_at > now(),

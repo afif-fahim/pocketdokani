@@ -2,16 +2,16 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: ordertrail
+      POSTGRES_USER: pocketdokani
       POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:?Set LOCAL_DB_PASSWORD in your environment}
-      POSTGRES_DB: ordertrail
+      POSTGRES_DB: pocketdokani
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - ordertrail-db:/var/lib/postgresql/data
+      - pocketdokani-db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ordertrail"]
+      test: ["CMD-SHELL", "pg_isready -U pocketdokani"]
       interval: 5s
       retries: 10
 volumes:
-  ordertrail-db:
+  pocketdokani-db:

@@ -2,7 +2,7 @@ from pathlib import Path, PurePosixPath
 
 import httpx
 
-from ordertrail.config import settings
+from pocketdokani.config import settings
 
 
 class ObjectStorage:
