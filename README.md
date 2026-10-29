@@ -16,7 +16,7 @@ validated yet.
 ## Initial scope
 
 - Import screenshots with links back to the original evidence.
-- Review a single-line order and approve a specific version.
+- Review an order with one or more item lines and approve a specific version.
 - Read a parcel label independently and compare it with the approved order.
 - Block mismatches and request review when evidence cannot be verified.
 - Show the order's evidence, corrections, approvals, and checks in a Trail.
