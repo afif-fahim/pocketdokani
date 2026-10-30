@@ -19,7 +19,7 @@ const config: NextConfig = {
           { key: "Cache-Control", value: "no-store" },
           {
             key: "Permissions-Policy",
-            value: "camera=(self), microphone=(), geolocation=()",
+            value: "camera=(self), microphone=(self), geolocation=()",
           },
         ],
       },

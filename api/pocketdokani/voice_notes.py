@@ -13,13 +13,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from pocketdokani.model_api import model_call
-from pocketdokani.records import BrowserSession, Sku, Workspace
+from pocketdokani.records import BrowserSession, Order, Sku, Workspace
 
 MAX_AUDIO_BYTES = 8 * 1024 * 1024
 
 
 def transcribe(
-    db: Session, actor: BrowserSession, workspace: Workspace, data: bytes
+    db: Session, actor: BrowserSession, workspace: Workspace | None, data: bytes
 ) -> tuple[str, str]:
     with tempfile.TemporaryDirectory(prefix="pocketdokani-voice-") as directory:
         source, target = Path(directory) / "upload", Path(directory) / "normalized.wav"
@@ -71,13 +71,28 @@ def transcribe(
             .distinct()
         )
     )
+    if workspace is None:
+        for sku in db.scalars(select(Sku).where(Sku.owner == actor.owner)):
+            keywords.extend([sku.sku, sku.product_name, sku.variant])
+        keywords.extend(
+            db.scalars(
+                select(Order.customer_name)
+                .where(Order.owner == actor.owner, Order.customer_name.is_not(None))
+                .distinct()
+                .limit(100)
+            )
+        )
+    keywords = list(dict.fromkeys(word for word in keywords if word))[:200]
     fingerprint = hashlib.sha256(data).hexdigest()
     result = model_call(
         db,
         actor,
-        "voice_note",
+        "voice_note" if workspace else "assistant_transcription",
         "muse-voice-transcribe-1.0",
-        {"workspace_id": workspace.id, "audio_sha256": fingerprint},
+        {
+            "workspace_id": workspace.id if workspace else None,
+            "audio_sha256": fingerprint,
+        },
         "asr/transcribe",
         files={
             "request": (

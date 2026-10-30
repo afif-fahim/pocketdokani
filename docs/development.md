@@ -1,6 +1,6 @@
 # Running PocketDokani locally
 
-Issue #1 implements one initial screenshot batch per conversation workspace. Issue #2 adds business records and isolated synthetic judge shops. Issue #3 adds evidence-linked order extraction, optional voice notes, editable drafts and seller confirmation. Courier booking and the conversational voice assistant remain separate slices.
+Issue #1 implements one initial screenshot batch per conversation workspace. Issue #2 adds business records and isolated synthetic judge shops. Issue #3 adds evidence-linked order extraction, optional voice notes, editable drafts and seller confirmation. Issue #4 adds the conversational voice assistant. Courier booking remains a separate slice.
 
 ## Local setup
 
@@ -105,6 +105,22 @@ Edit the recipient, available SKU, quantity, final unit price, total line discou
 **Save draft** permits incomplete work. **Confirm order** saves the current values, validates required fields and stock, calculates COD using the shared calculator and creates a confirmed order with a `PD-` reference. Repeat confirmations never create a second order for the workspace. Editing and saving a confirmed or packed order returns it to draft; the next confirmation keeps the reference. A packed order loses its packing authorization. Booked orders cannot be edited here. Stale revisions return 409 rather than replacing another edit. Orders links back to their draft and sources; changed drafts label the old confirmed snapshot explicitly. No stock is decremented during drafting or confirmation.
 
 Before hosted acceptance, enable the models on the API host and repeat issue #3's five acceptance checks with a real-sized screenshot batch on a physical phone. Measure extraction quality, final-price selection and the under-two-minute target. Local synthetic responses do not establish these results.
+
+## Asking the assistant
+
+Open **সহকারী · Assistant** in the seller or judge shop. Hold the microphone button, speak for up to two minutes, then release. On a keyboard, hold Space or Enter while the button is focused. Microphone access needs a supported browser, permission and HTTPS (localhost also works). The web permissions policy allows the microphone only on the app's own origin. Audio is converted by the existing ffmpeg path to 16 kHz mono PCM WAV; transcription uses Bengali/English biases and this shop's product and customer names as keywords. Raw audio is temporary. Review and edit the transcript before tapping **Ask**; typed questions go through the same assistant endpoint.
+
+Spark uses [Meta's tool-calling interface](https://dev.meta.ai/docs/cookbook/tool-function-calling), with `tool_choice: auto`, at most six executed tool calls and a final answer attempt with no tools. Each actual model request consumes the existing hourly shop budget, including transient retries. A single question can consume several calls. Disabled models, exhausted budgets and provider failures leave business records unchanged. Completed lookups remain visible if a later model step fails; the UI labels that turn incomplete.
+
+Read tools are `search_orders`, `get_order`, `stock_summary`, `sales_summary`, `payout_summary` and `find_product`. Every query uses the authenticated shop owner; tools cannot accept an owner or context override. Pending dispatch means confirmed or packed. Date ranges are inclusive Dhaka calendar dates, and weeks begin Monday. Sales summaries include confirmed, packed, booked and delivered orders; order value means line totals plus customer delivery charge, before verified prior payment. Draft, returned and cancelled orders are excluded. In-transit stock remains visible with zero available quantity. Payouts show recorded amounts and delivered COD separately; courier fees and payout due are unknown.
+
+Answers show record chips linking to Orders, Stock or Payouts. Numeric metrics are calculated by code and rendered directly from the cited tool results. Missing matching records produce an explicit unknown answer. Unsupported numeric literals in generated prose are replaced by a pointer to the recorded facts; this is a backstop, not a live model-quality evaluation. Every turn has a private `model_runs` entry with transcript, tool calls/results, answer, usage and latency; individual provider attempts retain their own audit entries.
+
+`propose_order_draft` and `propose_status` create cards without business writes. **Confirm draft creation** calls the same `/order-drafts` endpoint as **New draft +**, creates only an unconfirmed draft, and opens the existing editor. Unknown fields stay blank, payments stay unverified, and final order confirmation still uses the normal draft-confirmation endpoint. Draft creation has a stable request ID for safe retries. These source-free drafts do not claim screenshot evidence.
+
+Status cards and Orders' **Confirm status change** call the same `/orders/{id}/status` endpoint. Booked orders can become delivered or returned; draft, confirmed and packed orders can be cancelled. Other transitions are refused. The expected status and update timestamp prevent stale cards and repeat stock restoration. Returning a booked order restores its line quantities once. Cancel on an assistant card makes no request and changes no records. Courier-booking proposals will be added with the courier slice. Judge reset clears all that judge's draft workspaces, restores its fixture and invalidates prior order snapshots; model budgets persist.
+
+Repeat issue #4's five manual acceptance checks on a physical phone with live models before claiming hosted acceptance or answer accuracy. The local synthetic checks do not establish transcription quality, tool selection or the 20-question evaluation result.
 
 ## Privacy and isolation
 
