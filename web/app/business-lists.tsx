@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { api, json } from "./api";
+
 export type StockItem = {
   sku: string;
   product_name: string;
@@ -25,6 +28,7 @@ export type Order = {
   source_workspace_id: string | null;
   note: string;
   created_at: string;
+  updated_at: string;
   lines: {
     line_number: number;
     sku: string;
@@ -60,18 +64,96 @@ function date(value: string) {
   });
 }
 
+function StatusActions({
+  order,
+  base,
+  busy,
+  act,
+  onChange,
+}: {
+  order: Order;
+  base: string;
+  busy: boolean;
+  act: (action: () => Promise<void>) => Promise<void>;
+  onChange: () => Promise<void>;
+}) {
+  const [target, setTarget] = useState("");
+  const options =
+    order.status === "booked"
+      ? ["delivered", "returned"]
+      : ["draft", "confirmed", "packed"].includes(order.status)
+        ? ["cancelled"]
+        : [];
+  if (!options.length) return null;
+  return (
+    <div className="stack">
+      {target ? (
+        <>
+          <p>
+            Change {order.reference} from {order.status} to {target}?
+          </p>
+          <div className="button-row">
+            <button
+              disabled={busy}
+              onClick={() =>
+                act(async () => {
+                  await api(
+                    `${base}/orders/${encodeURIComponent(order.id)}/status`,
+                    json("POST", {
+                      status: target,
+                      expected_status: order.status,
+                      expected_updated_at: order.updated_at,
+                    }),
+                  );
+                  setTarget("");
+                  await onChange();
+                })
+              }
+            >
+              Confirm status change
+            </button>
+            <button disabled={busy} onClick={() => setTarget("")}>
+              Cancel
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="button-row">
+          {options.map((status) => (
+            <button
+              key={status}
+              disabled={busy}
+              onClick={() => setTarget(status)}
+            >
+              Mark {status}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BusinessLists({
   view,
   orders,
   stock,
   payouts,
   onOpenWorkspace,
+  base,
+  busy,
+  act,
+  onChange,
 }: {
   view: "orders" | "stock";
   orders: Order[];
   stock: StockItem[];
   payouts: Payout[];
   onOpenWorkspace: (id: string) => void;
+  base: string;
+  busy: boolean;
+  act: (action: () => Promise<void>) => Promise<void>;
+  onChange: () => Promise<void>;
 }) {
   if (view === "stock") {
     return (
@@ -89,7 +171,7 @@ export default function BusinessLists({
         {stock.length ? (
           <ul className="stock-grid">
             {stock.map((sku) => (
-              <li className="stock-card" key={sku.sku}>
+              <li className="stock-card" key={sku.sku} id={`sku-${sku.sku}`}>
                 {sku.photo_url ? (
                   <img
                     className="product-photo"
@@ -150,7 +232,7 @@ export default function BusinessLists({
         <ul className="order-list">
           {orders.map((order) => (
             <li key={order.id}>
-              <details className="order-card">
+              <details className="order-card" id={`order-${order.id}`}>
                 <summary>
                   <strong className="reference">{order.reference}</strong>
                   <span className="pill">{order.status}</span>
@@ -214,6 +296,13 @@ export default function BusinessLists({
                     </p>
                   )}
                   <p className="muted">{order.note}</p>
+                  <StatusActions
+                    order={order}
+                    base={base}
+                    busy={busy}
+                    act={act}
+                    onChange={onChange}
+                  />
                   {order.source_workspace_id && (
                     <button
                       onClick={() =>
@@ -235,7 +324,7 @@ export default function BusinessLists({
         <summary>Payouts · {payouts.length} recorded</summary>
         <ul className="order-lines">
           {payouts.map((payout) => (
-            <li key={payout.statement}>
+            <li key={payout.statement} id={`payout-${payout.statement}`}>
               <strong>
                 {payout.statement} · {money(payout.amount)}
               </strong>

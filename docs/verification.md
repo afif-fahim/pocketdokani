@@ -108,3 +108,43 @@ No documented-standard violations or actionable baseline smells remained. One ad
 No missing implementation requirements or scope creep remained. The review found that phone evidence could accept a valid-length prefix of a longer number; complete digit boundaries now prevent that. Follow-up checks also covered quoted-number punctuation, Bangla currency text and malformed grouped numbers. Focused follow-up: 0 remaining actionable findings.
 
 Standards: 0 remaining findings. Spec: 0 remaining findings. Live Spark perception quality, selection of final negotiated prices on real conversations, deployed voice-note behavior and the physical-phone under-two-minute acceptance target remain unverified. Enable server-side models and perform those acceptance checks before claiming the issue's hosted acceptance gates or pilot results.
+
+# Business assistant, issue #4 — October 30, 2026
+
+Local request acceptance used fresh SQLite databases, temporary local storage and synthetic responses at the Meta HTTP boundary. No customer records, real audio, live credentials or hosted services were used. The disposable acceptance driver stays ignored; no test files are added to the repository.
+
+Checks covered all six read tools, a Dhaka calendar-date filter, dispatch count (two constructed orders), all-time order value (4,050 BDT across five eligible orders), received/in-transit quantities, recorded payouts (880 BDT), and delivered COD (1,060 BDT before courier fees). Unknown order lookups and ungrounded answers returned an explicit unknown response; unsupported numeric prose fell back to recorded facts. Tool arguments could not override the shop owner. Sales, payout and stock numbers came from stored records and code calculations.
+
+Status proposals made no changes before confirmation. Confirmation used the ordinary status endpoint, while stale/repeated requests returned 409. A second judge could not change the first judge's order or open its draft; the seller shop remained empty. Returning a booked order restored one line's quantity once. Draft proposals created no workspace until confirmed, created only an unconfirmed draft, preserved proposed line values, kept payments unverified and reused the same workspace on retry. Reset cleared multiple draft workspaces for only the requesting judge and invalidated a pre-reset order snapshot.
+
+Synthetic stereo audio was normalized by ffmpeg to mono, 16-bit, 16 kHz WAV. The transcription request included Bengali/English biases and the current judge's product/customer keywords. The transcript was returned for editing, without executing an assistant turn. A model repeatedly requesting tools executed only six lookups, then stopped; disabled models made no provider request. Per-turn audit records contained transcript, tool calls/results, answer, aggregate usage and latency. Private response headers and Origin checks remained in effect.
+
+Browser checks at 390 × 844 covered a typed Bangla question, two returned dispatch-order chips, chip navigation that expanded the correct order, Cancel preserving booked status, and Confirm changing it to delivered. The browser used a separate temporary synthetic API with a fake model provider. The app's microphone permissions header now allows its own origin; microphone permission prompts, physical-phone recording and live transcription were not exercised.
+
+Confirming a draft-creation card opened the existing editor with status Draft, blank missing recipient fields, no verified prior payment and final order confirmation disabled until valid details were supplied. Returning to Assistant preserved the card's decision and the earlier conversation.
+
+## Standards
+
+No documented-standard violations or actionable baseline smells remain. Review found two correctness issues, both fixed: malformed final answers now validate before replacing the safe fallback, and status changes now claim the linked draft revision before the order snapshot update. A disposable regression check loaded a stale draft/order before cancellation and then attempted an edit; it returned 409 and left the order cancelled. PostgreSQL lock ordering was reviewed by reasoning; no live PostgreSQL concurrency run was available. Proposal replies use a fixed awaiting-confirmation acknowledgment, so generated prose cannot claim an unconfirmed write completed.
+
+## Spec
+
+No missing requirements, scope creep or incorrect implementations remain after follow-up review. Assistant transcription now includes SKU identifiers, variants and in-transit product names as well as shop customer names. The synthetic ASR request check verifies those hints and the normalized WAV format. Repeated checks also covered malformed replies, partial read-result preservation and proposal acknowledgment.
+
+Standards: 0 remaining findings. Spec: 0 remaining findings. The repository format/lint/type checks, all three existing COD tests, source-partition validation, staged privacy guard and production build passed. No new test files or private inputs are committed.
+
+This record establishes local behavior with synthetic model output. Live Spark tool selection, transcription accuracy, answer grounding on real questions, the 20-question evaluation, hosted acceptance and physical-phone behavior remain unverified.
+
+### Grounding correction — October 30, 2026
+
+A subsequent review reproduced an incorrect pending-dispatch answer: the model claimed 2026 parcels when the stored count was two. The numeric-occurrence guard accepted the year from record timestamps. That guard has been replaced with a structured final response containing only citations and metric references. The server validates each reference and supplies the label and value; model-written prose, labels and values are rejected. An explicit empty selection returns an unknown answer even after successful lookups.
+
+A disposable stdin driver used an in-memory synthetic judge shop and mocked model responses. Checks passed for the original timestamp collision, spelled-out numeric and nonnumeric false claims, unknown citations, missing or uncited metrics, attempted value/label injection, empty selections, missing records, correct counts in English and Bangla, sales and stock metrics, interrupted lookups, proposal acknowledgments and matching audit output. No test files or private inputs were added. These checks do not establish live model tool selection or physical-phone behavior.
+
+### Proposal citation correction — October 30, 2026
+
+Live browser testing found a valid draft proposal labelled incomplete when Spark cited the proposal result. Citation validation accepted only read-result IDs. It now also accepts IDs of tool results containing proposals; numeric references still require a cited, nonempty read result and an allowed metric key from that result. Unknown IDs, error-only results and proposal-only numeric references remain invalid. The model instructions describe the same distinction.
+
+The captured constructed-data trace failed before the fix and completed after it without changing the model response. A separate ignored regression driver passed seven tests covering twelve synthetic scenarios: read-then-proposal and proposal-only citations, mixed and repeated citations, grounded numeric lookups, status proposals containing records, unknown/error citations, and invalid or injected metric references. No new test files are committed, following the repository's testing convention.
+
+The same typed draft request also completed through the local browser with live Spark after the fix. Its card retained the requested item and amounts, left the unknown phone blank, displayed the fixed awaiting-confirmation acknowledgment and omitted the incomplete-turn warning. Repository formatting, lint, type checks, source-partition validation, the existing COD tests, staged privacy checks and the production build passed. This verifies the reported failure with constructed data; it does not establish general model accuracy or hosted/physical-phone acceptance. Voice was not exercised.

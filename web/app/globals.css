@@ -724,3 +724,40 @@ footer {
 .record-amounts dd {
   margin: 0;
 }
+
+.assistant textarea {
+  font: inherit;
+  font-size: max(16px, 1rem);
+  field-sizing: content;
+  min-block-size: 3lh;
+  max-block-size: 12lh;
+  inline-size: 100%;
+  resize: block;
+  padding-block: 0.75rem;
+  padding-inline: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  color: var(--ink);
+  background: var(--surface);
+}
+.assistant-turns {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.assistant-turn,
+.proposal-card {
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 1.25rem;
+}
+.assistant-answer {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.mic-button {
+  touch-action: none;
+}
+.mic-button[aria-pressed="true"] {
+  background: var(--danger);
+  border-color: var(--danger);
+}

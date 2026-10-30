@@ -16,7 +16,9 @@ Live: [seller workspace](https://pocketdokani.vercel.app/) (shop passcode requir
 
 Issue #3 adds source-linked order drafts from ordered screenshots and optional voice notes, phone editing with SKU photos and live COD, seller-verified payments, and confirmation with stable order references. Model calls are disabled until the server is configured. This slice is verified locally with synthetic model responses; live extraction quality and physical-phone timing remain unverified.
 
-Not yet implemented: the voice assistant, pack check, courier booking, evaluation and pilot results.
+Issue #4 adds a Bangla/Banglish voice and typed assistant with shop-scoped business tools, record chips and stored numeric results. Draft creation and order-status proposals require confirmation through the same endpoints as the normal UI. This slice is verified locally with synthetic model responses; live answer quality and physical-phone microphone behavior remain unverified.
+
+Not yet implemented: pack check, courier booking, evaluation and pilot results.
 
 Local development also supports SQLite/private files. See [local setup and acceptance checks](docs/development.md), [deployment setup](docs/deployment.md), [evaluation partitions](evals/README.md) and the [verification record](docs/verification.md).
 

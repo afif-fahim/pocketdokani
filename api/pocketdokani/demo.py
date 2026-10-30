@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
+from pocketdokani.db import now
 from pocketdokani.imports import Original
 from pocketdokani.money import LinePrice, calculate_cod
 from pocketdokani.records import (
@@ -191,7 +192,7 @@ def seed_shop(db: Session, owner: str, *, reset: bool = False) -> None:
                 else None,
                 note="Hand-authored constructed order; no real customer or booking.",
                 created_at=created,
-                updated_at=created,
+                updated_at=now(),
             )
         )
         db.flush()

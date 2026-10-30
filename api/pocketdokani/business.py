@@ -91,6 +91,7 @@ def orders_payload(db: Session, actor: BrowserSession) -> list[dict[str, object]
             "source_workspace_id": order.source_workspace_id,
             "note": order.note,
             "created_at": utc_iso(order.created_at),
+            "updated_at": utc_iso(order.updated_at),
             "lines": by_order.get(order.id, []),
         }
         for order in orders

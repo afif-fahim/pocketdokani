@@ -19,6 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from pocketdokani.assistant import Question, answer_question
 from pocketdokani.business import orders_payload, payouts_payload, stock_payload
 from pocketdokani.config import settings
 from pocketdokani.db import database
@@ -44,6 +45,12 @@ from pocketdokani.imports import (
     workspace_payload,
 )
 from pocketdokani.model_api import require_models
+from pocketdokani.order_actions import (
+    NewDraft,
+    StatusChange,
+    change_status,
+    create_draft,
+)
 from pocketdokani.records import (
     BrowserSession,
     OrderDraft,
@@ -81,7 +88,7 @@ class RequestBoundary:
             MAX_BATCH_BYTES + 64 * 1024
             if scope["path"].endswith("/workspaces")
             else MAX_AUDIO_BYTES + 64 * 1024
-            if scope["path"].endswith("/voice-notes")
+            if scope["path"].endswith(("/voice-notes", "/assistant/transcribe"))
             else 128 * 1024
         )
         consumed = 0
@@ -337,21 +344,23 @@ def reset_example(
     actor = authenticate(db, request, "judge")
     budget(db, "judge-reset:" + actor.owner, 10)
     actor = authenticate(db, request, "judge", lock=True)
-    prior = db.scalar(
-        select(Workspace).where(
-            Workspace.context == "judge",
-            Workspace.owner == actor.owner,
+    prior_workspaces = list(
+        db.scalars(
+            select(Workspace).where(
+                Workspace.context == "judge",
+                Workspace.owner == actor.owner,
+            )
         )
     )
-    if prior and payload.workspace_id is None:
-        return workspace_payload(db, prior)
+    if prior_workspaces and payload.workspace_id is None:
+        return workspace_payload(db, prior_workspaces[0])
     if payload.workspace_id is not None and (
-        prior is None or payload.workspace_id != prior.id
+        payload.workspace_id not in [workspace.id for workspace in prior_workspaces]
     ):
         raise HTTPException(409, "The example changed. Reload before resetting it.")
     old_keys: list[str] = []
-    if prior:
-        old_keys = list(
+    for prior in prior_workspaces:
+        old_keys.extend(
             db.scalars(
                 select(SourceImage.storage_key).where(
                     SourceImage.workspace_id == prior.id
@@ -531,3 +540,62 @@ def upload_voice_note(
     db.add(note)
     db.commit()
     return {"id": note.id, "transcript": note.transcript}
+
+
+@app.post("/api/{context}/assistant/transcribe")
+def assistant_transcribe(
+    context: Context,
+    request: Request,
+    db: Database,
+    audio: Annotated[UploadFile, File()],
+) -> dict[str, str]:
+    require_mutation(request)
+    actor = authenticate(db, request, context)
+    require_models()
+    try:
+        data = audio.file.read(MAX_AUDIO_BYTES + 1)
+    finally:
+        audio.file.close()
+    if not data or len(data) > MAX_AUDIO_BYTES:
+        raise HTTPException(413, "Record nonempty audio of at most 8 MiB.")
+    transcript, _ = transcribe(db, actor, None, data)
+    authenticate(db, request, context)
+    return {"transcript": transcript}
+
+
+@app.post("/api/{context}/assistant/turns")
+def assistant_turn(
+    context: Context,
+    payload: Question,
+    request: Request,
+    db: Database,
+) -> dict[str, object]:
+    require_mutation(request)
+    actor = authenticate(db, request, context)
+    return answer_question(db, actor, request, context, payload)
+
+
+@app.post("/api/{context}/order-drafts", status_code=201)
+def new_order_draft(
+    context: Context,
+    payload: NewDraft,
+    request: Request,
+    db: Database,
+) -> dict[str, object]:
+    require_mutation(request)
+    actor = authenticate(db, request, context, lock=True)
+    return workspace_payload(db, create_draft(db, actor, payload))
+
+
+@app.post("/api/{context}/orders/{order_id}/status")
+def update_order_status(
+    context: Context,
+    order_id: str,
+    payload: StatusChange,
+    request: Request,
+    db: Database,
+) -> dict[str, bool]:
+    require_mutation(request)
+    actor = authenticate(db, request, context, lock=True)
+    change_status(db, actor, order_id, payload)
+    return {"updated": True}

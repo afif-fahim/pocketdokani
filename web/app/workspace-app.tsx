@@ -14,6 +14,7 @@ import BusinessLists, {
 } from "./business-lists";
 import { api, ApiError, json } from "./api";
 import DraftEditor from "./draft-editor";
+import Assistant from "./assistant";
 
 type Context = "seller" | "judge";
 type Source = {
@@ -29,6 +30,7 @@ type Source = {
 type Workspace = {
   id: string;
   reference: string;
+  layout: string;
   context: Context;
   created_at: string;
   seller_side: "left" | "right";
@@ -56,10 +58,11 @@ export default function WorkspaceApp({ context }: { context: Context }) {
   const [stock, setStock] = useState<StockItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
-  const [section, setSection] = useState<"orders" | "stock" | "conversations">(
-    "orders",
-  );
+  const [section, setSection] = useState<
+    "orders" | "stock" | "conversations" | "assistant"
+  >("orders");
   const [pending, setPending] = useState<Pending[]>([]);
+  const [assistantVersion, setAssistantVersion] = useState(0);
   const pendingRef = useRef<Pending[]>([]);
   const nextPendingKey = useRef(0);
   const [sellerSide, setSellerSide] = useState<"left" | "right">("right");
@@ -69,29 +72,32 @@ export default function WorkspaceApp({ context }: { context: Context }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const load = useCallback(async () => {
-    const [items, skus, orderRecords, payoutRecords] = await Promise.all([
-      api<Workspace[]>(`${base}/workspaces`),
-      api<StockItem[]>(`${base}/stock`),
-      api<Order[]>(`${base}/orders`),
-      api<Payout[]>(`${base}/payouts`),
-    ]);
-    setStock(skus);
-    setOrders(orderRecords);
-    setPayouts(payoutRecords);
-    const id = new URLSearchParams(window.location.search).get("workspace");
-    const selected = id
-      ? items.find((item) => item.id === id) ||
-        (await api<Workspace>(`${base}/workspaces/${encodeURIComponent(id)}`))
-      : null;
-    setWorkspaces(
-      selected && !items.some((item) => item.id === selected.id)
-        ? [selected, ...items]
-        : items,
-    );
-    setActive(selected);
-    if (selected) setSection("conversations");
-  }, [base]);
+  const load = useCallback(
+    async (preserveSection = false) => {
+      const [items, skus, orderRecords, payoutRecords] = await Promise.all([
+        api<Workspace[]>(`${base}/workspaces`),
+        api<StockItem[]>(`${base}/stock`),
+        api<Order[]>(`${base}/orders`),
+        api<Payout[]>(`${base}/payouts`),
+      ]);
+      setStock(skus);
+      setOrders(orderRecords);
+      setPayouts(payoutRecords);
+      const id = new URLSearchParams(window.location.search).get("workspace");
+      const selected = id
+        ? items.find((item) => item.id === id) ||
+          (await api<Workspace>(`${base}/workspaces/${encodeURIComponent(id)}`))
+        : null;
+      setWorkspaces(
+        selected && !items.some((item) => item.id === selected.id)
+          ? [selected, ...items]
+          : items,
+      );
+      setActive(selected);
+      if (selected && !preserveSection) setSection("conversations");
+    },
+    [base],
+  );
 
   useEffect(() => {
     let stopped = false;
@@ -187,6 +193,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
         }),
       );
       chooseWorkspace(workspace);
+      setAssistantVersion((version) => version + 1);
       await load();
       setSection(section);
       setNotice(
@@ -371,7 +378,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
                     disabled={busy}
                     onClick={() => openExample(Boolean(workspaces.length))}
                   >
-                    {busy ? "Restoring…" : "Reset judge shop"}
+                    Reset judge shop
                   </button>
                 )}
                 {!judge && active && (
@@ -401,27 +408,64 @@ export default function WorkspaceApp({ context }: { context: Context }) {
               </div>
             </nav>
             <nav className="business-nav" aria-label="Shop sections">
-              {(["orders", "stock", "conversations"] as const).map((item) => (
-                <button
-                  key={item}
-                  aria-current={section === item ? "page" : undefined}
-                  disabled={busy}
-                  onClick={() => setSection(item)}
-                >
-                  {item === "orders"
-                    ? "Orders"
-                    : item === "stock"
-                      ? "Stock"
-                      : "Conversations"}
-                </button>
-              ))}
+              {(["orders", "stock", "conversations", "assistant"] as const).map(
+                (item) => (
+                  <button
+                    key={item}
+                    aria-current={section === item ? "page" : undefined}
+                    disabled={busy}
+                    onClick={() => setSection(item)}
+                  >
+                    {item === "orders"
+                      ? "Orders"
+                      : item === "stock"
+                        ? "Stock"
+                        : item === "assistant"
+                          ? "সহকারী · Assistant"
+                          : "Conversations"}
+                  </button>
+                ),
+              )}
             </nav>
-            {section !== "conversations" ? (
+            <div hidden={section !== "assistant"}>
+              <Assistant
+                key={assistantVersion}
+                base={base}
+                busy={busy}
+                act={act}
+                onChange={() => load(true)}
+                onDraft={async (id) => {
+                  chooseWorkspace(
+                    await api<Workspace>(
+                      `${base}/workspaces/${encodeURIComponent(id)}`,
+                    ),
+                  );
+                  await load();
+                }}
+                onRecord={(record) => {
+                  setSection(record.section);
+                  requestAnimationFrame(() => {
+                    const element = document.getElementById(
+                      `${record.kind}-${record.key}`,
+                    );
+                    if (element instanceof HTMLDetailsElement)
+                      element.open = true;
+                    element?.closest("details")?.setAttribute("open", "");
+                    element?.scrollIntoView({ block: "center" });
+                  });
+                }}
+              />
+            </div>
+            {section === "assistant" ? null : section !== "conversations" ? (
               <BusinessLists
                 view={section}
                 orders={orders}
                 stock={stock}
                 payouts={payouts}
+                base={base}
+                busy={busy}
+                act={act}
+                onChange={() => load(true)}
                 onOpenWorkspace={(id) =>
                   act(async () =>
                     chooseWorkspace(
@@ -435,33 +479,70 @@ export default function WorkspaceApp({ context }: { context: Context }) {
             ) : (
               <div className="workspace-layout">
                 <section className="panel workspace-main">
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      act(async () => {
+                        const workspace = await api<Workspace>(
+                          `${base}/order-drafts`,
+                          json("POST", {
+                            request_id: crypto.randomUUID(),
+                            values: {
+                              customer_name: null,
+                              phone: null,
+                              address: null,
+                              customer_delivery_charge: null,
+                              order_confirmed: null,
+                              lines: [],
+                            },
+                          }),
+                        );
+                        chooseWorkspace(workspace);
+                        await load();
+                      })
+                    }
+                  >
+                    New draft +
+                  </button>
                   {active ? (
                     <>
                       <div className="section-heading">
                         <div>
-                          <p className="eyebrow">SAVED CONVERSATION</p>
+                          <p className="eyebrow">
+                            {active.layout === "seller-draft-v1"
+                              ? "ORDER DRAFT"
+                              : "SAVED CONVERSATION"}
+                          </p>
                           <h2 className="reference">{active.reference}</h2>
                         </div>
                         <span className="pill">
                           {active.sources.length} originals
                         </span>
                       </div>
-                      <p className="coverage-note">
-                        Selected screenshots only. This batch may leave out
-                        parts of the conversation.
-                      </p>
-                      <div className="confirmation">
-                        <strong>Seller: {active.seller_side} bubbles</strong>
-                        <span>
-                          Customer:{" "}
-                          {active.seller_side === "right" ? "left" : "right"}{" "}
-                          bubbles
-                        </span>
-                        <small>
-                          Confirmed by {active.confirmed_by} ·{" "}
-                          {new Date(active.confirmed_at).toLocaleString()}
-                        </small>
-                      </div>
+                      {active.layout !== "seller-draft-v1" && (
+                        <>
+                          <p className="coverage-note">
+                            Selected screenshots only. This batch may leave out
+                            parts of the conversation.
+                          </p>
+                          <div className="confirmation">
+                            <strong>
+                              Seller: {active.seller_side} bubbles
+                            </strong>
+                            <span>
+                              Customer:{" "}
+                              {active.seller_side === "right"
+                                ? "left"
+                                : "right"}{" "}
+                              bubbles
+                            </span>
+                            <small>
+                              Confirmed by {active.confirmed_by} ·{" "}
+                              {new Date(active.confirmed_at).toLocaleString()}
+                            </small>
+                          </div>
+                        </>
+                      )}
                       <ol className="saved-sources">
                         {active.sources.map((source) => (
                           <li key={source.id} className="saved-source">

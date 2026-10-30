@@ -174,7 +174,9 @@ def workspace_payload(db: Session, workspace: Workspace) -> dict[str, object]:
         "seller_side": workspace.seller_side,
         "confirmed_by": workspace.confirmed_by,
         "confirmed_at": utc_iso(workspace.confirmed_at),
-        "coverage": "selected_screenshots_only",
+        "coverage": "seller_draft"
+        if workspace.layout == "seller-draft-v1"
+        else "selected_screenshots_only",
         "model_calls": 0,
         "sources": [
             {
