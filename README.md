@@ -14,7 +14,9 @@ Issue #2 adds a private workbook import for products, SKU photos, stock, histori
 
 Live: [seller workspace](https://pocketdokani.vercel.app/) (shop passcode required) and [constructed judge example](https://pocketdokani.vercel.app/judge). The first screenshot-import slice is deployed on Vercel and Render with PostgreSQL and private object storage on Supabase. Hosted checks were recorded on October 30, 2026; see the [verification record](docs/verification.md#hosted-verification--october-30-2026).
 
-Not yet implemented: order drafting, the voice assistant, pack check, courier booking, evaluation and pilot results.
+Issue #3 adds source-linked order drafts from ordered screenshots and optional voice notes, phone editing with SKU photos and live COD, seller-verified payments, and confirmation with stable order references. Model calls are disabled until the server is configured. This slice is verified locally with synthetic model responses; live extraction quality and physical-phone timing remain unverified.
+
+Not yet implemented: the voice assistant, pack check, courier booking, evaluation and pilot results.
 
 Local development also supports SQLite/private files. See [local setup and acceptance checks](docs/development.md), [deployment setup](docs/deployment.md), [evaluation partitions](evals/README.md) and the [verification record](docs/verification.md).
 

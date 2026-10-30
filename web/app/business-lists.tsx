@@ -22,6 +22,7 @@ export type Order = {
   verified_prior_payment: string;
   cod_amount: string;
   consignment_id: string | null;
+  source_workspace_id: string | null;
   note: string;
   created_at: string;
   lines: {
@@ -64,11 +65,13 @@ export default function BusinessLists({
   orders,
   stock,
   payouts,
+  onOpenWorkspace,
 }: {
   view: "orders" | "stock";
   orders: Order[];
   stock: StockItem[];
   payouts: Payout[];
+  onOpenWorkspace: (id: string) => void;
 }) {
   if (view === "stock") {
     return (
@@ -157,11 +160,21 @@ export default function BusinessLists({
                   </span>
                   <span>
                     {order.lines.length}{" "}
-                    {order.lines.length === 1 ? "line" : "lines"} · COD{" "}
+                    {order.lines.length === 1 ? "line" : "lines"} ·{" "}
+                    {order.status === "draft" && order.source_workspace_id
+                      ? "Last confirmed COD"
+                      : "COD"}{" "}
                     <strong>{money(order.cod_amount)}</strong>
                   </span>
                 </summary>
                 <div className="order-body">
+                  {order.status === "draft" && order.source_workspace_id && (
+                    <p className="message">
+                      This order has edits awaiting confirmation. The details
+                      below are from its last confirmation; open the draft to
+                      review current values.
+                    </p>
+                  )}
                   <p>{order.phone || "Phone not recorded"}</p>
                   <p>{order.address || "Address not recorded"}</p>
                   <ul className="order-lines">
@@ -201,6 +214,15 @@ export default function BusinessLists({
                     </p>
                   )}
                   <p className="muted">{order.note}</p>
+                  {order.source_workspace_id && (
+                    <button
+                      onClick={() =>
+                        onOpenWorkspace(order.source_workspace_id!)
+                      }
+                    >
+                      Open draft and sources ↗
+                    </button>
+                  )}
                 </div>
               </details>
             </li>

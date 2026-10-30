@@ -12,6 +12,8 @@ import BusinessLists, {
   type Payout,
   type StockItem,
 } from "./business-lists";
+import { api, ApiError, json } from "./api";
+import DraftEditor from "./draft-editor";
 
 type Context = "seller" | "judge";
 type Source = {
@@ -35,48 +37,6 @@ type Workspace = {
   sources: Source[];
 };
 type Pending = { key: string; file: File; url: string };
-
-class ApiError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-  ) {
-    super(message);
-  }
-}
-
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(path, {
-      ...init,
-      cache: "no-store",
-      credentials: "same-origin",
-      headers: { "X-PocketDokani-Request": "1", ...init?.headers },
-    });
-  } catch {
-    throw new Error("Could not connect. Check your connection and try again.");
-  }
-  const body = await response
-    .json()
-    .catch(() => ({ detail: "The service is unavailable. Please try again." }));
-  if (!response.ok)
-    throw new ApiError(
-      typeof body.detail === "string"
-        ? body.detail
-        : "Check your input and try again.",
-      response.status,
-    );
-  return body as T;
-}
-
-function json(method: string, body: object): RequestInit {
-  return {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  };
-}
 
 function bytes(value: number) {
   return `${(value / 1024 / 1024).toFixed(2)} MiB`;
@@ -394,7 +354,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
             </form>
             <p className="fine-print">
               {judge
-                ? "No real customer data. No model calls in this slice."
+                ? "No real customer data. Live extraction uses this session’s constructed shop."
                 : "Private evidence is accessible only after seller sign-in."}
             </p>
           </section>
@@ -462,6 +422,15 @@ export default function WorkspaceApp({ context }: { context: Context }) {
                 orders={orders}
                 stock={stock}
                 payouts={payouts}
+                onOpenWorkspace={(id) =>
+                  act(async () =>
+                    chooseWorkspace(
+                      await api<Workspace>(
+                        `${base}/workspaces/${encodeURIComponent(id)}`,
+                      ),
+                    ),
+                  )
+                }
               />
             ) : (
               <div className="workspace-layout">
@@ -528,11 +497,23 @@ export default function WorkspaceApp({ context }: { context: Context }) {
                           </li>
                         ))}
                       </ol>
-                      <p className="fine-print">
-                        Original files and upload order are preserved.
-                        Extraction, order review and approval come in later
-                        slices.
-                      </p>
+                      <DraftEditor
+                        key={active.id}
+                        base={base}
+                        workspaceId={active.id}
+                        stock={stock}
+                        busy={busy}
+                        act={act}
+                        onSource={(sequence) => {
+                          const source = active.sources.find(
+                            (item) => item.sequence === sequence,
+                          );
+                          if (source) preview(source);
+                        }}
+                        onChange={async () =>
+                          setOrders(await api<Order[]>(`${base}/orders`))
+                        }
+                      />
                       {judge && (
                         <button
                           className="danger"

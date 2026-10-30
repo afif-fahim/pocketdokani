@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -189,3 +190,41 @@ class BusinessImport(Base):
     sha256: Mapped[str] = mapped_column(String(64))
     imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     reviewed_by: Mapped[str] = mapped_column(String(100))
+
+
+class OrderDraft(Base):
+    __tablename__ = "order_drafts"
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), primary_key=True
+    )
+    owner: Mapped[str] = mapped_column(String(64), index=True)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    content: Mapped[dict[str, object]] = mapped_column(JSON)
+    verified_prior_payment: Mapped[str] = mapped_column(String(30), default="0")
+    payment_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    order_id: Mapped[str | None] = mapped_column(String(36))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class VoiceNote(Base):
+    __tablename__ = "voice_notes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    transcript: Mapped[str] = mapped_column(Text)
+    sha256: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ModelRun(Base):
+    __tablename__ = "model_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
+    owner: Mapped[str] = mapped_column(String(64), index=True)
+    kind: Mapped[str] = mapped_column(String(40))
+    model: Mapped[str] = mapped_column(String(80))
+    input_refs: Mapped[dict[str, object]] = mapped_column(JSON)
+    output: Mapped[dict[str, object]] = mapped_column(JSON)
+    tokens: Mapped[dict[str, object]] = mapped_column(JSON)
+    latency_ms: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
