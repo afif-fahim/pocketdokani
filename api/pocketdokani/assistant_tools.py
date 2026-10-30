@@ -81,7 +81,7 @@ TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     ),
     "sales_summary": (
         SalesSummary,
-        "Order value (lines plus delivery, before prior payments), excluding draft, returned and cancelled orders. Weeks begin Monday, Asia/Dhaka.",
+        "Order value (lines plus delivery, before prior payments), excluding draft, returned and cancelled orders. Weeks begin Saturday, Asia/Dhaka.",
     ),
     "payout_summary": (
         Arguments,
@@ -217,7 +217,7 @@ def execute_tool(
             today = now().astimezone(ZoneInfo("Asia/Dhaka")).date()
             start = {
                 "today": today,
-                "this_week": today - timedelta(days=today.weekday()),
+                "this_week": today - timedelta(days=(today.weekday() + 2) % 7),
                 "this_month": today.replace(day=1),
                 "all_time": date.min,
             }[args.period]

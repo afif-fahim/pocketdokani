@@ -134,3 +134,9 @@ No missing requirements, scope creep or incorrect implementations remain after f
 Standards: 0 remaining findings. Spec: 0 remaining findings. The repository format/lint/type checks, all three existing COD tests, source-partition validation, staged privacy guard and production build passed. No new test files or private inputs are committed.
 
 This record establishes local behavior with synthetic model output. Live Spark tool selection, transcription accuracy, answer grounding on real questions, the 20-question evaluation, hosted acceptance and physical-phone behavior remain unverified.
+
+### Grounding correction — October 30, 2026
+
+A subsequent review reproduced an incorrect pending-dispatch answer: the model claimed 2026 parcels when the stored count was two. The numeric-occurrence guard accepted the year from record timestamps. That guard has been replaced with a structured final response containing only citations and metric references. The server validates each reference and supplies the label and value; model-written prose, labels and values are rejected. An explicit empty selection returns an unknown answer even after successful lookups.
+
+A disposable stdin driver used an in-memory synthetic judge shop and mocked model responses. Checks passed for the original timestamp collision, spelled-out numeric and nonnumeric false claims, unknown citations, missing or uncited metrics, attempted value/label injection, empty selections, missing records, correct counts in English and Bangla, sales and stock metrics, interrupted lookups, proposal acknowledgments and matching audit output. No test files or private inputs were added. These checks do not establish live model tool selection or physical-phone behavior.
