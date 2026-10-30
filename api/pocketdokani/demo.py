@@ -1,4 +1,5 @@
 import io
+import textwrap
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -26,21 +27,24 @@ def screenshots() -> list[Original]:
     title = ImageFont.load_default(size=28)
     batches = [
         [
-            ("left", "Blue tote ta ache?"),
-            ("right", "Ji, received lot e ache."),
-            ("left", "Ekta blue, ekta black chai."),
-            ("right", "Duita item note korlam."),
+            ("left", "1 blue canvas tote, 1 black shoulder bag."),
+            ("right", "Tote 500, shoulder bag 600 BDT each."),
+            ("left", "Final price aro kom hobe?"),
+            ("right", "Final: tote 450, shoulder 550 BDT each."),
+            ("left", "Ji, ei final price e order confirmed."),
         ],
         [
-            ("left", "Age screenshots gulo dekhen."),
-            ("right", "Ji, details review korbo."),
-            ("left", "Eta constructed example."),
-            ("right", "Real customer data nei."),
+            ("left", "Name: Demo recipient"),
+            ("left", "Address: Example Road, Dhaka"),
+            ("left", "Phone: 01X-EXAMPLE (withheld in demo)"),
+            ("right", "Customer delivery charge 80 BDT."),
+            ("right", "Line discount 0 BDT for each item."),
+            ("left", "I already paid 500 BDT."),
         ],
     ]
     result = []
     for sequence, bubbles in enumerate(batches, 1):
-        image = Image.new("RGB", (720, 1100), "#f4f5f9")
+        image = Image.new("RGB", (720, 1400), "#f4f5f9")
         draw = ImageDraw.Draw(image)
         draw.rectangle((0, 0, 720, 120), fill="#ffffff")
         draw.text((28, 26), "Demo customer | Messenger", font=title, fill="#203831")
@@ -55,9 +59,14 @@ def screenshots() -> list[Original]:
                 radius=24,
                 fill="#e2e5ed" if side == "left" else "#d4eee5",
             )
-            draw.text((x + 20, y + 40), message, font=font, fill="#203831")
+            draw.multiline_text(
+                (x + 20, y + 25),
+                "\n".join(textwrap.wrap(message, width=40)),
+                font=font,
+                fill="#203831",
+            )
         draw.text(
-            (28, 1010),
+            (28, 1330),
             f"Development source | screenshot {sequence}/2",
             font=font,
             fill="#53645e",
@@ -70,7 +79,7 @@ def screenshots() -> list[Original]:
                 buffer.getvalue(),
                 "image/png",
                 720,
-                1100,
+                1400,
             )
         )
     return result

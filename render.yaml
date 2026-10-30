@@ -21,3 +21,7 @@ services:
         sync: false
       - key: SUPABASE_BUCKET
         value: pocketdokani-evidence
+      - key: MODEL_CALLS_ENABLED
+        value: "false"
+      - key: MODEL_API_KEY
+        sync: false

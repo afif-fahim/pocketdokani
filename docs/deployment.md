@@ -1,6 +1,14 @@
-# Deploying the first slice
+# Deploying PocketDokani
 
 The first screenshot-import slice is deployed with FastAPI on Render, the Next.js web app on Vercel, and PostgreSQL/private object storage on Supabase. This does not yet include model calls, order drafting or courier booking.
+
+## Deploying order drafts (issue #3)
+
+Deploy the API and web app together after merging the branch. The container runs migration `0003` before serving; it creates private drafts, voice transcripts and model audit tables with the same PostgreSQL RLS and client-grant restrictions. The image includes ffmpeg for uploaded voice-note conversion. Keep the existing database, object bucket and origin settings.
+
+Set `MODEL_API_KEY` as a secret on the API host and set `MODEL_CALLS_ENABLED=true` when ready for live acceptance. The checked-in Render blueprint leaves calls disabled. Never add either setting as a public browser credential. Optional `JUDGE_MODEL_CALLS_PER_HOUR` and `SELLER_MODEL_CALLS_PER_HOUR` default to 12 and 60; retries count as attempts. Judge reset preserves its budget.
+
+Repeat the [draft acceptance workflow](development.md#drafting-and-confirming-an-order) on the deployed stack, including final negotiated prices, wrong/unknown fields, source chips, verified-payment gating, repeat confirmation, judge isolation and voice-note upload. Measure a real-sized batch on a physical phone against the issue's under-two-minute target. The local synthetic verification does not establish live model quality or hosted acceptance. Courier booking remains unimplemented.
 
 ## Live deployment
 

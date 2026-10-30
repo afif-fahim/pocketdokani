@@ -15,6 +15,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, SecretStr
 from sqlalchemy import delete, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -22,6 +23,15 @@ from pocketdokani.business import orders_payload, payouts_payload, stock_payload
 from pocketdokani.config import settings
 from pocketdokani.db import database
 from pocketdokani.demo import product_photo, screenshots, seed_shop
+from pocketdokani.drafting import (
+    DraftRevision,
+    SaveDraft,
+    confirm_draft,
+    draft_payload,
+    extract,
+    owned_draft,
+    save_draft,
+)
 from pocketdokani.imports import (
     LAYOUT,
     MAX_BATCH_BYTES,
@@ -33,7 +43,15 @@ from pocketdokani.imports import (
     validate_original,
     workspace_payload,
 )
-from pocketdokani.records import BrowserSession, Product, SourceImage, Workspace
+from pocketdokani.model_api import require_models
+from pocketdokani.records import (
+    BrowserSession,
+    OrderDraft,
+    Product,
+    SourceImage,
+    VoiceNote,
+    Workspace,
+)
 from pocketdokani.security import (
     Context,
     authenticate,
@@ -43,6 +61,7 @@ from pocketdokani.security import (
     require_mutation,
 )
 from pocketdokani.storage import ObjectStorage
+from pocketdokani.voice_notes import MAX_AUDIO_BYTES, transcribe
 
 app = FastAPI(title="PocketDokani", docs_url=None, redoc_url=None, openapi_url=None)
 Database = Annotated[Session, Depends(database)]
@@ -61,7 +80,9 @@ class RequestBoundary:
         limit = (
             MAX_BATCH_BYTES + 64 * 1024
             if scope["path"].endswith("/workspaces")
-            else 16 * 1024
+            else MAX_AUDIO_BYTES + 64 * 1024
+            if scope["path"].endswith("/voice-notes")
+            else 128 * 1024
         )
         consumed = 0
         response_started = False
@@ -124,7 +145,9 @@ async def invalid_request(
 ) -> JSONResponse:
     # Pydantic errors can echo secret inputs; return only a safe, actionable message.
     return JSONResponse(
-        {"detail": "Check the file selection, layout and side confirmation."},
+        {
+            "detail": "Check the required fields, amounts, file selection and confirmation."
+        },
         status_code=422,
     )
 
@@ -191,7 +214,8 @@ def current_session(
         "max_files": MAX_FILES,
         "max_file_bytes": MAX_FILE_BYTES,
         "max_batch_bytes": MAX_BATCH_BYTES,
-        "model_calls_enabled": False,
+        "model_calls_enabled": settings().model_calls_enabled
+        and bool(settings().model_api_key.get_secret_value()),
     }
 
 
@@ -334,6 +358,8 @@ def reset_example(
                 )
             )
         )
+        db.execute(delete(OrderDraft).where(OrderDraft.workspace_id == prior.id))
+        db.execute(delete(VoiceNote).where(VoiceNote.workspace_id == prior.id))
         db.execute(delete(SourceImage).where(SourceImage.workspace_id == prior.id))
         db.delete(prior)
         db.flush()
@@ -380,3 +406,128 @@ def catalogue_photo(
         else ObjectStorage().get(product.photo_key)
     )
     return Response(data, media_type=product.photo_media_type)
+
+
+@app.get("/api/{context}/workspaces/{workspace_id}/draft")
+def get_draft(
+    context: Context, workspace_id: str, request: Request, db: Database
+) -> dict[str, object] | None:
+    actor = authenticate(db, request, context)
+    owned_workspace(db, actor, workspace_id)
+    draft = db.get(OrderDraft, workspace_id)
+    return draft_payload(db, draft) if draft else None
+
+
+@app.post("/api/{context}/workspaces/{workspace_id}/draft")
+def extract_draft(
+    context: Context, workspace_id: str, request: Request, db: Database
+) -> dict[str, object]:
+    require_mutation(request)
+    actor = authenticate(db, request, context)
+    workspace = owned_workspace(db, actor, workspace_id)
+    existing = db.get(OrderDraft, workspace_id)
+    if existing:
+        return draft_payload(db, existing)
+    require_models()
+    content = extract(db, actor, workspace)
+    # Model calls commit their audit records. Recheck ownership after the network wait.
+    actor = authenticate(db, request, context, lock=True)
+    owned_workspace(db, actor, workspace_id)
+    existing = db.get(OrderDraft, workspace_id)
+    if existing:
+        return draft_payload(db, existing)
+    draft = OrderDraft(workspace_id=workspace_id, owner=actor.owner, content=content)
+    db.add(draft)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            409, "The workspace changed. Reload to open the latest draft."
+        ) from None
+    return draft_payload(db, draft)
+
+
+@app.put("/api/{context}/workspaces/{workspace_id}/draft")
+def update_draft(
+    context: Context,
+    workspace_id: str,
+    payload: SaveDraft,
+    request: Request,
+    db: Database,
+) -> dict[str, object]:
+    require_mutation(request)
+    actor = authenticate(db, request, context)
+    owned_workspace(db, actor, workspace_id)
+    draft = owned_draft(db, actor, workspace_id)
+    save_draft(db, draft, payload)
+    return draft_payload(db, draft)
+
+
+@app.post("/api/{context}/workspaces/{workspace_id}/draft/confirm")
+def approve_draft(
+    context: Context,
+    workspace_id: str,
+    payload: DraftRevision,
+    request: Request,
+    db: Database,
+) -> dict[str, object]:
+    require_mutation(request)
+    actor = authenticate(db, request, context)
+    owned_workspace(db, actor, workspace_id)
+    draft = owned_draft(db, actor, workspace_id)
+    confirm_draft(db, actor, draft, payload.revision)
+    return draft_payload(db, draft)
+
+
+@app.get("/api/{context}/workspaces/{workspace_id}/voice-notes")
+def list_voice_notes(
+    context: Context, workspace_id: str, request: Request, db: Database
+) -> list[dict[str, str]]:
+    actor = authenticate(db, request, context)
+    owned_workspace(db, actor, workspace_id)
+    notes = db.scalars(
+        select(VoiceNote)
+        .where(VoiceNote.workspace_id == workspace_id)
+        .order_by(VoiceNote.created_at)
+    ).all()
+    return [{"id": n.id, "transcript": n.transcript} for n in notes]
+
+
+@app.post("/api/{context}/workspaces/{workspace_id}/voice-notes")
+def upload_voice_note(
+    context: Context,
+    workspace_id: str,
+    request: Request,
+    db: Database,
+    audio: Annotated[UploadFile, File()],
+) -> dict[str, str]:
+    require_mutation(request)
+    actor = authenticate(db, request, context)
+    workspace = owned_workspace(db, actor, workspace_id)
+    if db.get(OrderDraft, workspace_id):
+        raise HTTPException(
+            409,
+            "Add voice notes before extracting. Existing drafts keep their original evidence.",
+        )
+    require_models()
+    try:
+        data = audio.file.read(MAX_AUDIO_BYTES + 1)
+    finally:
+        audio.file.close()
+    if not data or len(data) > MAX_AUDIO_BYTES:
+        raise HTTPException(413, "Choose a nonempty voice note of at most 8 MiB.")
+    transcript, fingerprint = transcribe(db, actor, workspace, data)
+    actor = authenticate(db, request, context, lock=True)
+    owned_workspace(db, actor, workspace_id)
+    if db.get(OrderDraft, workspace_id):
+        raise HTTPException(
+            409,
+            "A draft was extracted while the voice note was transcribing. It was not changed.",
+        )
+    note = VoiceNote(
+        workspace_id=workspace_id, transcript=transcript, sha256=fingerprint
+    )
+    db.add(note)
+    db.commit()
+    return {"id": note.id, "transcript": note.transcript}

@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     supabase_service_role_key: SecretStr = SecretStr("")
     supabase_bucket: str = "pocketdokani-evidence"
     session_hours: int = 12
+    model_api_key: SecretStr = SecretStr("")
+    model_calls_enabled: bool = False
+    judge_model_calls_per_hour: int = 12
+    seller_model_calls_per_hour: int = 60
 
     @model_validator(mode="after")
     def deployment_requirements(self) -> "Settings":

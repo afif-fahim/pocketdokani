@@ -82,3 +82,29 @@ A temporary synthetic HTTP-boundary reproduction failed before the fix, then ver
 The review's pricing-duplication observation is also addressed: `LinePrice.total()` owns line validation, discounts and totals, and is shared by COD calculation, workbook reconciliation and order display. The existing COD check continues to pass.
 
 Follow-up standards review: 0 remaining findings. Follow-up spec review: 0 remaining findings. Local read payloads retain the imported order-line totals and all three payouts after the shared-pricing change.
+
+# Order drafting, issue #3 — October 30, 2026
+
+Local acceptance used fresh SQLite databases, private temporary objects, constructed screenshots and synthetic responses at the Meta HTTP boundary. No real customer data or live model credentials were used. No additional test files are committed; the existing COD check remains the automated-suite exception.
+
+The acceptance driver verified two-item extraction, final-price fields with source quotes, blank invalid phones and unknown/unavailable SKUs, missing quoted numbers, signed values, Bangla digits and adjacent currency text, and punctuation around prices. A complete phone cannot be extracted from a longer digit run. A seller correction enabled confirmation, creating one stable `PD-` reference. Repeated confirmation did not create another order; stale revisions returned 409. Saving edits returned the order to draft, and removing a line preserved the remaining line's own source evidence.
+
+The constructed two-line order calculated COD 1,080 BDT. An unverified customer claim of 500 BDT did not reduce it; explicitly marking the payment as seller-verified changed COD to 580 BDT. Required fields, unavailable stock, negative COD and totals exceeding PostgreSQL's money-column capacity are blocked before confirmation. The shared COD calculator owns the server arithmetic.
+
+Two independent judges and a seller session could not read one another's drafts or voice transcripts. Reset removed only the requesting judge's draft and restored its eight fixture orders. Model budgets survived reset. Disabled models and exhausted budgets made no provider requests. A simulated transient provider failure consumed an attempt, was audited, and retried once; successful attempts recorded usage and latency. Uploaded synthetic stereo audio was converted by ffmpeg to mono 16-bit 16 kHz WAV, sent with language biases and SKU keywords, and its transcript became separately cited extraction evidence.
+
+SQLite migration upgrade/downgrade/upgrade and Alembic metadata parity passed. PostgreSQL migration SQL generated successfully, including RLS and client-role grant revocation for all three new tables. This does not establish live PostgreSQL migration or hosted storage acceptance.
+
+Browser checks at 390 × 844 covered the two-item editor, empty-phone confirmation block, corrected-phone confirmation, screenshot 2 source navigation, seller-verified payment, live COD, saving a confirmed order back to draft and keeping its reference on reconfirmation and reload. These use injected synthetic responses and viewport emulation, not a physical phone or live extraction.
+
+The final `npm run check`, all three existing COD tests (`npm run test`) and the Next.js production build passed. Private inputs, temporary acceptance drivers and the pre-existing generated Next.js type-reference change are excluded from the commit.
+
+## Standards
+
+No documented-standard violations or actionable baseline smells remained. One additional correctness finding was fixed: the server now rejects a calculated COD beyond `Numeric(14,2)` capacity with 422 before persistence, and the editor applies the same bound. Focused follow-up: 0 remaining findings.
+
+## Spec
+
+No missing implementation requirements or scope creep remained. The review found that phone evidence could accept a valid-length prefix of a longer number; complete digit boundaries now prevent that. Follow-up checks also covered quoted-number punctuation, Bangla currency text and malformed grouped numbers. Focused follow-up: 0 remaining actionable findings.
+
+Standards: 0 remaining findings. Spec: 0 remaining findings. Live Spark perception quality, selection of final negotiated prices on real conversations, deployed voice-note behavior and the physical-phone under-two-minute acceptance target remain unverified. Enable server-side models and perform those acceptance checks before claiming the issue's hosted acceptance gates or pilot results.
