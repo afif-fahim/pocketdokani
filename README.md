@@ -18,7 +18,9 @@ Issue #3 adds source-linked order drafts from ordered screenshots and optional v
 
 Issue #4 adds a Bangla/Banglish voice and typed assistant with shop-scoped business tools, record chips and stored numeric results. Draft creation and order-status proposals require confirmation through the same endpoints as the normal UI. This slice is verified locally with synthetic model responses; live answer quality and physical-phone microphone behavior remain unverified.
 
-Not yet implemented: pack check, courier booking, evaluation and pilot results.
+Issue #5 adds guided parcel-photo capture, SAM label/bag crops with full-photo fallback, blind label reading, code comparisons against the confirmed order, separate visible-bag results and recorded seller overrides for unsure checks. Originals, crops and field reasons remain private. This slice is verified locally with constructed inputs; live perception quality and physical-phone capture remain unverified.
+
+Not yet implemented: courier booking, evaluation and pilot results.
 
 Local development also supports SQLite/private files. See [local setup and acceptance checks](docs/development.md), [deployment setup](docs/deployment.md), [evaluation partitions](evals/README.md) and the [verification record](docs/verification.md).
 

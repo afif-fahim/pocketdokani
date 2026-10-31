@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api, json } from "./api";
+import PackCheckPanel, { type PackCheckSummary } from "./pack-check";
 
 export type StockItem = {
   sku: string;
@@ -29,6 +30,7 @@ export type Order = {
   note: string;
   created_at: string;
   updated_at: string;
+  pack_check: PackCheckSummary | null;
   lines: {
     line_number: number;
     sku: string;
@@ -296,6 +298,13 @@ export default function BusinessLists({
                     </p>
                   )}
                   <p className="muted">{order.note}</p>
+                  <PackCheckPanel
+                    order={order}
+                    base={base}
+                    busy={busy}
+                    act={act}
+                    onChange={onChange}
+                  />
                   <StatusActions
                     order={order}
                     base={base}

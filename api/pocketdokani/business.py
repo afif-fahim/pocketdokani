@@ -7,7 +7,15 @@ from sqlalchemy.orm import Session
 
 from pocketdokani.db import utc_iso
 from pocketdokani.money import LinePrice
-from pocketdokani.records import BrowserSession, Order, OrderLine, Payout, Product, Sku
+from pocketdokani.records import (
+    BrowserSession,
+    Order,
+    OrderLine,
+    PackCheck,
+    Payout,
+    Product,
+    Sku,
+)
 
 
 def stock_payload(db: Session, actor: BrowserSession) -> list[dict[str, object]]:
@@ -50,6 +58,21 @@ def orders_payload(db: Session, actor: BrowserSession) -> list[dict[str, object]
         .where(Order.owner == actor.owner)
         .order_by(Order.created_at.desc(), Order.reference)
     ).all()
+    active_checks = {
+        check.id: check
+        for check in db.scalars(
+            select(PackCheck).where(
+                PackCheck.owner == actor.owner,
+                PackCheck.id.in_(
+                    [
+                        order.active_pack_check_id
+                        for order in orders
+                        if order.active_pack_check_id
+                    ]
+                ),
+            )
+        )
+    }
     lines = db.execute(
         select(OrderLine, Sku)
         .join(Sku, (Sku.owner == OrderLine.owner) & (Sku.sku == OrderLine.sku))
@@ -92,6 +115,18 @@ def orders_payload(db: Session, actor: BrowserSession) -> list[dict[str, object]
             "note": order.note,
             "created_at": utc_iso(order.created_at),
             "updated_at": utc_iso(order.updated_at),
+            "pack_check": {
+                "id": check.id,
+                "verdict": check.verdict,
+                "label_verdict": check.label_verdict,
+                "bag_verdict": check.bag_verdict,
+                "override_by": check.override_by,
+                "override_at": utc_iso(check.override_at)
+                if check.override_at
+                else None,
+            }
+            if (check := active_checks.get(order.active_pack_check_id or ""))
+            else None,
             "lines": by_order.get(order.id, []),
         }
         for order in orders

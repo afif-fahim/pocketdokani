@@ -146,6 +146,7 @@ class Order(Base):
     cod_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     consignment_id: Mapped[str | None] = mapped_column(String(100))
     tracking_code: Mapped[str | None] = mapped_column(String(100))
+    active_pack_check_id: Mapped[str | None] = mapped_column(String(36))
     source_workspace_id: Mapped[str | None] = mapped_column(
         ForeignKey("workspaces.id", ondelete="SET NULL")
     )
@@ -228,3 +229,34 @@ class ModelRun(Base):
     tokens: Mapped[dict[str, object]] = mapped_column(JSON)
     latency_ms: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class PackCheck(Base):
+    __tablename__ = "pack_checks"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["owner", "order_id"], ["orders.owner", "orders.id"], ondelete="CASCADE"
+        ),
+        CheckConstraint("verdict IN ('pass', 'fail', 'unsure')"),
+        CheckConstraint("label_verdict IN ('pass', 'fail', 'unsure')"),
+        CheckConstraint("bag_verdict IN ('match', 'mismatch', 'unsure')"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
+    owner: Mapped[str] = mapped_column(String(64), index=True)
+    order_id: Mapped[str] = mapped_column(String(36), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    order_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    photo_key: Mapped[str] = mapped_column(String(200), unique=True)
+    photo_media_type: Mapped[str] = mapped_column(String(30))
+    photo_sha256: Mapped[str] = mapped_column(String(64))
+    crop_keys: Mapped[dict[str, str | None]] = mapped_column(JSON)
+    sam_path: Mapped[dict[str, object]] = mapped_column(JSON)
+    reading: Mapped[dict[str, object]] = mapped_column(JSON)
+    reasons: Mapped[list[dict[str, object]]] = mapped_column(JSON)
+    bag_results: Mapped[list[dict[str, object]]] = mapped_column(JSON)
+    verdict: Mapped[str] = mapped_column(String(10))
+    label_verdict: Mapped[str] = mapped_column(String(10))
+    bag_verdict: Mapped[str] = mapped_column(String(10))
+    override_by: Mapped[str | None] = mapped_column(String(64))
+    override_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -428,6 +428,7 @@ def save_draft(db: Session, draft: OrderDraft, payload: SaveDraft) -> None:
     if order:
         # A packed order loses packing authorization as soon as any edit is saved.
         order.status = "draft"
+        order.active_pack_check_id = None
         order.updated_at = now()
     db.commit()
 

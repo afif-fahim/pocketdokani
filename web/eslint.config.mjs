@@ -12,6 +12,7 @@ export default defineConfig([
       "app/workspace-app.tsx",
       "app/business-lists.tsx",
       "app/draft-editor.tsx",
+      "app/pack-check.tsx",
     ],
     rules: {
       // Preserve original evidence and session-protected image URLs without optimization.
