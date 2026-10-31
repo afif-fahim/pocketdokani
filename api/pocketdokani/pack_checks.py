@@ -3,7 +3,6 @@
 import base64
 import hashlib
 from datetime import datetime
-from typing import Any
 
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict
@@ -14,6 +13,7 @@ from pocketdokani.db import now, utc_iso
 from pocketdokani.demo import product_photo
 from pocketdokani.imports import Original, cleanup_objects
 from pocketdokani.pack_comparison import compare_label
+from pocketdokani.pack_types import PackAnalysis
 from pocketdokani.records import (
     BrowserSession,
     Order,
@@ -149,7 +149,7 @@ def save_check(
     expected: datetime,
     check_id: str,
     photo: Original,
-    analysis: dict[str, Any],
+    analysis: PackAnalysis,
 ) -> PackCheck:
     require_current(order, expected)
     label_verdict, reasons = compare_label(analysis["reading"], order)

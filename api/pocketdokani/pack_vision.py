@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from pocketdokani.imports import Original
 from pocketdokani.model_api import model_call
+from pocketdokani.pack_types import PackAnalysis, SegmentationMode
 from pocketdokani.records import BrowserSession
 
 LABEL_FIELDS = ("order_reference", "phone", "cod_amount", "customer_name", "address")
@@ -397,8 +398,8 @@ def analyse_pack(
     photo: Original,
     check_id: str,
     sku_photos: list[dict[str, object]],
-    segmentation: str = "sam",
-) -> dict[str, Any]:
+    segmentation: SegmentationMode = "sam",
+) -> PackAnalysis:
     with Image.open(io.BytesIO(photo.data)) as original:
         image = ImageOps.exif_transpose(original).convert("RGB")
     image.thumbnail((MAX_EDGE, MAX_EDGE))

@@ -174,3 +174,15 @@ No documented-standard violations or actionable baseline smells remain. Addition
 No missing requirements, scope creep or incorrect implementations remain after follow-up review. Locality words containing digits are retained when comparing addresses, and guessed text in an illegible field cannot trigger a definite swap failure. Constructed regression probes covered changed locality names, missing headings, conflicting numbers, exact matches and illegible name/reference text. Spec: 0 remaining findings.
 
 Live label/bag perception accuracy, the seller's approximately 20 handwritten photos, SAM-versus-full-photo evaluation results, deployed storage and physical-phone capture remain unverified. The constructed checks establish implementation behavior, not those acceptance gates.
+
+### Address comparison correction — October 31, 2026
+
+Follow-up review reproduced three address defects: `rd` inside `Ward` overwrote a Road heading, slash-letter identifiers such as `12/A` and `12/B` lost their suffixes, and matching explicitly headed clauses became unsure when reordered. The first two could classify a definite conflict as unsure, incorrectly making seller override available. A clause reorder could also cause a false failure through the `Ward` collision.
+
+The comparator now checks Unicode word boundaries for heading aliases, preserves complete Latin/Bangla suffixes, retains every repeated heading and compares explicitly headed values independently of clause order. Only unlabelled numeric values retain positional checks. Each address's number list is extracted once for set and positional comparisons. The model-to-persistence handoff now uses a shared `PackAnalysis` typed dictionary, and segmentation uses the `sam`/`full_photo` literal type.
+
+A disposable assertion driver failed before the correction and passed afterward: 21 constructed cases exercised both `address_result` and its `compare_label` caller. Cases included the reported defects, Bangla headings/digits/suffixes, conflicting repeated headings, missing/different headings, alphanumeric locality names, dotted `Rd.` and uncertain unlabelled-number order. Independent read-only probes passed another 15 cases, including canonical Unicode forms and slash spacing. No new test files are committed.
+
+Extended synthetic API acceptance passed with 31 mocked model requests. Wrong road numbers hidden by a Ward clause and conflicting slash suffixes now fail and reject seller override with 409. Correctly reordered matching addresses pass and mark the order packed. The existing isolation, invalidation, stale-result, audit, reset and migration checks also passed. No live model calls, customer data or hosted writes were used.
+
+Follow-up review: Standards 0 findings; Spec 0 findings. The spec reviewer independently checked 13 constructed cases, including suffixes, repeated headings, alias boundaries and locality differences. Strict mypy and Ruff passed, as did the full existing suite of three COD tests.

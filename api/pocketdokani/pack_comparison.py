@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections import Counter
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from difflib import SequenceMatcher
 from typing import TYPE_CHECKING
@@ -13,6 +15,36 @@ if TYPE_CHECKING:
 
 NAME_THRESHOLD = 0.82
 DIGITS = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
+ADDRESS_ALIASES = {
+    unicodedata.normalize("NFKC", label): field
+    for label, field in {
+        "house": "house",
+        "বাসা": "house",
+        "বাড়ি": "house",
+        "road": "road",
+        "rd": "road",
+        "রোড": "road",
+        "রাস্তা": "road",
+        "flat": "flat",
+        "ফ্ল্যাট": "flat",
+        "block": "block",
+        "ব্লক": "block",
+    }.items()
+}
+# Keep letter suffixes in identifiers such as 12/A, 12-AB and ১২/ক.
+ADDRESS_NUMBER = r"[0-9]+[a-z\u0980-\u09ff]*(?:(?:\s*/\s*|-)[0-9a-z\u0980-\u09ff]+)*"
+ADDRESS_LABEL = re.compile(
+    rf"(?P<label>{'|'.join(ADDRESS_ALIASES)})\.?\s*"
+    rf"(?:(?:number|no\.?|নম্বর|নং)\s*)?[#: -]*(?P<number>{ADDRESS_NUMBER})"
+)
+
+
+@dataclass(frozen=True)
+class _AddressParts:
+    labelled: dict[str, Counter[str]]
+    numbers: list[str]
+    unlabelled: list[str]
+    locality_words: set[str]
 
 
 def normalized(value: str) -> str:
@@ -48,55 +80,70 @@ def written_amount(value: str) -> Decimal | None:
         return None
 
 
+def _address_parts(value: str) -> _AddressParts:
+    text = unicodedata.normalize("NFKC", value).translate(DIGITS).casefold()
+    labelled: dict[str, Counter[str]] = {}
+    labelled_starts: set[int] = set()
+    locality = list(text)
+    for match in ADDRESS_LABEL.finditer(text):
+        # Python's word boundary excludes combining marks used in Bangla.
+        # Reject an alias inside any word, including immediately after a mark.
+        if match.start() and (
+            unicodedata.category(text[match.start() - 1])[0] in "LMN"
+            or text[match.start() - 1] == "_"
+        ):
+            continue
+        field = ADDRESS_ALIASES[match["label"]]
+        number = "".join(match["number"].split())
+        labelled.setdefault(field, Counter())[number] += 1
+        labelled_starts.add(match.start("number"))
+        locality[match.start() : match.end()] = " " * (match.end() - match.start())
+    numbers: list[str] = []
+    unlabelled: list[str] = []
+    for match in re.finditer(ADDRESS_NUMBER, text):
+        number = "".join(match[0].split())
+        numbers.append(number)
+        if match.start() not in labelled_starts:
+            unlabelled.append(number)
+    generic = {
+        "district",
+        "area",
+        "no",
+        "number",
+        "bangladesh",
+        "bd",
+        "জেলা",
+        "নং",
+        "নম্বর",
+    } | ADDRESS_ALIASES.keys()
+    # Keep the alphabetic part of unlabelled alphanumeric locality names.
+    words = {
+        word
+        for word in re.sub(r"[0-9]+", " ", normalized("".join(locality))).split()
+        if word not in generic
+    }
+    return _AddressParts(labelled, numbers, unlabelled, words)
+
+
 def address_result(written: str, expected: str) -> tuple[str, str]:
-    # Address spelling/transliteration is deliberately conservative. Without a
-    # confirmed area field, require all stored locality words rather than guess.
-    number_pattern = r"[0-9]+(?:[/\-][0-9]+)*[a-z]?"
-
-    def labelled_numbers(value: str) -> dict[str, str]:
-        aliases = {
-            "house": "house",
-            "বাসা": "house",
-            "বাড়ি": "house",
-            "road": "road",
-            "rd": "road",
-            "রোড": "road",
-            "রাস্তা": "road",
-            "flat": "flat",
-            "ফ্ল্যাট": "flat",
-            "block": "block",
-            "ব্লক": "block",
-        }
-        pattern = rf"({'|'.join(aliases)})\s*(?:(?:no\.?|number|নং|নম্বর)\s*)?[#: -]*({number_pattern})"
-        return {
-            aliases[label]: number
-            for label, number in re.findall(pattern, value.translate(DIGITS).casefold())
-        }
-
-    actual_labels, expected_labels = (
-        labelled_numbers(written),
-        labelled_numbers(expected),
-    )
+    # Without confirmed area fields, require stored locality words rather than
+    # infer spellings or transliterations. Explicit number headings may reorder.
+    actual, target = _address_parts(written), _address_parts(expected)
     if any(
-        actual_labels[key] != expected_labels[key]
-        for key in actual_labels.keys() & expected_labels.keys()
+        actual.labelled[key].keys() - target.labelled[key].keys()
+        for key in actual.labelled.keys() & target.labelled.keys()
     ):
         return (
             "fail",
             "The number in a house, road, flat or block field conflicts with the order. Fix and reshoot.",
         )
-    actual_numbers = set(
-        re.findall(number_pattern, written.translate(DIGITS).casefold())
-    )
-    expected_numbers = set(
-        re.findall(number_pattern, expected.translate(DIGITS).casefold())
-    )
+    actual_numbers, expected_numbers = set(actual.numbers), set(target.numbers)
     if actual_numbers - expected_numbers:
         return (
             "fail",
             "Address contains a conflicting house, road or other number. Fix and reshoot.",
         )
-    if actual_labels != expected_labels:
+    if actual.labelled != target.labelled:
         return (
             "unsure",
             "A house, road, flat or block number heading is missing or different. Show the complete address and reshoot.",
@@ -106,43 +153,12 @@ def address_result(written: str, expected: str) -> tuple[str, str]:
             "unsure",
             "An address number is missing. Show the full address and reshoot.",
         )
-    if re.findall(number_pattern, written.translate(DIGITS).casefold()) != re.findall(
-        number_pattern, expected.translate(DIGITS).casefold()
-    ):
+    if actual.unlabelled != target.unlabelled:
         return (
             "unsure",
             "Address number positions could not be matched. Show each house/road heading and reshoot.",
         )
-    generic = {
-        "house",
-        "road",
-        "rd",
-        "flat",
-        "block",
-        "district",
-        "area",
-        "no",
-        "number",
-        "bangladesh",
-        "bd",
-        "বাড়ি",
-        "বাসা",
-        "রোড",
-        "রাস্তা",
-        "জেলা",
-        "নং",
-        "নম্বর",
-    }
-
-    def locality_words(value: str) -> set[str]:
-        return {
-            word
-            for word in re.sub(r"[0-9]+", " ", normalized(value)).split()
-            if word not in generic
-        }
-
-    expected_words, actual_words = locality_words(expected), locality_words(written)
-    if expected_words and expected_words == actual_words:
+    if target.locality_words and target.locality_words == actual.locality_words:
         return "pass", "Stored district/area words and address numbers match."
     return (
         "unsure",
