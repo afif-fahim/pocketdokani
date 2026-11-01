@@ -293,6 +293,7 @@ def read_workbook(path: Path, reviewed_by: str) -> BusinessData:
                     note=f"Historical order ID: {source_id}. Imported from seller-reviewed records.",
                     created_at=created,
                     updated_at=created,
+                    active_pack_check_id=None,
                 )
             )
 

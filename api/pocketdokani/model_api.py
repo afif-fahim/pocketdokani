@@ -1,6 +1,7 @@
 """Bounded Meta calls, charged and audited per attempt, including failures."""
 
 import time
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -27,6 +28,7 @@ def model_call(
     model: str,
     refs: dict[str, object],
     path: str,
+    response_decoder: Callable[[httpx.Response], dict[str, Any]] | None = None,
     **payload: Any,
 ) -> dict[str, Any]:
     require_models()
@@ -54,18 +56,36 @@ def model_call(
         result: dict[str, Any] | None = None
         try:
             with httpx.Client(timeout=httpx.Timeout(45, connect=10)) as client:
-                response = client.post(
-                    "https://api.meta.ai/v1/" + path,
-                    headers={
-                        "Authorization": "Bearer "
-                        + config.model_api_key.get_secret_value(),
-                        "Accept": "application/json",
-                    },
-                    **payload,
-                )
-            retryable = response.status_code == 429 or response.status_code >= 500
-            response.raise_for_status()
-            body = response.json()
+                request_headers = {
+                    "Authorization": "Bearer "
+                    + config.model_api_key.get_secret_value(),
+                    "Accept": "text/event-stream"
+                    if response_decoder
+                    else "application/json",
+                }
+                if response_decoder:
+                    with client.stream(
+                        "POST",
+                        "https://api.meta.ai/v1/" + path,
+                        headers=request_headers,
+                        **payload,
+                    ) as response:
+                        retryable = (
+                            response.status_code == 429 or response.status_code >= 500
+                        )
+                        response.raise_for_status()
+                        body = response_decoder(response)
+                else:
+                    response = client.post(
+                        "https://api.meta.ai/v1/" + path,
+                        headers=request_headers,
+                        **payload,
+                    )
+                    retryable = (
+                        response.status_code == 429 or response.status_code >= 500
+                    )
+                    response.raise_for_status()
+                    body = response.json()
             if not isinstance(body, dict):
                 raise ValueError("Invalid response")
             result = body

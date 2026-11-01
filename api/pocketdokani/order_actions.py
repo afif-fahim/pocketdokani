@@ -107,7 +107,7 @@ def change_status(
             Order.status == payload.expected_status,
             Order.updated_at == payload.expected_updated_at,
         )
-        .values(status=payload.status, updated_at=now())
+        .values(status=payload.status, active_pack_check_id=None, updated_at=now())
         .returning(Order.id)
     )
     if changed is None:

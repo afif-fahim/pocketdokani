@@ -761,3 +761,58 @@ footer {
   background: var(--danger);
   border-color: var(--danger);
 }
+
+.pack-panel,
+.pack-result {
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 1rem;
+}
+.pack-panel > button,
+.pack-panel form button,
+.pack-panel > .stack > button {
+  align-self: start;
+}
+.pack-photo {
+  inline-size: 100%;
+  block-size: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background: var(--paper);
+  border-radius: 0.5rem;
+}
+.pack-verdict {
+  display: inline-block;
+  padding-block: 0.35rem;
+  padding-inline: 0.6rem;
+  border: 1px solid currentColor;
+  border-radius: 0.4rem;
+  font-weight: 700;
+}
+.pack-pass,
+.pack-match {
+  color: var(--green);
+}
+.pack-fail,
+.pack-mismatch {
+  color: var(--danger);
+}
+.pack-unsure {
+  color: oklch(42% 0.09 75);
+}
+.pack-fields,
+.pack-fields > li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.pack-fields > li {
+  border-inline-start: 2px solid var(--line);
+  padding-inline-start: 0.75rem;
+}
+.pack-result details {
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+.pack-fields dd {
+  overflow-wrap: anywhere;
+}

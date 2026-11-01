@@ -13,6 +13,7 @@ from pocketdokani.money import LinePrice, calculate_cod
 from pocketdokani.records import (
     Order,
     OrderLine,
+    PackCheck,
     Payout,
     Product,
     Sku,
@@ -115,7 +116,7 @@ def seed_shop(db: Session, owner: str, *, reset: bool = False) -> None:
     if not reset and db.get(Product, (owner, DEMO_PRODUCTS[0][0])) is not None:
         return
     if reset:
-        for table in (OrderLine, Order, Payout, Sku, Product):
+        for table in (PackCheck, OrderLine, Order, Payout, Sku, Product):
             db.execute(delete(table).where(table.owner == owner))
         db.flush()
     for product_id, name, _ in DEMO_PRODUCTS:

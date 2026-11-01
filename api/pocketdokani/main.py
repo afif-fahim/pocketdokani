@@ -1,4 +1,5 @@
 import secrets
+from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import (
@@ -51,13 +52,27 @@ from pocketdokani.order_actions import (
     change_status,
     create_draft,
 )
+from pocketdokani.pack_checks import (
+    PackOverride,
+    check_payload,
+    override_check,
+    owned_check,
+    owned_order,
+    require_current,
+    save_check,
+    sku_photos,
+)
+from pocketdokani.pack_types import SegmentationMode
+from pocketdokani.pack_vision import analyse_pack
 from pocketdokani.records import (
     BrowserSession,
     OrderDraft,
+    PackCheck,
     Product,
     SourceImage,
     VoiceNote,
     Workspace,
+    identifier,
 )
 from pocketdokani.security import (
     Context,
@@ -89,6 +104,8 @@ class RequestBoundary:
             if scope["path"].endswith("/workspaces")
             else MAX_AUDIO_BYTES + 64 * 1024
             if scope["path"].endswith(("/voice-notes", "/assistant/transcribe"))
+            else MAX_FILE_BYTES + 64 * 1024
+            if scope["path"].endswith("/pack-checks")
             else 128 * 1024
         )
         consumed = 0
@@ -359,6 +376,9 @@ def reset_example(
     ):
         raise HTTPException(409, "The example changed. Reload before resetting it.")
     old_keys: list[str] = []
+    for check in db.scalars(select(PackCheck).where(PackCheck.owner == actor.owner)):
+        old_keys.append(check.photo_key)
+        old_keys.extend(key for key in check.crop_keys.values() if key)
     for prior in prior_workspaces:
         old_keys.extend(
             db.scalars(
@@ -599,3 +619,90 @@ def update_order_status(
     actor = authenticate(db, request, context, lock=True)
     change_status(db, actor, order_id, payload)
     return {"updated": True}
+
+
+@app.get("/api/{context}/orders/{order_id}/pack-checks")
+def list_pack_checks(
+    context: Context, order_id: str, request: Request, db: Database
+) -> list[dict[str, object]]:
+    actor = authenticate(db, request, context)
+    order = owned_order(db, actor, order_id)
+    checks = db.scalars(
+        select(PackCheck)
+        .where(PackCheck.owner == actor.owner, PackCheck.order_id == order_id)
+        .order_by(PackCheck.created_at.desc())
+    ).all()
+    return [check_payload(check, order, context) for check in checks]
+
+
+@app.post("/api/{context}/orders/{order_id}/pack-checks", status_code=201)
+def check_parcel(
+    context: Context,
+    order_id: str,
+    request: Request,
+    db: Database,
+    photo: Annotated[UploadFile, File()],
+    expected_updated_at: Annotated[datetime, Form()],
+    segmentation: Annotated[SegmentationMode, Form()] = "sam",
+) -> dict[str, object]:
+    require_mutation(request)
+    actor = authenticate(db, request, context)
+    order = owned_order(db, actor, order_id)
+    require_current(order, expected_updated_at)
+    require_models()
+    try:
+        original = validate_original(
+            photo.filename or "parcel",
+            photo.file.read(MAX_FILE_BYTES + 1),
+            photo.content_type or "",
+        )
+    finally:
+        photo.file.close()
+    photos = sku_photos(db, actor, order_id)
+    check_id = identifier()
+    analysis = analyse_pack(db, actor, original, check_id, photos, segmentation)
+    # Calls audit their attempts with commits; revalidate after the network wait.
+    actor = authenticate(db, request, context, lock=True)
+    order = owned_order(db, actor, order_id)
+    check = save_check(
+        db, actor, order, expected_updated_at, check_id, original, analysis
+    )
+    return check_payload(check, owned_order(db, actor, order_id), context)
+
+
+@app.post("/api/{context}/orders/{order_id}/pack-checks/{check_id}/override")
+def seller_override_pack_check(
+    context: Context,
+    order_id: str,
+    check_id: str,
+    payload: PackOverride,
+    request: Request,
+    db: Database,
+) -> dict[str, object]:
+    require_mutation(request)
+    actor = authenticate(db, request, context, lock=True)
+    order = owned_order(db, actor, order_id)
+    check = owned_check(db, actor, order_id, check_id)
+    override_check(db, actor, order, check, payload.expected_updated_at)
+    return check_payload(check, owned_order(db, actor, order_id), context)
+
+
+@app.get("/api/{context}/orders/{order_id}/pack-checks/{check_id}/{asset}")
+def pack_check_image(
+    context: Context,
+    order_id: str,
+    check_id: str,
+    asset: Literal["photo", "label", "bag"],
+    request: Request,
+    db: Database,
+) -> Response:
+    actor = authenticate(db, request, context)
+    owned_order(db, actor, order_id)
+    check = owned_check(db, actor, order_id, check_id)
+    key = check.photo_key if asset == "photo" else check.crop_keys.get(asset)
+    if not key:
+        raise HTTPException(404, "This check used the full photo for that region.")
+    return Response(
+        ObjectStorage().get(key),
+        media_type=check.photo_media_type if asset == "photo" else "image/jpeg",
+    )

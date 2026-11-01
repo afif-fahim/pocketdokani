@@ -14,7 +14,9 @@ PocketDokani is a phone copilot for small Messenger sellers. It drafts orders fr
 
 **Multi-item order**: An order containing more than one distinct product or variant. Multiple units of one variant do not by themselves make an order multi-item.
 
-**Order reference**: PocketDokani's identifier for an order, such as `PD-0012`. The seller writes it on the parcel label, and it is sent to the courier as the invoice. It is distinct from any identifier the courier assigns. _Avoid_: Consignment ID, tracking number
+**Order reference**: PocketDokani's stable reference for an order, such as `PD-0012`. It is sent to the courier as the invoice for an order booked through PocketDokani. _Avoid_: Consignment ID, tracking number
+
+**Label order number**: The order number written on the parcel label. Historical orders retain the seller's original workbook number; orders created in PocketDokani use their order reference.
 
 **Consignment ID**: An identifier assigned by a courier to a booked shipment. _Avoid_: Order reference
 

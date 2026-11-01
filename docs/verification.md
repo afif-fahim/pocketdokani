@@ -148,3 +148,75 @@ Live browser testing found a valid draft proposal labelled incomplete when Spark
 The captured constructed-data trace failed before the fix and completed after it without changing the model response. A separate ignored regression driver passed seven tests covering twelve synthetic scenarios: read-then-proposal and proposal-only citations, mixed and repeated citations, grounded numeric lookups, status proposals containing records, unknown/error citations, and invalid or injected metric references. No new test files are committed, following the repository's testing convention.
 
 The same typed draft request also completed through the local browser with live Spark after the fix. Its card retained the requested item and amounts, left the unknown phone blank, displayed the fixed awaiting-confirmation acknowledgment and omitted the incomplete-turn warning. Repository formatting, lint, type checks, source-partition validation, the existing COD tests, staged privacy checks and the production build passed. This verifies the reported failure with constructed data; it does not establish general model accuracy or hosted/physical-phone acceptance. Voice was not exercised.
+
+# Pack check, issue #5 — October 31, 2026
+
+Local acceptance used fresh SQLite databases, temporary private storage, constructed photos and synthetic responses at the Meta HTTP boundary. Disposable acceptance drivers remain ignored; no test files, customer photos or credentials are committed.
+
+The API checks covered name/reference swaps naming both fields, a wrong phone digit naming position 7, wrong COD, conflicting house/road numbers, a corrected multi-item label passing and marking the order packed, blurry readings returning unsure, recorded seller overrides preserving the unsure verdict, and repeated overrides returning 409. A correct label with a mismatched bag retained label pass and bag mismatch separately, returned overall fail and revoked earlier packing authorization. Malformed label responses became unsure. Stale results, including a simulated edit during a model call, were rejected without publishing evidence. Saving a packed order back to draft cleared its active check; reconfirmation did not revive it.
+
+Private original bytes survived retrieval with no-store headers. Corrupt images, missing mutation headers and wrong Origins were rejected. A second judge and the seller session could not access another judge's checks or originals. Reset removed only the requesting judge's check records and objects. Provider errors created sanitized model audit records and no completed check. The final constructed API run made 23 mocked provider requests; every actual model attempt used the existing budget/audit path.
+
+Separate adapter checks exercised the official SAM parser with valid box/mask events and obtained label and bag crops; empty and malformed segmentation output recorded full-photo fallbacks. Full-photo mode skipped SAM. Label requests contained neither expected order values nor SKU context. Bag results covered each expected line. Duplicate/missing label fields became illegible. Fourteen model audit records were checked across these adapter scenarios. No live Meta request was made.
+
+SQLite migration upgrade/downgrade/upgrade and Alembic metadata parity passed. PostgreSQL migration SQL generated successfully with RLS and PUBLIC/client-role grant revocation for `pack_checks`; no live PostgreSQL migration or concurrency run was performed.
+
+Browser checks used the actual Next.js app at 390 × 844 with synthetic API responses. Label pass and bag mismatch remained separately visible; a failed check offered no override. Field reasons, private originals and crop images rendered. Unsure override required a second confirmation, refreshed the order to packed and retained the unsure verdict. Earlier checks showed as historical. No horizontal overflow or browser errors were observed, and both full-page result screenshots were visually inspected. This was viewport emulation, not a physical camera check.
+
+Repository formatting, lint, strict Python/TypeScript checks, source-partition validation, the staged privacy guard and the Next.js production build passed. The full existing test suite passed (three COD tests). No new test files were added, following the issue's constraint.
+
+## Standards
+
+No documented-standard violations or actionable baseline smells remain. Additional correctness review caught missing/different address-number headings being accepted; those are now unsure, with conflicting values taking precedence as fail. Focused heading and verdict-precedence probes passed. Standards: 0 remaining findings; additional correctness: 0 remaining findings.
+
+## Spec
+
+No missing requirements, scope creep or incorrect implementations remain after follow-up review. Locality words containing digits are retained when comparing addresses, and guessed text in an illegible field cannot trigger a definite swap failure. Constructed regression probes covered changed locality names, missing headings, conflicting numbers, exact matches and illegible name/reference text. Spec: 0 remaining findings.
+
+Live label/bag perception accuracy, the seller's approximately 20 handwritten photos, SAM-versus-full-photo evaluation results, deployed storage and physical-phone capture remain unverified. The constructed checks establish implementation behavior, not those acceptance gates.
+
+### Address comparison correction — October 31, 2026
+
+Follow-up review reproduced three address defects: `rd` inside `Ward` overwrote a Road heading, slash-letter identifiers such as `12/A` and `12/B` lost their suffixes, and matching explicitly headed clauses became unsure when reordered. The first two could classify a definite conflict as unsure, incorrectly making seller override available. A clause reorder could also cause a false failure through the `Ward` collision.
+
+The comparator now checks Unicode word boundaries for heading aliases, preserves complete Latin/Bangla suffixes, retains every repeated heading and compares explicitly headed values independently of clause order. Only unlabelled numeric values retain positional checks. Each address's number list is extracted once for set and positional comparisons. The model-to-persistence handoff now uses a shared `PackAnalysis` typed dictionary, and segmentation uses the `sam`/`full_photo` literal type.
+
+A disposable assertion driver failed before the correction and passed afterward: 21 constructed cases exercised both `address_result` and its `compare_label` caller. Cases included the reported defects, Bangla headings/digits/suffixes, conflicting repeated headings, missing/different headings, alphanumeric locality names, dotted `Rd.` and uncertain unlabelled-number order. Independent read-only probes passed another 15 cases, including canonical Unicode forms and slash spacing. No new test files are committed.
+
+Extended synthetic API acceptance passed with 31 mocked model requests. Wrong road numbers hidden by a Ward clause and conflicting slash suffixes now fail and reject seller override with 409. Correctly reordered matching addresses pass and mark the order packed. The existing isolation, invalidation, stale-result, audit, reset and migration checks also passed. No live model calls, customer data or hosted writes were used.
+
+Follow-up review: Standards 0 findings; Spec 0 findings. The spec reviewer independently checked 13 constructed cases, including suffixes, repeated headings, alias boundaries and locality differences. Strict mypy and Ruff passed, as did the full existing suite of three COD tests.
+
+### Live development follow-up — November 1, 2026
+
+The owner supplied ten generated parcel images based on real historical label and bag photos, then explicitly authorized their processing by Meta and the generation and Meta processing of missing variants. Nine supplied images map to the previous private business-record database; one has no matching recipient, order number or phone and is excluded from correctness scoring. Five additional generated variants isolate a wrong phone digit, unreadable label, wrong-colour bag, name/order-number swap and wrong COD. All related variants are registered together as constructed development sources. These are not fresh photographs, independent handwriting samples, held-out evaluation or physical-camera evidence.
+
+The historical records are delivered orders. Request-level checks used a separate database/object copy, reopening only those copies for the pack workflow. SHA-256 checks confirm that the source database and all ten supplied images remain unchanged. Ground truth comes from the stored order fields, quantities, variants and SKU photos, separately from blind label readings. Private media, prompts, mappings and detailed outputs remain ignored.
+
+Two implementation gaps were reproduced and corrected before the final comparisons:
+
+- The importer had generated app references that were never present on the seller's historical labels. Historical seller orders now expose their preserved workbook number as the label order number, while retaining stable internal references. Exact comparison allows one decorative leading `#`, Unicode/case and Bangla-digit normalization. It never substitutes an arbitrary courier ID. Orders and capture instructions show the expected label number. Seventeen focused reference regressions and the original read-only database reproduction passed.
+- Spark correctly transcribed the seller's `2000/-` amount, but the comparator rejected that notation as unsure. The amount parser now accepts a terminal slash-dash after one numeric amount and still rejects signed, malformed, ranged or multiple amounts. Independent probes passed eleven valid and fourteen invalid formats.
+
+The final live run completed 28 HTTP checks: 14 images through SAM and through full-photo mode. All returned 201 and retained original bytes/hashes, private crops where present, no-store responses and denied cross-context reads. Pass marked the copied order packed; fail rejected override; unsure permitted a recorded seller override while retaining the unsure verdict. The final comparisons used 84 audited Meta attempts; six earlier diagnostic attempts bring this development session to 90. The original synthetic API acceptance also passed with 31 mocked provider requests.
+
+| Acceptance case | SAM path | Full-photo path |
+| --- | --- | --- |
+| Name and label order number swapped | Fail; both fields named | Fail; both fields named |
+| One wrong phone digit | Fail; position 7 named | Fail; position 7 named |
+| Wrong COD | Fail; COD named | Fail; COD named |
+| Correct multi-item label and visible bags | Pass; order packed | Pass; order packed |
+| Unreadable label | Unsure; recorded override | Unsure; recorded override |
+| Correct label with wrong-colour bag | Label pass; bag mismatch | Label pass; bag mismatch |
+
+Across the 14 paired images, both methods agreed on all overall, label and bag verdicts: three pass, nine fail and two unsure per method. SAM produced usable bag crops for all 14 but no label region for any; label reading accurately recorded full-photo fallback. Stored-event replay confirms genuinely empty completed label responses, rather than discarded masks or parser errors. Median request duration was 19.75 seconds with SAM and 9.62 seconds without it. These small development observations establish neither an accuracy improvement nor general timing guarantees.
+
+Field-level readings were not identical in two pairs. In one supplied image, Spark reassigned values from misplaced name/phone rows by their apparent type; the separate wrong COD still made the overall result fail. The isolated name/order-number swap passed its acceptance gate, but the observed field-reading variability remains a perception-quality limitation. No held-out accuracy claim is made.
+
+Real PostgreSQL 17.11 checks passed migration upgrade/downgrade/upgrade, Alembic metadata parity, `pack_checks` RLS and client/PUBLIC grant revocation, direct client-role read denial, and competing same-version pack claims and overrides. Each race produced one success and one 409; the winning override retained unsure plus seller/time. The disposable container was removed; Docker Desktop remains running.
+
+The actual Next.js UI passed a 390 × 844 browser check with a synthetic historical number differing from its internal app reference. Orders and capture instructions displayed the historical number; separate verdicts, failure/override gating, private images, history, no overflow and no browser errors also passed. Both screenshots were visually inspected. Formatting, lint, strict Python/TypeScript checks, source partition validation, the three existing COD tests and the production web build passed. No test files were added to the repository.
+
+Both hosted health endpoints returned 200. The deployed pack-check path returned the same generic 404 as an unknown route, while the existing protected Orders path returned 401; the deployed API therefore appears to lack this slice. Hosted pack-check/private-object-storage acceptance remains open. Physical-phone capture and accuracy on fresh real labels also remain unverified; generated photos cannot establish those gates.
+
+Review follow-up aligned result headings, comparison reasons and seller-override confirmation with the label order number. The API request reuses `SegmentationMode`; frontend state uses the same two-value union with a guard on selection. A focused 390 × 844 browser check confirmed the historical number in override confirmation and correct submissions from both comparison options, with no overflow or browser errors. Python reference regressions, reason-copy checks and the request's two-value enum passed. No new live model calls were needed for these wording and type changes.
