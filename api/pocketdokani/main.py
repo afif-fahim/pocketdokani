@@ -62,6 +62,7 @@ from pocketdokani.pack_checks import (
     save_check,
     sku_photos,
 )
+from pocketdokani.pack_types import SegmentationMode
 from pocketdokani.pack_vision import analyse_pack
 from pocketdokani.records import (
     BrowserSession,
@@ -642,7 +643,7 @@ def check_parcel(
     db: Database,
     photo: Annotated[UploadFile, File()],
     expected_updated_at: Annotated[datetime, Form()],
-    segmentation: Annotated[Literal["sam", "full_photo"], Form()] = "sam",
+    segmentation: Annotated[SegmentationMode, Form()] = "sam",
 ) -> dict[str, object]:
     require_mutation(request)
     actor = authenticate(db, request, context)

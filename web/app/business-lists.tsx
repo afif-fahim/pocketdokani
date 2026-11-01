@@ -18,6 +18,7 @@ export type StockItem = {
 export type Order = {
   id: string;
   reference: string;
+  label_reference: string;
   status: string;
   customer_name: string | null;
   phone: string | null;
@@ -261,6 +262,9 @@ export default function BusinessLists({
                   )}
                   <p>{order.phone || "Phone not recorded"}</p>
                   <p>{order.address || "Address not recorded"}</p>
+                  <p>
+                    Label order number: <code>{order.label_reference}</code>
+                  </p>
                   <ul className="order-lines">
                     {order.lines.map((line) => (
                       <li key={line.line_number}>

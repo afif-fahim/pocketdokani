@@ -155,6 +155,15 @@ class Order(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
+    @property
+    def label_reference(self) -> str:
+        """Retain a seller's imported order number on historical parcel labels."""
+        return (
+            self.source_id
+            if self.owner == "shop" and self.source_id
+            else self.reference
+        )
+
 
 class OrderLine(Base):
     __tablename__ = "order_lines"

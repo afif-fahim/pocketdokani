@@ -4,6 +4,7 @@ import type { Order } from "./business-lists";
 
 type Verdict = "pass" | "fail" | "unsure";
 type BagVerdict = "match" | "mismatch" | "unsure";
+type SegmentationMode = "sam" | "full_photo";
 
 export type PackCheckSummary = {
   id: string;
@@ -91,7 +92,10 @@ function Result({ check }: { check: PackCheck }) {
         {check.reasons.map((field, index) => (
           <li key={`${field.field}-${index}`}>
             <strong className={`pack-${field.verdict}`}>
-              {field.field.replaceAll("_", " ")} · {field.verdict}
+              {field.field === "order_reference"
+                ? "Label order number"
+                : field.field.replaceAll("_", " ")}{" "}
+              · {field.verdict}
             </strong>
             <p>{field.reason}</p>
             <dl className="record-amounts">
@@ -187,7 +191,7 @@ export default function PackCheckPanel({
   );
   const [selectionError, setSelectionError] = useState("");
   const [historyError, setHistoryError] = useState("");
-  const [segmentation, setSegmentation] = useState("sam");
+  const [segmentation, setSegmentation] = useState<SegmentationMode>("sam");
   const [overrideId, setOverrideId] = useState<string | null>(null);
   const endpoint = `${base}/orders/${encodeURIComponent(order.id)}/pack-checks`;
   const canCheck = ["confirmed", "packed"].includes(order.status);
@@ -302,9 +306,10 @@ export default function PackCheckPanel({
             >
               <p>
                 Keep the entire label inside the photo, flat and in focus.
-                Include the order reference, name, all 11 phone digits, COD and
-                full address. Put every visible ordered bag beside the parcel if
-                it is still open.
+                Include label order number{" "}
+                <strong>{order.label_reference}</strong>, name, all 11 phone
+                digits, COD and full address. Put every visible ordered bag
+                beside the parcel if it is still open.
               </p>
               <label className="stack">
                 <strong>Take or choose one parcel photo</strong>
@@ -344,7 +349,11 @@ export default function PackCheckPanel({
                     <select
                       disabled={busy}
                       value={segmentation}
-                      onChange={(event) => setSegmentation(event.target.value)}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        if (value === "sam" || value === "full_photo")
+                          setSegmentation(value);
+                      }}
                     >
                       <option value="sam">Find label and bag with SAM</option>
                       <option value="full_photo">
@@ -381,9 +390,10 @@ export default function PackCheckPanel({
                   (overrideId === check.id ? (
                     <div className="stack">
                       <p>
-                        I have personally checked this parcel against{" "}
-                        {order.reference}. Record my seller override and mark
-                        the order packed?
+                        I have personally checked this parcel against the
+                        confirmed order with label order number{" "}
+                        {order.label_reference}. Record my seller override and
+                        mark the order packed?
                       </p>
                       <div className="button-row">
                         <button

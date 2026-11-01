@@ -102,6 +102,7 @@ def orders_payload(db: Session, actor: BrowserSession) -> list[dict[str, object]
         {
             "id": order.id,
             "reference": order.reference,
+            "label_reference": order.label_reference,
             "status": order.status,
             "customer_name": order.customer_name,
             "phone": order.phone,

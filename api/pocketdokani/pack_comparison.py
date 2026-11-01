@@ -68,10 +68,24 @@ def phone_digits(value: str) -> str:
     return re.sub(r"[\s()+-]", "", value.translate(DIGITS))
 
 
+def reference_value(value: str) -> str:
+    value = unicodedata.normalize("NFKC", value).translate(DIGITS).strip().upper()
+    return value.removeprefix("#").strip()
+
+
+def _reference_token(value: str, reference: str) -> bool:
+    token = normalized(reference)
+    return bool(
+        token and re.search(rf"(?<!\w){re.escape(token)}(?!\w)", normalized(value))
+    )
+
+
 def written_amount(value: str) -> Decimal | None:
     value = value.translate(DIGITS).strip()
     value = re.sub(r"(?i)^(?:bdt|tk\.?|৳|টাকা)\s*", "", value)
     value = re.sub(r"(?i)\s*(?:bdt|tk\.?|৳|টাকা)$", "", value)
+    # The seller writes whole-taka amounts as 980/- on parcel labels.
+    value = re.sub(r"\s*/\s*[-–—]\s*$", "", value).strip()
     if not re.fullmatch(r"(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)(?:\.[0-9]{1,2})?", value):
         return None
     try:
@@ -170,7 +184,7 @@ def compare_label(
     reading: dict[str, object], order: Order
 ) -> tuple[str, list[dict[str, object]]]:
     expected = {
-        "order_reference": order.reference,
+        "order_reference": order.label_reference,
         "phone": order.phone,
         "cod_amount": str(order.cod_amount),
         "customer_name": order.customer_name,
@@ -198,8 +212,9 @@ def compare_label(
             key != "order_reference"
             and field_legible
             and value
+            and not _reference_token(str(expected[key] or ""), order.label_reference)
             and (
-                normalized(order.reference) in normalized(value)
+                _reference_token(value, order.label_reference)
                 or re.search(
                     r"(?i)\bPD[- ](?:[A-Z0-9]+[- ])*[A-Z0-9]*[0-9][A-Z0-9]*\b",
                     value.translate(DIGITS),
@@ -225,21 +240,18 @@ def compare_label(
         if key in swapped:
             verdict, reason = (
                 "fail",
-                "Order reference and another field are swapped or misplaced. Fix both fields and reshoot.",
+                "Label order number and another field are swapped or misplaced. Fix both fields and reshoot.",
             )
         elif not wanted:
             reason = "The confirmed order has no value for this field. Edit and reconfirm the order first."
         elif written and written.strip() and legible:
             if key == "order_reference":
-                # Only Unicode/case/spacing normalization; no fuzzy references.
-                match = (
-                    written.translate(DIGITS).strip().upper()
-                    == wanted.translate(DIGITS).strip().upper()
-                )
+                # The label's optional # marker is not part of its order number.
+                match = reference_value(written) == reference_value(wanted)
                 verdict, reason = (
-                    ("pass", "Order reference matches exactly.")
+                    ("pass", "Label order number matches exactly.")
                     if match
-                    else ("fail", "Order reference does not match. Fix and reshoot.")
+                    else ("fail", "Label order number does not match. Fix and reshoot.")
                 )
             elif key == "phone":
                 actual, target = phone_digits(written), phone_digits(wanted)

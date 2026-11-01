@@ -10,6 +10,51 @@
         "constructed-screenshot-001",
         "constructed-screenshot-002"
       ]
+    },
+    {
+      "source_id": "constructed-label-001",
+      "kind": "label",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": [
+        "constructed-label-photo-001",
+        "constructed-label-photo-002"
+      ]
+    },
+    {
+      "source_id": "constructed-label-002",
+      "kind": "label",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": [
+        "constructed-label-photo-003",
+        "constructed-label-photo-004",
+        "constructed-label-photo-005",
+        "constructed-label-photo-006",
+        "constructed-label-photo-010"
+      ]
+    },
+    {
+      "source_id": "constructed-label-003",
+      "kind": "label",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": ["constructed-label-photo-007"]
+    },
+    {
+      "source_id": "constructed-label-004",
+      "kind": "label",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": [
+        "constructed-label-photo-008",
+        "constructed-label-photo-009",
+        "constructed-label-photo-011",
+        "constructed-label-photo-012",
+        "constructed-label-photo-013",
+        "constructed-label-photo-014",
+        "constructed-label-photo-015"
+      ]
     }
   ]
 }
