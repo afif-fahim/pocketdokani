@@ -269,3 +269,27 @@ class PackCheck(Base):
     bag_verdict: Mapped[str] = mapped_column(String(10))
     override_by: Mapped[str | None] = mapped_column(String(64))
     override_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CourierBooking(Base):
+    __tablename__ = "courier_bookings"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["owner", "order_id"], ["orders.owner", "orders.id"], ondelete="CASCADE"
+        ),
+        CheckConstraint("mode IN ('fake', 'live')"),
+        CheckConstraint(
+            "state IN ('in_progress', 'booking_unknown', 'not_found', 'rejected', 'booked')"
+        ),
+    )
+
+    owner: Mapped[str] = mapped_column(String(64), primary_key=True)
+    order_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    mode: Mapped[str] = mapped_column(String(8))
+    state: Mapped[str] = mapped_column(String(20))
+    attempt_id: Mapped[str] = mapped_column(String(36))
+    payload: Mapped[dict[str, object]] = mapped_column(JSON)
+    quantities: Mapped[dict[str, int]] = mapped_column(JSON)
+    responses: Mapped[list[dict[str, object]]] = mapped_column(JSON, default=list)
+    message: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

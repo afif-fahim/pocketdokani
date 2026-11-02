@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
+from pocketdokani.bookings import require_no_pending_booking, stock_holds
 from pocketdokani.db import now, utc_iso
 from pocketdokani.demo import product_photo
 from pocketdokani.model_api import model_call
@@ -137,6 +138,8 @@ def extract(
             Sku.owner == actor.owner, Sku.lot_received.is_(True), Sku.stock_qty > 0
         )
     ).all()
+    held = stock_holds(db, actor.owner)
+    skus = [sku for sku in skus if sku.stock_qty > held[sku.sku]]
     notes = db.scalars(
         select(VoiceNote)
         .where(VoiceNote.workspace_id == workspace.id)
@@ -161,7 +164,7 @@ def extract(
                         "catalogue_sku": sku.sku,
                         "name": sku.product_name,
                         "variant": sku.variant,
-                        "available_qty": sku.stock_qty,
+                        "available_qty": sku.stock_qty - held[sku.sku],
                     }
                 ),
             }
@@ -231,7 +234,7 @@ def extract(
             "The model returned an incomplete draft. Retry extraction; saved work is unchanged.",
         ) from None
     result = raw.model_dump()
-    available = {s.sku: s.stock_qty for s in skus}
+    available = {s.sku: s.stock_qty - held[s.sku] for s in skus}
     transcripts = {n.id: n.transcript for n in notes}
 
     def validate(name: str, field: dict[str, Any]) -> None:
@@ -390,6 +393,8 @@ def save_draft(db: Session, draft: OrderDraft, payload: SaveDraft) -> None:
     except ValueError as error:
         raise HTTPException(422, str(error)) from None
     claim_revision(db, draft, payload.revision)
+    if order:
+        require_no_pending_booking(db, draft.owner, order.id)
     prior: dict[str, Any] = draft.content
 
     def edit(value: str | None, old: Any) -> dict[str, object]:
@@ -472,9 +477,14 @@ def confirm_draft(
                     amount(line["line_discount"]["value"]),
                 )
             )
+        held = stock_holds(db, actor.owner)
         for sku, quantity in quantities.items():
             record = db.get(Sku, (actor.owner, sku)) if sku else None
-            if record is None or not record.lot_received or record.stock_qty < quantity:
+            if (
+                record is None
+                or not record.lot_received
+                or record.stock_qty - held[sku] < quantity
+            ):
                 raise ValueError(
                     "Every line needs an available received SKU with enough stock."
                 )

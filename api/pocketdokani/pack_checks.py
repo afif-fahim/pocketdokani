@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from pocketdokani.bookings import require_no_pending_booking
 from pocketdokani.db import now, utc_iso
 from pocketdokani.demo import product_photo
 from pocketdokani.imports import Original, cleanup_objects
@@ -125,6 +126,7 @@ def claim_order(
         .where(OrderDraft.owner == actor.owner, OrderDraft.order_id == order_id)
         .values(revision=OrderDraft.revision + 1, updated_at=timestamp)
     )
+    require_no_pending_booking(db, actor.owner, order_id)
     claimed = db.scalar(
         update(Order)
         .where(

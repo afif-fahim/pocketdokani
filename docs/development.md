@@ -1,6 +1,6 @@
 # Running PocketDokani locally
 
-Issue #1 implements one initial screenshot batch per conversation workspace. Issue #2 adds business records and isolated synthetic judge shops. Issue #3 adds evidence-linked order extraction, optional voice notes, editable drafts and seller confirmation. Issue #4 adds the conversational voice assistant. Courier booking remains a separate slice.
+Issue #1 implements one initial screenshot batch per conversation workspace. Issue #2 adds business records and isolated synthetic judge shops. Issue #3 adds evidence-linked order extraction, optional voice notes, editable drafts and seller confirmation. Issue #4 adds the conversational voice assistant, #5 adds pack checks and #6 adds courier booking.
 
 ## Local setup
 
@@ -12,9 +12,9 @@ Requirements: Python 3.12+, `uv`, npm and Node 24+ (or 20.19+/22.13+). Run comma
 4. Run `uv run uvicorn pocketdokani.main:app --host 127.0.0.1 --port 8000 --no-access-log`.
 5. In another terminal run `npm --prefix web run dev` and open [the seller workspace](http://localhost:3000) or [the constructed judge example](http://localhost:3000/judge).
 
-The example configuration uses SQLite and private local files for offline development. Production settings refuse these backends. For local PostgreSQL, set `LOCAL_DB_PASSWORD`, run `docker compose up -d`, and set `DATABASE_URL` to `postgresql+psycopg://pocketdokani:YOUR_URL_ENCODED_PASSWORD@localhost:5432/pocketdokani`. Run the same migration. Database URLs, passcodes and storage credentials belong only in ignored environment files or the host's secret settings.
+The example configuration uses SQLite and private local files for offline development. Production settings refuse these backends. For local PostgreSQL, set `LOCAL_DB_PASSWORD`, run `docker compose up -d`, and set `DATABASE_URL` to `postgresql+psycopg://pocketdokani:YOUR_URL_ENCODED_PASSWORD@localhost:15435/pocketdokani`. Run the same migration. Database URLs, passcodes and storage credentials belong only in ignored environment files or the host's secret settings.
 
-Use `npm run check` for formatting, lint, Python/TypeScript typechecks and the source-partition validator. The web typecheck generates Next.js route types before running TypeScript, so it works on a clean checkout without a build. Run `npm --prefix web run build` separately for a production build. Run `npm run test` for the small COD calculation check; it uses Python's standard library and is the issue's sole automated test exception. Other acceptance checks remain manual.
+Use `npm run check` for formatting, lint, Python/TypeScript typechecks and the source-partition validator. The web typecheck generates Next.js route types before running TypeScript, so it works on a clean checkout without a build. Run `npm --prefix web run build` separately for a production build. Run `npm run test` for the small COD calculation and courier duplicate/timeout checks. The booking check exercises the HTTP endpoints with constructed data and a fake courier. These are the agreed automated test exceptions; other acceptance checks remain manual.
 
 To preview on a physical phone on your LAN, bind the API only to localhost, keep Next's default `0.0.0.0` binding, and set `WEB_ORIGIN` to the exact `http://YOUR_LAN_HOST:3000` address used by the phone. Use constructed data on unencrypted local connections. Production requires HTTPS.
 
@@ -116,9 +116,9 @@ Read tools are `search_orders`, `get_order`, `stock_summary`, `sales_summary`, `
 
 Answers show record chips linking to Orders, Stock or Payouts. Spark returns citations and references to specific metric keys, with no prose, labels or values. Citations may identify record lookups or proposal results; proposal-only results cannot supply metrics. The server validates each metric reference against its cited record result and renders fixed English or Bangla labels with the code-calculated values. Timestamps, identifiers and unrelated record fields cannot supply answer values. Invalid responses preserve completed lookups with a fixed acknowledgment and an incomplete-turn indicator. Missing matching records or an explicit empty selection produce an unknown answer. Tool selection still needs live model-quality evaluation. Every turn has a private `model_runs` entry with transcript, tool calls/results, answer, usage and latency; individual provider attempts retain their own audit entries.
 
-`propose_order_draft` and `propose_status` create cards without business writes. **Confirm draft creation** calls the same `/order-drafts` endpoint as **New draft +**, creates only an unconfirmed draft, and opens the existing editor. Unknown fields stay blank, payments stay unverified, and final order confirmation still uses the normal draft-confirmation endpoint. Draft creation has a stable request ID for safe retries. These source-free drafts do not claim screenshot evidence.
+`propose_order_draft`, `propose_status` and `propose_booking` create cards without business writes. **Confirm draft creation** calls the same `/order-drafts` endpoint as **New draft +**, creates only an unconfirmed draft, and opens the existing editor. Unknown fields stay blank, payments stay unverified, and final order confirmation still uses the normal draft-confirmation endpoint. Draft creation has a stable request ID for safe retries. These source-free drafts do not claim screenshot evidence.
 
-Status cards and Orders' **Confirm status change** call the same `/orders/{id}/status` endpoint. Booked orders can become delivered or returned; draft, confirmed and packed orders can be cancelled. Other transitions are refused. The expected status and update timestamp prevent stale cards and repeat stock restoration. Returning a booked order restores its line quantities once. Cancel on an assistant card makes no request and changes no records. Courier-booking proposals will be added with the courier slice. Judge reset clears all that judge's draft workspaces, restores its fixture and invalidates prior order snapshots; model budgets persist.
+Status cards and Orders' **Confirm status change** call the same `/orders/{id}/status` endpoint. Booked orders can become delivered, returned or cancelled; draft, confirmed and packed orders can be cancelled. Other transitions are refused. The expected status and update timestamp prevent stale cards and repeat stock restoration. Returning or cancelling a booked order restores its line quantities once; confirm only after the physical parcel is back. This records the seller's status decision and does not cancel a parcel with Steadfast. Cancel on an assistant card makes no request and changes no records. Booking cards call the same booking endpoint as Orders. Judge reset clears all that judge's draft workspaces, restores its fixture and invalidates prior order snapshots; model budgets persist.
 
 Repeat issue #4's five manual acceptance checks on a physical phone with live models before claiming hosted acceptance or answer accuracy. The local synthetic checks do not establish transcription quality, tool selection or the 20-question evaluation result.
 
@@ -137,6 +137,36 @@ A separate Spark call compares visible bags with the reference photo and variant
 History shows each completed check, field reasons, the original, available crops, crop/full-photo paths and any override. A new failed or unsure check returns a previously packed order to confirmed. Saving an order edit clears the active check and returns it to draft; historical evidence remains readable. Version checks reject stale capture results and stale/repeated overrides. Judge reset removes only that judge's checks and stored photos.
 
 To compare segmentation with the full-photo path for issue #7, submit the same constructed photo twice, selecting **Find label and bag with SAM** and **Use full photo for comparison**. Each result retains the original hash, paths, readings, reasons and verdicts; compare checks with the same hash. Register related source photos and every derived variant in one split before calling models. Generated examples based on real labels remain constructed examples, even when they contain real customer details. Keep the media, ground truth and detailed outputs private, and use copies of delivered historical orders for workflow checks. The [verification record](verification.md) distinguishes live model checks from hosted storage and physical-phone capture.
+
+## Booking the courier
+
+Run `uv run alembic upgrade head` for migration `0005` before starting the API. It stores durable booking attempts, their frozen order payloads, private courier responses and fake consignments. Keys belong only in the API server's ignored `.env` or secret settings:
+
+```dotenv
+STEADFAST_LIVE_ENABLED=false
+STEADFAST_API_KEY=
+STEADFAST_SECRET_KEY=
+```
+
+With the live flag false, development seller sessions use the fake; production seller sessions cannot book. Judge sessions always use the fake, including when the server has live keys and the flag enabled. Enabling live calls requires both keys and `STEADFAST_LIVE_ENABLED=true`; do this only when intentionally preparing a genuine shipment. The first live booking remains an acceptance gate, not a setup probe. Validate credentials with the documented read-only balance request without printing its value or credentials.
+
+In **Orders**, expand an order with a current packing pass or recorded seller override. Review the recipient, items and final COD, then tap **Book Steadfast** or **Simulate booking · Fake**. The courier invoice is the stable PocketDokani reference even for a historical order with a different label order number. Recipient details and amounts come from the packed order; internal notes are not sent as rider instructions. Draft and unpacked orders cannot book. The assistant's `propose_booking(reference)` shows a confirmation card and calls this same endpoint after the seller taps; the proposal itself makes no booking.
+
+The UI labels fake and live bookings explicitly and disables controls during a request. A durable claim is saved before the external call. Pending bookings hold their quantities out of available stock and prevent edits, new pack checks and status changes. Once a consignment is known, the order becomes booked and its quantities are deducted once. Return or cancellation restores them once after the seller confirms the parcel is physically back.
+
+A duplicate-invoice response triggers a read-only invoice lookup. Timeout, 5xx, a lost response or a process interruption leaves an unresolved booking; use **Check courier booking** before any retry. An in-progress request has a three-minute grace period before recovery can query its invoice. Reconciliation never creates a parcel. A fake lookup that establishes no booking allows an explicit retry with the same invoice and frozen payload. Live responses that do not reliably establish absence keep retry blocked.
+
+The supplied merchant guide documents `status_by_invoice` as a delivery-status response only. `trackings_by_invoice` can recover a consignment ID from its history, but does not document a tracking code. Recovery adopts an unambiguous ID and shows the tracking code as unavailable rather than inventing one; check the merchant panel when needed. Ambiguous or unavailable history remains unresolved. Provider response bodies remain private and are not returned as UI errors. Webhook status updates and courier pickup requests are separate scope.
+
+Courier acceptance:
+
+1. In a judge session, use the constructed packed example to book successfully without calling models. Confirm that the UI labels the packing evidence as constructed, the courier as fake, and the order as booked with identifiers.
+2. Reset the judge example between scenarios. Exercise duplicate invoice, timeout without booking and timeout followed by late success. Repeated taps and reconciliation must leave one consignment and one stock deduction. A timeout without booking must be checked before the explicit retry appears.
+3. Try a draft and an unpacked order, stale order snapshots, another judge's order and a seller order from the judge context. Booking must be refused without a courier create request.
+4. While a booking is unresolved, verify that available stock reflects the hold and that edit, pack and status writes are refused. After success, return or cancel the order only after the parcel is back; repeat requests must not restore stock twice.
+5. Ask the assistant to book the constructed packed order. Inspect its fake/live label, recipient and COD before confirming; confirm and direct booking must use the same endpoint.
+6. Once a genuine unbooked order is available, enable live calls intentionally, complete its packing approval, book once, and verify the consignment in the merchant panel with the PocketDokani reference as invoice. Record this separately from fake checks. Disable the flag again when live booking is not intended.
+7. Repeat the relevant flow on the hosted stack and a physical phone. Local fake checks and a successful read-only credential probe do not establish hosted or genuine-booking acceptance.
 
 ## Privacy and isolation
 

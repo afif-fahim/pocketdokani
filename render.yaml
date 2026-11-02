@@ -25,3 +25,9 @@ services:
         value: "false"
       - key: MODEL_API_KEY
         sync: false
+      - key: STEADFAST_LIVE_ENABLED
+        value: "false"
+      - key: STEADFAST_API_KEY
+        sync: false
+      - key: STEADFAST_SECRET_KEY
+        sync: false

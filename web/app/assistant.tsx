@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, json } from "./api";
+import type { CourierBooking } from "./courier-booking";
 
 type RecordChip = {
   key: string;
@@ -32,6 +33,17 @@ type Proposal = { label: string } & (
       expected_updated_at: string;
     }
   | { kind: "order_draft"; request_id: string; values: DraftValues }
+  | {
+      kind: "booking";
+      order_id: string;
+      reference: string;
+      expected_updated_at: string;
+      courier_mode: "fake" | "live";
+      customer_name: string | null;
+      phone: string | null;
+      address: string | null;
+      cod_amount: string;
+    }
 );
 type Turn = {
   id: string;
@@ -85,6 +97,7 @@ export default function Assistant({
   const mounted = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startingRef = useRef(false);
+  const deciding = useRef(new Set<string>());
 
   useEffect(() => {
     mounted.current = true;
@@ -212,36 +225,73 @@ export default function Assistant({
   }
 
   async function confirm(proposal: Proposal, key: string) {
-    await act(async () => {
-      if (proposal.kind === "status") {
-        await api(
-          `${base}/orders/${encodeURIComponent(proposal.order_id)}/status`,
-          json("POST", {
-            status: proposal.status,
-            expected_status: proposal.expected_status,
-            expected_updated_at: proposal.expected_updated_at,
-          }),
-        );
-        setDecisions((items) => ({
-          ...items,
-          [key]: "Confirmed / নিশ্চিত হয়েছে",
-        }));
-        await onChange();
-      } else {
-        const draft = await api<{ id: string }>(
-          `${base}/order-drafts`,
-          json("POST", {
-            request_id: proposal.request_id,
-            values: proposal.values,
-          }),
-        );
-        setDecisions((items) => ({
-          ...items,
-          [key]: "Draft created for review / খসড়া তৈরি হয়েছে",
-        }));
-        await onDraft(draft.id);
-      }
-    });
+    if (deciding.current.has(key) || decisions[key] || busy) return;
+    deciding.current.add(key);
+    try {
+      await act(async () => {
+        if (proposal.kind === "status") {
+          await api(
+            `${base}/orders/${encodeURIComponent(proposal.order_id)}/status`,
+            json("POST", {
+              status: proposal.status,
+              expected_status: proposal.expected_status,
+              expected_updated_at: proposal.expected_updated_at,
+            }),
+          );
+          setDecisions((items) => ({
+            ...items,
+            [key]: "Confirmed / নিশ্চিত হয়েছে",
+          }));
+          await onChange();
+        } else if (proposal.kind === "booking") {
+          setDecisions((items) => ({
+            ...items,
+            [key]: "Booking… / কুরিয়ার বুক করা হচ্ছে…",
+          }));
+          try {
+            const booking = await api<CourierBooking>(
+              `${base}/orders/${encodeURIComponent(proposal.order_id)}/booking`,
+              json("POST", {
+                expected_updated_at: proposal.expected_updated_at,
+              }),
+            );
+            setDecisions((items) => ({
+              ...items,
+              [key]:
+                booking.state === "booked"
+                  ? proposal.courier_mode === "fake"
+                    ? "Fake booking confirmed · no parcel sent"
+                    : "Steadfast booking confirmed / কুরিয়ার বুক হয়েছে"
+                  : booking.message,
+            }));
+          } catch (cause) {
+            setDecisions((items) => ({
+              ...items,
+              [key]:
+                "Booking result not confirmed. Open the order and check the courier before trying again.",
+            }));
+            await onChange().catch(() => {});
+            throw cause;
+          }
+          await onChange();
+        } else {
+          const draft = await api<{ id: string }>(
+            `${base}/order-drafts`,
+            json("POST", {
+              request_id: proposal.request_id,
+              values: proposal.values,
+            }),
+          );
+          setDecisions((items) => ({
+            ...items,
+            [key]: "Draft created for review / খসড়া তৈরি হয়েছে",
+          }));
+          await onDraft(draft.id);
+        }
+      });
+    } finally {
+      deciding.current.delete(key);
+    }
   }
 
   return (
@@ -363,6 +413,15 @@ export default function Assistant({
               return (
                 <article className="proposal-card stack" key={key}>
                   <h3>{proposal.label}</h3>
+                  {proposal.kind === "status" &&
+                    proposal.expected_status === "booked" &&
+                    ["returned", "cancelled"].includes(proposal.status) && (
+                      <p className="message">
+                        Confirm only after the parcel is back with you. Its
+                        items will return to available stock. This does not
+                        cancel a courier parcel.
+                      </p>
+                    )}
                   {proposal.kind === "order_draft" && (
                     <>
                       <p>
@@ -390,6 +449,38 @@ export default function Assistant({
                       </p>
                     </>
                   )}
+                  {proposal.kind === "booking" && (
+                    <>
+                      <p className="pill">
+                        {proposal.courier_mode === "fake"
+                          ? "Fake · no parcel is sent"
+                          : "Live · books a real Steadfast parcel"}
+                      </p>
+                      <p>
+                        {proposal.reference} ·{" "}
+                        {proposal.customer_name || "Name not recorded"} ·{" "}
+                        {proposal.phone || "Phone not recorded"}
+                      </p>
+                      <p>{proposal.address || "Address not recorded"}</p>
+                      <p>
+                        COD · BDT {proposal.cod_amount}. Books from the packed
+                        order using {proposal.reference} as the courier invoice.
+                      </p>
+                      <button
+                        disabled={busy}
+                        onClick={() =>
+                          onRecord({
+                            key: proposal.order_id,
+                            kind: "order",
+                            section: "orders",
+                            label: proposal.reference,
+                          })
+                        }
+                      >
+                        Open order and booking ↗
+                      </button>
+                    </>
+                  )}
                   {decisions[key] ? (
                     <p role="status">{decisions[key]}</p>
                   ) : (
@@ -401,7 +492,11 @@ export default function Assistant({
                       >
                         {proposal.kind === "order_draft"
                           ? "Confirm draft creation"
-                          : "Confirm / নিশ্চিত করুন"}
+                          : proposal.kind === "booking"
+                            ? proposal.courier_mode === "fake"
+                              ? "Confirm fake booking"
+                              : "Confirm Steadfast booking"
+                            : "Confirm / নিশ্চিত করুন"}
                       </button>
                       <button
                         disabled={busy}

@@ -8,6 +8,7 @@ type SegmentationMode = "sam" | "full_photo";
 
 export type PackCheckSummary = {
   id: string;
+  constructed?: boolean;
   verdict: Verdict;
   label_verdict: Verdict;
   bag_verdict: BagVerdict;
@@ -36,7 +37,7 @@ type PackCheck = PackCheckSummary & {
   sam_path: Record<
     "label" | "bag",
     { path: "crop" | "full_photo"; reason: string }
-  >;
+  > & { constructed?: boolean };
   photo_url: string;
   crop_urls: { label: string | null; bag: string | null };
 };
@@ -46,18 +47,27 @@ function checkedAt(value: string) {
 }
 
 function Result({ check }: { check: PackCheck }) {
+  const constructed = check.constructed || check.sam_path.constructed;
   return (
     <article className="pack-result stack">
       <div className="button-row">
         <strong className={`pack-verdict pack-${check.verdict}`}>
-          {check.override_by
-            ? "Seller override · unsure check"
-            : `Pack check · ${check.verdict}`}
+          {constructed
+            ? "Constructed packing example"
+            : check.override_by
+              ? "Seller override · unsure check"
+              : `Pack check · ${check.verdict}`}
         </strong>
         {!check.valid && (
           <span className="pill">Historical · no current authorization</span>
         )}
       </div>
+      {constructed && (
+        <p className="message">
+          Constructed packing approval for the judge example. No model was
+          called for this result. Use it to try fake courier booking.
+        </p>
+      )}
       <p className="muted">{checkedAt(check.created_at)} · Dhaka</p>
       <div className="button-row">
         <span className={`pack-verdict pack-${check.label_verdict}`}>
@@ -250,13 +260,16 @@ export default function PackCheckPanel({
 
   return (
     <section className="pack-panel stack" aria-labelledby={headingId}>
-      <h3 id={headingId}>Pack check</h3>
+      <h3 id={headingId}>
+        {order.pack_check?.constructed
+          ? "Constructed packing example"
+          : "Pack check"}
+      </h3>
       {order.pack_check && (
         <p className={`pack-verdict pack-${order.pack_check.verdict}`}>
-          {order.pack_check.override_by
-            ? "Seller override · unsure check"
-            : `Latest check · ${order.pack_check.verdict}`}
-          {` · label ${order.pack_check.label_verdict} · visible bag ${order.pack_check.bag_verdict}`}
+          {order.pack_check.constructed
+            ? "Constructed approval · fake booking example"
+            : `${order.pack_check.override_by ? "Seller override · unsure check" : `Latest check · ${order.pack_check.verdict}`} · label ${order.pack_check.label_verdict} · visible bag ${order.pack_check.bag_verdict}`}
         </p>
       )}
       <button

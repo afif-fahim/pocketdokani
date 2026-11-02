@@ -1,5 +1,5 @@
 from alembic import context
-from pocketdokani import records  # noqa: F401 - register table metadata
+from pocketdokani import courier, records  # noqa: F401 - register table metadata
 from pocketdokani.db import Base, engine
 
 target_metadata = Base.metadata

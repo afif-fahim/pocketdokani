@@ -1,3 +1,4 @@
+import hashlib
 import io
 import textwrap
 from datetime import datetime, timezone
@@ -7,10 +8,12 @@ from PIL import Image, ImageDraw, ImageFont
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
+from pocketdokani.courier import FakeConsignment
 from pocketdokani.db import now
 from pocketdokani.imports import Original
 from pocketdokani.money import LinePrice, calculate_cod
 from pocketdokani.records import (
+    CourierBooking,
     Order,
     OrderLine,
     PackCheck,
@@ -110,13 +113,58 @@ def product_photo(product_id: str) -> bytes:
     return result.getvalue()
 
 
+def pack_photo(reference: str) -> bytes:
+    """An illustration for the judge fixture, never a real packing photo."""
+    photo = Image.new("RGB", (720, 540), "#f3f1e9")
+    draw = ImageDraw.Draw(photo)
+    title = ImageFont.load_default(size=26)
+    body = ImageFont.load_default(size=20)
+    draw.text((28, 24), "CONSTRUCTED PACKING FIXTURE", font=title, fill="#203831")
+    draw.text(
+        (28, 62),
+        "Fake courier demo - no model check was run",
+        font=body,
+        fill="#53645e",
+    )
+    draw.rounded_rectangle((30, 125, 440, 450), radius=18, fill="#c8ab86")
+    draw.rectangle((68, 170, 400, 365), fill="white")
+    draw.text((88, 190), reference, font=title, fill="#203831")
+    draw.multiline_text(
+        (88, 237),
+        "Demo recipient\nConstructed address\nPhone withheld\nNot a shipping label",
+        font=body,
+        fill="#203831",
+        spacing=10,
+    )
+    draw.arc((510, 170, 650, 330), 180, 360, fill="brown", width=15)
+    draw.rounded_rectangle((475, 265, 690, 435), radius=25, fill="brown")
+    draw.text(
+        (28, 490),
+        "Illustration only - no real customer or parcel",
+        font=body,
+        fill="#53645e",
+    )
+    result = io.BytesIO()
+    photo.save(result, format="WEBP")
+    return result.getvalue()
+
+
 def seed_shop(db: Session, owner: str, *, reset: bool = False) -> None:
     if owner == "shop" or owner == "judge-catalogue":
         raise ValueError("A constructed shop must belong to a judge session.")
     if not reset and db.get(Product, (owner, DEMO_PRODUCTS[0][0])) is not None:
         return
     if reset:
-        for table in (PackCheck, OrderLine, Order, Payout, Sku, Product):
+        for table in (
+            CourierBooking,
+            FakeConsignment,
+            PackCheck,
+            OrderLine,
+            Order,
+            Payout,
+            Sku,
+            Product,
+        ):
             db.execute(delete(table).where(table.owner == owner))
         db.flush()
     for product_id, name, _ in DEMO_PRODUCTS:
@@ -164,6 +212,12 @@ def seed_shop(db: Session, owner: str, *, reset: bool = False) -> None:
     ):
         source_id = f"DEMO-ORDER-{index:02}"
         order_id = historical_order_id(owner, source_id)
+        timestamp = now()
+        check_id = (
+            historical_order_id(owner, source_id + "/pack")
+            if status == "packed"
+            else None
+        )
         lines = [LinePrice(1, Decimal("600.00"), Decimal("50.00"))]
         if index == 2:
             lines.append(LinePrice(2, Decimal("500.00"), Decimal("100.00")))
@@ -188,12 +242,17 @@ def seed_shop(db: Session, owner: str, *, reset: bool = False) -> None:
                 consignment_id=f"FAKE-CONSIGNMENT-{index}"
                 if status in ("booked", "delivered", "returned")
                 else None,
+                active_pack_check_id=check_id,
                 payout_source_id=f"DEMO-PAYOUT-{index - 4}"
                 if status == "delivered"
                 else None,
-                note="Hand-authored constructed order; no real customer or booking.",
+                note=(
+                    "Constructed packing authorization for the fake courier demonstration; no model check was run. No real customer or parcel."
+                    if check_id
+                    else "Hand-authored constructed order; no real customer or booking."
+                ),
                 created_at=created,
-                updated_at=now(),
+                updated_at=timestamp,
             )
         )
         db.flush()
@@ -203,11 +262,55 @@ def seed_shop(db: Session, owner: str, *, reset: bool = False) -> None:
                     owner=owner,
                     order_id=order_id,
                     line_number=sequence,
-                    sku=f"{DEMO_PRODUCTS[(index + sequence) % len(DEMO_PRODUCTS)][0]}-R1",
+                    sku="DEMO-HANDBAG-R1"
+                    if check_id
+                    else f"{DEMO_PRODUCTS[(index + sequence) % len(DEMO_PRODUCTS)][0]}-R1",
                     quantity=line.quantity,
                     unit_price=line.unit_price,
                     line_discount=line.line_discount,
                     source_quote="Constructed historical example",
+                )
+            )
+        if check_id:
+            photo = pack_photo(f"PD-DEMO-{index:04}")
+            reason = "Constructed fixture for fake courier booking; no model or real parcel check was run."
+            db.add(
+                PackCheck(
+                    id=check_id,
+                    owner=owner,
+                    order_id=order_id,
+                    created_at=timestamp,
+                    order_updated_at=timestamp,
+                    photo_key=f"constructed/pack/{owner}/{order_id}",
+                    photo_media_type="image/webp",
+                    photo_sha256=hashlib.sha256(photo).hexdigest(),
+                    crop_keys={"label": None, "bag": None},
+                    sam_path={
+                        "constructed": True,
+                        "label": {"path": "full_photo", "reason": reason},
+                        "bag": {"path": "full_photo", "reason": reason},
+                    },
+                    reading={},
+                    reasons=[
+                        {
+                            "field": "constructed_fixture",
+                            "verdict": "pass",
+                            "reason": reason,
+                            "written": None,
+                            "expected": None,
+                        }
+                    ],
+                    bag_results=[
+                        {
+                            "line_number": 1,
+                            "sku": "DEMO-HANDBAG-R1",
+                            "verdict": "match",
+                            "reason": reason,
+                        }
+                    ],
+                    verdict="pass",
+                    label_verdict="pass",
+                    bag_verdict="match",
                 )
             )
     for index, value in ((1, "450.00"), (2, "430.00")):

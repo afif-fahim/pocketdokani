@@ -25,9 +25,19 @@ class Settings(BaseSettings):
     model_calls_enabled: bool = False
     judge_model_calls_per_hour: int = 12
     seller_model_calls_per_hour: int = 60
+    steadfast_api_key: SecretStr = SecretStr("")
+    steadfast_secret_key: SecretStr = SecretStr("")
+    steadfast_live_enabled: bool = False
 
     @model_validator(mode="after")
     def deployment_requirements(self) -> "Settings":
+        if self.steadfast_live_enabled and (
+            not self.steadfast_api_key.get_secret_value()
+            or not self.steadfast_secret_key.get_secret_value()
+        ):
+            raise ValueError(
+                "Live courier booking requires both server-side Steadfast keys"
+            )
         if len(self.shop_passcode.get_secret_value()) < 12:
             raise ValueError("SHOP_PASSCODE needs at least 12 characters")
         if self.storage_backend == "supabase" and (

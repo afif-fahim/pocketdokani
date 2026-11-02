@@ -816,3 +816,11 @@ footer {
 .pack-fields dd {
   overflow-wrap: anywhere;
 }
+
+.courier-panel {
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 1rem;
+}
+.courier-panel dd {
+  overflow-wrap: anywhere;
+}
