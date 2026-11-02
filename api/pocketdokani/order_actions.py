@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from pocketdokani.bookings import require_no_pending_booking
 from pocketdokani.db import now
 from pocketdokani.drafting import DraftValues
 from pocketdokani.records import (
@@ -24,7 +25,7 @@ STATUS_TRANSITIONS = {
     "draft": ("cancelled",),
     "confirmed": ("cancelled",),
     "packed": ("cancelled",),
-    "booked": ("delivered", "returned"),
+    "booked": ("delivered", "returned", "cancelled"),
 }
 
 
@@ -99,6 +100,7 @@ def change_status(
         .where(OrderDraft.owner == actor.owner, OrderDraft.order_id == order_id)
         .values(revision=OrderDraft.revision + 1, updated_at=now())
     )
+    require_no_pending_booking(db, actor.owner, order_id)
     changed = db.scalar(
         update(Order)
         .where(
@@ -112,12 +114,15 @@ def change_status(
     )
     if changed is None:
         raise HTTPException(409, "This order changed. Reload and review it again.")
-    if payload.status == "returned":
+    if payload.expected_status == "booked" and payload.status in (
+        "returned",
+        "cancelled",
+    ):
         # Booked stock was already deducted. Return each line exactly once.
         lines = db.scalars(
-            select(OrderLine).where(
-                OrderLine.owner == actor.owner, OrderLine.order_id == order_id
-            )
+            select(OrderLine)
+            .where(OrderLine.owner == actor.owner, OrderLine.order_id == order_id)
+            .order_by(OrderLine.sku)
         ).all()
         for line in lines:
             db.execute(

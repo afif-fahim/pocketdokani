@@ -5,6 +5,7 @@ from urllib.parse import quote
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from pocketdokani.bookings import booking_payload, courier_mode, stock_holds
 from pocketdokani.db import utc_iso
 from pocketdokani.money import LinePrice
 from pocketdokani.records import (
@@ -19,6 +20,7 @@ from pocketdokani.records import (
 
 
 def stock_payload(db: Session, actor: BrowserSession) -> list[dict[str, object]]:
+    holds = stock_holds(db, actor.owner)
     rows = db.execute(
         select(Sku, Product)
         .outerjoin(
@@ -36,9 +38,12 @@ def stock_payload(db: Session, actor: BrowserSession) -> list[dict[str, object]]
             "variant": sku.variant,
             "lot": sku.lot,
             "lot_received": sku.lot_received,
-            "eligible": sku.lot_received and sku.stock_qty > 0,
+            "eligible": sku.lot_received and sku.stock_qty > holds[sku.sku],
             "stock_qty": sku.stock_qty,
-            "available_qty": sku.stock_qty if sku.lot_received else 0,
+            "available_qty": max(0, sku.stock_qty - holds[sku.sku])
+            if sku.lot_received
+            else 0,
+            "booking_held_qty": holds[sku.sku],
             "unit_cost": str(sku.unit_cost),
             "list_price": str(sku.list_price),
             "photo_url": f"/api/{actor.context}/products/{quote(sku.product_id or '', safe='')}/photo"
@@ -112,12 +117,15 @@ def orders_payload(db: Session, actor: BrowserSession) -> list[dict[str, object]
             "cod_amount": str(order.cod_amount),
             "consignment_id": order.consignment_id,
             "tracking_code": order.tracking_code,
+            "courier_mode": courier_mode(actor),
+            "booking": booking_payload(db, actor, order),
             "source_workspace_id": order.source_workspace_id,
             "note": order.note,
             "created_at": utc_iso(order.created_at),
             "updated_at": utc_iso(order.updated_at),
             "pack_check": {
                 "id": check.id,
+                "constructed": bool(check.sam_path.get("constructed")),
                 "verdict": check.verdict,
                 "label_verdict": check.label_verdict,
                 "bag_verdict": check.bag_verdict,

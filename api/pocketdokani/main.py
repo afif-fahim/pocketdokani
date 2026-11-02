@@ -21,10 +21,11 @@ from sqlalchemy.orm import Session
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from pocketdokani.assistant import Question, answer_question
+from pocketdokani.bookings import BookOrder, book_order, reconcile_booking
 from pocketdokani.business import orders_payload, payouts_payload, stock_payload
 from pocketdokani.config import settings
 from pocketdokani.db import database
-from pocketdokani.demo import product_photo, screenshots, seed_shop
+from pocketdokani.demo import pack_photo, product_photo, screenshots, seed_shop
 from pocketdokani.drafting import (
     DraftRevision,
     SaveDraft,
@@ -621,6 +622,24 @@ def update_order_status(
     return {"updated": True}
 
 
+@app.post("/api/{context}/orders/{order_id}/booking")
+def create_booking(
+    context: Context, order_id: str, payload: BookOrder, request: Request, db: Database
+) -> dict[str, object]:
+    require_mutation(request)
+    actor = authenticate(db, request, context)
+    return book_order(db, actor, order_id, payload)
+
+
+@app.post("/api/{context}/orders/{order_id}/booking/reconcile")
+def check_booking(
+    context: Context, order_id: str, request: Request, db: Database
+) -> dict[str, object]:
+    require_mutation(request)
+    actor = authenticate(db, request, context)
+    return reconcile_booking(db, actor, order_id)
+
+
 @app.get("/api/{context}/orders/{order_id}/pack-checks")
 def list_pack_checks(
     context: Context, order_id: str, request: Request, db: Database
@@ -697,11 +716,18 @@ def pack_check_image(
     db: Database,
 ) -> Response:
     actor = authenticate(db, request, context)
-    owned_order(db, actor, order_id)
+    order = owned_order(db, actor, order_id)
     check = owned_check(db, actor, order_id, check_id)
     key = check.photo_key if asset == "photo" else check.crop_keys.get(asset)
     if not key:
         raise HTTPException(404, "This check used the full photo for that region.")
+    if (
+        actor.context == "judge"
+        and asset == "photo"
+        and check.sam_path.get("constructed") is True
+        and key == f"constructed/pack/{actor.owner}/{order_id}"
+    ):
+        return Response(pack_photo(order.reference), media_type="image/webp")
     return Response(
         ObjectStorage().get(key),
         media_type=check.photo_media_type if asset == "photo" else "image/jpeg",

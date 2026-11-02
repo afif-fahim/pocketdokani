@@ -62,6 +62,10 @@ class ProposeStatus(GetOrder):
     status: Literal["delivered", "returned", "cancelled"]
 
 
+class ProposeBooking(GetOrder):
+    pass
+
+
 class ProposeDraft(Arguments):
     values: DraftValues
 
@@ -97,7 +101,11 @@ TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     ),
     "propose_status": (
         ProposeStatus,
-        "Propose a status change only. Booked orders may become delivered or returned; draft/confirmed/packed may be cancelled. Nothing changes until the seller confirms the card.",
+        "Propose a status change only. Booked orders may become delivered, returned or cancelled. Return/cancellation of a booked order requires the parcel physically back with the seller; stock is restored. Draft/confirmed/packed may be cancelled. Nothing changes until the seller confirms the card.",
+    ),
+    "propose_booking": (
+        ProposeBooking,
+        "Propose courier booking for an exact packed order reference only. This does not book or change the order. The seller must confirm the card. Judge sessions always simulate booking with the fake courier. An unresolved booking must be checked from Orders before another booking is proposed.",
     ),
 }
 
@@ -168,10 +176,53 @@ def execute_tool(
         orders: list[dict[str, Any]] = orders_payload(db, actor)
         if isinstance(args, GetOrder):
             orders = [row for row in orders if row["reference"] == args.reference]
+            if isinstance(args, ProposeBooking):
+                if not orders:
+                    return {"error": "Order not found in this shop."}
+                order = orders[0]
+                if order["status"] != "packed":
+                    return {"error": "Only a packed order can be booked."}
+                booking = order.get("booking")
+                if booking and not booking.get("can_retry", False):
+                    return {
+                        "error": "Open this order in Orders to check its existing courier booking before trying again."
+                    }
+                mode = order["courier_mode"]
+                if mode == "disabled":
+                    return {"error": "Courier booking is disabled for this shop."}
+                label = (
+                    "book Steadfast"
+                    if mode == "live"
+                    else "simulate courier booking (fake)"
+                )
+                return {
+                    **order_results(orders),
+                    "proposal": {
+                        "kind": "booking",
+                        "order_id": order["id"],
+                        "reference": order["reference"],
+                        "expected_updated_at": order["updated_at"],
+                        "courier_mode": mode,
+                        "customer_name": order["customer_name"],
+                        "phone": order["phone"],
+                        "address": order["address"],
+                        "cod_amount": order["cod_amount"],
+                        "label": f"{order['reference']}: {label}",
+                    },
+                }
             if isinstance(args, ProposeStatus):
                 if not orders:
                     return {"error": "Order not found in this shop."}
                 order = orders[0]
+                booking = order.get("booking")
+                if booking and booking["state"] in (
+                    "in_progress",
+                    "booking_unknown",
+                    "not_found",
+                ):
+                    return {
+                        "error": "Resolve the courier booking from Orders before changing status."
+                    }
                 if args.status not in STATUS_TRANSITIONS.get(str(order["status"]), ()):
                     return {"error": "That status transition is not available."}
                 return {

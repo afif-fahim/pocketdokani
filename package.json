@@ -9,7 +9,7 @@
     "format:check": "prettier --check . && uv run --frozen ruff format --check api scripts",
     "lint": "uv run --frozen ruff check api scripts && npm --prefix web run lint",
     "typecheck": "uv run --frozen mypy api/pocketdokani && npm --prefix web run typecheck",
-    "test": "uv run --frozen python scripts/check_cod.py",
+    "test": "uv run --frozen python scripts/check_cod.py && uv run --frozen python scripts/check_booking.py",
     "check": "npm run format:check && npm run lint && npm run typecheck && uv run --frozen python scripts/check_split_manifest.py",
     "hooks:install": "git config core.hooksPath .githooks"
   },

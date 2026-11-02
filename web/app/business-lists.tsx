@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { api, json } from "./api";
 import PackCheckPanel, { type PackCheckSummary } from "./pack-check";
+import CourierBookingPanel, {
+  bookingLocksOrder,
+  type CourierBooking,
+} from "./courier-booking";
 
 export type StockItem = {
   sku: string;
@@ -27,6 +31,9 @@ export type Order = {
   verified_prior_payment: string;
   cod_amount: string;
   consignment_id: string | null;
+  tracking_code: string | null;
+  booking: CourierBooking | null;
+  courier_mode: "fake" | "live" | "disabled";
   source_workspace_id: string | null;
   note: string;
   created_at: string;
@@ -83,7 +90,7 @@ function StatusActions({
   const [target, setTarget] = useState("");
   const options =
     order.status === "booked"
-      ? ["delivered", "returned"]
+      ? ["delivered", "returned", "cancelled"]
       : ["draft", "confirmed", "packed"].includes(order.status)
         ? ["cancelled"]
         : [];
@@ -95,6 +102,14 @@ function StatusActions({
           <p>
             Change {order.reference} from {order.status} to {target}?
           </p>
+          {order.status === "booked" &&
+            ["returned", "cancelled"].includes(target) && (
+              <p className="message">
+                Confirm only after the parcel is back with you. Its items will
+                return to available stock. This does not cancel a courier
+                parcel.
+              </p>
+            )}
           <div className="button-row">
             <button
               disabled={busy}
@@ -134,6 +149,64 @@ function StatusActions({
         </div>
       )}
     </div>
+  );
+}
+
+function OrderActions({
+  order,
+  base,
+  busy,
+  act,
+  onChange,
+  onOpenWorkspace,
+}: {
+  order: Order;
+  base: string;
+  busy: boolean;
+  act: (action: () => Promise<void>) => Promise<void>;
+  onChange: () => Promise<void>;
+  onOpenWorkspace: (id: string) => void;
+}) {
+  const [booking, setBooking] = useState<CourierBooking | null>(null);
+  const current = booking ? { ...order, booking } : order;
+  const locked = bookingLocksOrder(current);
+  return (
+    <>
+      <CourierBookingPanel
+        order={current}
+        base={base}
+        busy={busy}
+        act={act}
+        onChange={onChange}
+        onBooking={setBooking}
+      />
+      {!locked && (
+        <>
+          <PackCheckPanel
+            order={current}
+            base={base}
+            busy={busy}
+            act={act}
+            onChange={onChange}
+          />
+          <StatusActions
+            order={current}
+            base={base}
+            busy={busy}
+            act={act}
+            onChange={onChange}
+          />
+          {order.source_workspace_id && (
+            <button
+              disabled={busy}
+              onClick={() => onOpenWorkspace(order.source_workspace_id!)}
+            >
+              Open draft and sources ↗
+            </button>
+          )}
+        </>
+      )}
+    </>
   );
 }
 
@@ -296,35 +369,16 @@ export default function BusinessLists({
                       </dd>
                     </div>
                   </dl>
-                  {order.consignment_id && (
-                    <p>
-                      Consignment ID: <code>{order.consignment_id}</code>
-                    </p>
-                  )}
                   <p className="muted">{order.note}</p>
-                  <PackCheckPanel
+                  <OrderActions
+                    key={`${order.updated_at}-${order.booking?.state ?? ""}`}
                     order={order}
                     base={base}
                     busy={busy}
                     act={act}
                     onChange={onChange}
+                    onOpenWorkspace={onOpenWorkspace}
                   />
-                  <StatusActions
-                    order={order}
-                    base={base}
-                    busy={busy}
-                    act={act}
-                    onChange={onChange}
-                  />
-                  {order.source_workspace_id && (
-                    <button
-                      onClick={() =>
-                        onOpenWorkspace(order.source_workspace_id!)
-                      }
-                    >
-                      Open draft and sources ↗
-                    </button>
-                  )}
                 </div>
               </details>
             </li>

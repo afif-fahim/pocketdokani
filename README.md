@@ -20,7 +20,9 @@ Issue #4 adds a Bangla/Banglish voice and typed assistant with shop-scoped busin
 
 Issue #5 adds guided parcel-photo capture, SAM label/bag crops with full-photo fallback, blind label reading, code comparisons against the confirmed order, separate visible-bag results and recorded seller overrides for unsure checks. Historical labels retain the seller's workbook order number. Originals, crops and field reasons remain private. Live Meta checks covered 14 generated examples in both modes, and PostgreSQL concurrency checks passed locally; these are development checks, with field-reading variability and no SAM label regions observed. Hosted pack checks, physical-phone capture and real-label accuracy remain unverified; see the [verification record](docs/verification.md#live-development-follow-up--november-1-2026).
 
-Not yet implemented: courier booking, evaluation and pilot results.
+Issue #6 adds Steadfast live and fake courier adapters, packed-order booking, assistant booking proposals and invoice reconciliation after an uncertain response. Judge sessions always use the fake; production seller booking stays disabled until the server flag and keys are configured. Pending bookings hold available stock, and a confirmed consignment deducts it once. The merchant guide and a read-only authenticated request were checked; no genuine order is available for the first live booking. Hosted courier acceptance remains unverified; see the [verification record](docs/verification.md#courier-booking-issue-6--november-2-2026).
+
+Not yet implemented: evaluation and pilot results. Automatic courier status updates by webhook remain separate scope.
 
 Local development also supports SQLite/private files. See [local setup and acceptance checks](docs/development.md), [deployment setup](docs/deployment.md), [evaluation partitions](evals/README.md) and the [verification record](docs/verification.md).
 

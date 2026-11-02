@@ -1,6 +1,6 @@
 # Deploying PocketDokani
 
-The first screenshot-import slice is deployed with FastAPI on Render, the Next.js web app on Vercel, and PostgreSQL/private object storage on Supabase. This does not yet include model calls, order drafting or courier booking.
+The first screenshot-import slice was deployed with FastAPI on Render, the Next.js web app on Vercel, and PostgreSQL/private object storage on Supabase. The recorded hosted checks below cover that slice; later features require the deployment and acceptance steps described here.
 
 ## Deploying order drafts (issue #3)
 
@@ -8,7 +8,17 @@ Deploy the API and web app together after merging the branch. The container runs
 
 Set `MODEL_API_KEY` as a secret on the API host and set `MODEL_CALLS_ENABLED=true` when ready for live acceptance. The checked-in Render blueprint leaves calls disabled. Never add either setting as a public browser credential. Optional `JUDGE_MODEL_CALLS_PER_HOUR` and `SELLER_MODEL_CALLS_PER_HOUR` default to 12 and 60; retries count as attempts. Judge reset preserves its budget.
 
-Repeat the [draft acceptance workflow](development.md#drafting-and-confirming-an-order) on the deployed stack, including final negotiated prices, wrong/unknown fields, source chips, verified-payment gating, repeat confirmation, judge isolation and voice-note upload. Measure a real-sized batch on a physical phone against the issue's under-two-minute target. The local synthetic verification does not establish live model quality or hosted acceptance. Courier booking remains unimplemented.
+Repeat the [draft acceptance workflow](development.md#drafting-and-confirming-an-order) on the deployed stack, including final negotiated prices, wrong/unknown fields, source chips, verified-payment gating, repeat confirmation, judge isolation and voice-note upload. Measure a real-sized batch on a physical phone against the issue's under-two-minute target. The local synthetic verification does not establish live model quality or hosted acceptance.
+
+## Deploying courier booking (issue #6)
+
+Deploy the API and web app together. The container runs all migrations through `0005` before serving. The new `courier_bookings` and fake-consignment records are private; PostgreSQL migration protections enable RLS and revoke PUBLIC/client-role grants as for the other application tables. Back up seller records before migrating and verify the schema upgrade on the intended database.
+
+The Render blueprint leaves `STEADFAST_LIVE_ENABLED=false` and treats `STEADFAST_API_KEY` and `STEADFAST_SECRET_KEY` as server secrets to supply separately. Keep the existing server settings. With that flag false, production seller booking is disabled; judge sessions always use the fake. There is no browser setting that enables live booking. Development seller sessions use the fake while the flag is false.
+
+First repeat the [courier acceptance steps](development.md#booking-the-courier) in judge mode on the deployed app. Confirm reset isolation, fake labels, timeout reconciliation and one stock deduction. When a genuine unbooked order is ready, configure the two server keys, intentionally enable `STEADFAST_LIVE_ENABLED=true`, redeploy, and book that packed order once. Verify the consignment and invoice in the Steadfast merchant panel. Keep the genuine-order check and physical-phone evidence separate from local fake tests. No genuine order was available on November 2, 2026, so this live booking and hosted courier acceptance remain open.
+
+An unresolved live booking requires invoice reconciliation before another create can be attempted. Do not remove its durable record, alter the invoice or toggle to the fake to bypass it. The documented invoice-status endpoint cannot recover identifiers by itself; tracking history may recover the consignment ID without a tracking code. If recovery remains ambiguous, inspect the merchant panel rather than submitting another parcel. Webhook delivery-status updates are separate scope and are not required to configure this booking slice.
 
 ## Live deployment
 
