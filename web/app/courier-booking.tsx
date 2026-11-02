@@ -45,6 +45,7 @@ export default function CourierBookingPanel({
   const requesting = useRef(false);
   const booking = order.booking;
   const mode = booking?.mode ?? order.courier_mode;
+  const importedConsignment = !booking && Boolean(order.consignment_id);
   const canBook =
     order.status === "packed" &&
     mode !== "disabled" &&
@@ -105,9 +106,13 @@ export default function CourierBookingPanel({
     <section className="courier-panel stack" aria-label="Courier booking">
       <div className="button-row">
         <h3>কুরিয়ার · Courier</h3>
-        {mode !== "disabled" && (
+        {(importedConsignment || mode !== "disabled") && (
           <span className="pill">
-            {mode === "fake" ? "Fake · no parcel is sent" : "Live · Steadfast"}
+            {importedConsignment
+              ? "Imported consignment"
+              : mode === "fake"
+                ? "Fake · no parcel is sent"
+                : "Live · Steadfast"}
           </span>
         )}
       </div>
