@@ -5,6 +5,7 @@ import CourierBookingPanel, {
   bookingLocksOrder,
   type CourierBooking,
 } from "./courier-booking";
+import StatusChangeWarning from "./status-change-warning";
 
 export type StockItem = {
   sku: string;
@@ -102,14 +103,10 @@ function StatusActions({
           <p>
             Change {order.reference} from {order.status} to {target}?
           </p>
-          {order.status === "booked" &&
-            ["returned", "cancelled"].includes(target) && (
-              <p className="message">
-                Confirm only after the parcel is back with you. Its items will
-                return to available stock. This does not cancel a courier
-                parcel.
-              </p>
-            )}
+          <StatusChangeWarning
+            previousStatus={order.status}
+            nextStatus={target}
+          />
           <div className="button-row">
             <button
               disabled={busy}

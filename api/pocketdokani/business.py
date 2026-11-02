@@ -17,6 +17,7 @@ from pocketdokani.records import (
     Product,
     Sku,
 )
+from pocketdokani.stock import available_quantity
 
 
 def stock_payload(db: Session, actor: BrowserSession) -> list[dict[str, object]]:
@@ -38,11 +39,14 @@ def stock_payload(db: Session, actor: BrowserSession) -> list[dict[str, object]]
             "variant": sku.variant,
             "lot": sku.lot,
             "lot_received": sku.lot_received,
-            "eligible": sku.lot_received and sku.stock_qty > holds[sku.sku],
+            "eligible": available_quantity(
+                sku.stock_qty, lot_received=sku.lot_received, held_qty=holds[sku.sku]
+            )
+            > 0,
             "stock_qty": sku.stock_qty,
-            "available_qty": max(0, sku.stock_qty - holds[sku.sku])
-            if sku.lot_received
-            else 0,
+            "available_qty": available_quantity(
+                sku.stock_qty, lot_received=sku.lot_received, held_qty=holds[sku.sku]
+            ),
             "booking_held_qty": holds[sku.sku],
             "unit_cost": str(sku.unit_cost),
             "list_price": str(sku.list_price),

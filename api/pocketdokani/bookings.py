@@ -20,16 +20,17 @@ from pocketdokani.courier import (
     SteadfastLive,
 )
 from pocketdokani.db import now
+from pocketdokani.order_locking import bump_order_draft_revision
 from pocketdokani.records import (
     BrowserSession,
     CourierBooking,
     Order,
-    OrderDraft,
     OrderLine,
     PackCheck,
     Sku,
     identifier,
 )
+from pocketdokani.stock import available_quantity
 
 HELD_STATES = ("in_progress", "booking_unknown", "not_found")
 
@@ -84,11 +85,7 @@ def require_no_pending_booking(db: Session, owner: str, order_id: str) -> None:
 
 def _lock_order(db: Session, actor: BrowserSession, order_id: str) -> Order:
     # Use the same lock order as draft, packing and status writes.
-    db.execute(
-        update(OrderDraft)
-        .where(OrderDraft.owner == actor.owner, OrderDraft.order_id == order_id)
-        .values(revision=OrderDraft.revision + 1, updated_at=now())
-    )
+    bump_order_draft_revision(db, actor.owner, order_id, now())
     db.execute(
         update(Order)
         .where(Order.owner == actor.owner, Order.id == order_id)
@@ -201,7 +198,13 @@ def _reserve(db: Session, owner: str, quantities: dict[str, int]) -> None:
             .values(stock_qty=Sku.stock_qty)
             .returning(Sku.stock_qty)
         )
-        if row is None or row - stock_holds(db, owner)[sku] < quantity:
+        if (
+            row is None
+            or available_quantity(
+                row, lot_received=True, held_qty=stock_holds(db, owner)[sku]
+            )
+            < quantity
+        ):
             raise HTTPException(
                 409, "There is not enough available received stock to book this order."
             )

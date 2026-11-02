@@ -13,12 +13,12 @@ from pocketdokani.bookings import require_no_pending_booking
 from pocketdokani.db import now, utc_iso
 from pocketdokani.demo import product_photo
 from pocketdokani.imports import Original, cleanup_objects
+from pocketdokani.order_locking import bump_order_draft_revision
 from pocketdokani.pack_comparison import compare_label
 from pocketdokani.pack_types import PackAnalysis
 from pocketdokani.records import (
     BrowserSession,
     Order,
-    OrderDraft,
     OrderLine,
     PackCheck,
     Product,
@@ -121,11 +121,7 @@ def claim_order(
     timestamp: datetime,
 ) -> None:
     # Match draft/status mutation lock order before claiming the order version.
-    db.execute(
-        update(OrderDraft)
-        .where(OrderDraft.owner == actor.owner, OrderDraft.order_id == order_id)
-        .values(revision=OrderDraft.revision + 1, updated_at=timestamp)
-    )
+    bump_order_draft_revision(db, actor.owner, order_id, timestamp)
     require_no_pending_booking(db, actor.owner, order_id)
     claimed = db.scalar(
         update(Order)

@@ -31,6 +31,7 @@ from pocketdokani.records import (
     Workspace,
     identifier,
 )
+from pocketdokani.stock import available_quantity
 from pocketdokani.storage import ObjectStorage
 
 DIGITS = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
@@ -139,7 +140,14 @@ def extract(
         )
     ).all()
     held = stock_holds(db, actor.owner)
-    skus = [sku for sku in skus if sku.stock_qty > held[sku.sku]]
+    available = {
+        sku.sku: available_quantity(
+            sku.stock_qty, lot_received=sku.lot_received, held_qty=held[sku.sku]
+        )
+        for sku in skus
+    }
+    available = {sku: quantity for sku, quantity in available.items() if quantity > 0}
+    skus = [sku for sku in skus if sku.sku in available]
     notes = db.scalars(
         select(VoiceNote)
         .where(VoiceNote.workspace_id == workspace.id)
@@ -164,7 +172,7 @@ def extract(
                         "catalogue_sku": sku.sku,
                         "name": sku.product_name,
                         "variant": sku.variant,
-                        "available_qty": sku.stock_qty - held[sku.sku],
+                        "available_qty": available[sku.sku],
                     }
                 ),
             }
@@ -234,7 +242,6 @@ def extract(
             "The model returned an incomplete draft. Retry extraction; saved work is unchanged.",
         ) from None
     result = raw.model_dump()
-    available = {s.sku: s.stock_qty - held[s.sku] for s in skus}
     transcripts = {n.id: n.transcript for n in notes}
 
     def validate(name: str, field: dict[str, Any]) -> None:
@@ -482,8 +489,12 @@ def confirm_draft(
             record = db.get(Sku, (actor.owner, sku)) if sku else None
             if (
                 record is None
-                or not record.lot_received
-                or record.stock_qty - held[sku] < quantity
+                or available_quantity(
+                    record.stock_qty,
+                    lot_received=record.lot_received,
+                    held_qty=held[sku],
+                )
+                < quantity
             ):
                 raise ValueError(
                     "Every line needs an available received SKU with enough stock."

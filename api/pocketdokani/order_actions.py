@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from pocketdokani.bookings import require_no_pending_booking
 from pocketdokani.db import now
 from pocketdokani.drafting import DraftValues
+from pocketdokani.order_locking import bump_order_draft_revision
 from pocketdokani.records import (
     BrowserSession,
     Order,
@@ -95,11 +96,7 @@ def change_status(
         raise HTTPException(409, "That status transition is not available.")
     # Draft writes claim this revision before changing Order. Use the same lock
     # order so a concurrent edit/confirmation cannot revive a cancelled order.
-    db.execute(
-        update(OrderDraft)
-        .where(OrderDraft.owner == actor.owner, OrderDraft.order_id == order_id)
-        .values(revision=OrderDraft.revision + 1, updated_at=now())
-    )
+    bump_order_draft_revision(db, actor.owner, order_id, now())
     require_no_pending_booking(db, actor.owner, order_id)
     changed = db.scalar(
         update(Order)

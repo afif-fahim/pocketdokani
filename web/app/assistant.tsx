@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, json } from "./api";
 import type { CourierBooking } from "./courier-booking";
+import StatusChangeWarning from "./status-change-warning";
 
 type RecordChip = {
   key: string;
@@ -413,15 +414,12 @@ export default function Assistant({
               return (
                 <article className="proposal-card stack" key={key}>
                   <h3>{proposal.label}</h3>
-                  {proposal.kind === "status" &&
-                    proposal.expected_status === "booked" &&
-                    ["returned", "cancelled"].includes(proposal.status) && (
-                      <p className="message">
-                        Confirm only after the parcel is back with you. Its
-                        items will return to available stock. This does not
-                        cancel a courier parcel.
-                      </p>
-                    )}
+                  {proposal.kind === "status" && (
+                    <StatusChangeWarning
+                      previousStatus={proposal.expected_status}
+                      nextStatus={proposal.status}
+                    />
+                  )}
                   {proposal.kind === "order_draft" && (
                     <>
                       <p>
