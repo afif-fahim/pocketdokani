@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from pocketdokani.bookings import HELD_STATES
 from pocketdokani.business import orders_payload, payouts_payload, stock_payload
 from pocketdokani.db import now
 from pocketdokani.drafting import DraftValues
@@ -215,11 +216,7 @@ def execute_tool(
                     return {"error": "Order not found in this shop."}
                 order = orders[0]
                 booking = order.get("booking")
-                if booking and booking["state"] in (
-                    "in_progress",
-                    "booking_unknown",
-                    "not_found",
-                ):
+                if booking and booking["state"] in HELD_STATES:
                     return {
                         "error": "Resolve the courier booking from Orders before changing status."
                     }
