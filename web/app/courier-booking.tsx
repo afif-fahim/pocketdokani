@@ -2,6 +2,11 @@ import { useRef, useState } from "react";
 import { api, ApiError, json } from "./api";
 import type { Order } from "./business-lists";
 import { StatusBadge } from "./ui";
+import {
+  pendingActionKey,
+  readPendingAction,
+  writePendingAction,
+} from "./pending-actions";
 
 export type CourierBooking = {
   state:
@@ -26,32 +31,22 @@ export function bookingLocksOrder(order: Order): boolean {
   );
 }
 
-function pendingBookingKey(base: string, orderId: string): string {
-  return `pd-booking-pending:${base}:${orderId}`;
-}
-
 export function pendingClientBooking(
   base: string,
   order: Order,
 ): CourierBooking | null {
-  if (typeof window === "undefined") return null;
-  const key = pendingBookingKey(base, order.id);
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(key) || "null") as {
-      orderVersion: string;
-      booking: CourierBooking;
-    } | null;
-    // A newer server version means the durable claim has been observed. Until
-    // then even an old not-found/rejected record must not enable another create.
-    return saved &&
-      saved.orderVersion === order.updated_at &&
-      !order.consignment_id &&
-      order.booking?.state !== "booked"
-      ? saved.booking
-      : null;
-  } catch {
-    return null;
-  }
+  const saved = readPendingAction<{
+    orderVersion: string;
+    booking: CourierBooking;
+  }>(pendingActionKey("booking", base, order.id));
+  // A newer server version means the durable claim has been observed. Until
+  // then even an old not-found/rejected record must not enable another create.
+  return saved &&
+    saved.orderVersion === order.updated_at &&
+    !order.consignment_id &&
+    order.booking?.state !== "booked"
+    ? saved.booking
+    : null;
 }
 
 export default function CourierBookingPanel({
@@ -96,11 +91,11 @@ export default function CourierBookingPanel({
       message: reconcile ? "Checking the courier…" : "Booking the courier…",
       can_retry: false,
     };
-    const pendingKey = pendingBookingKey(base, order.id);
-    sessionStorage.setItem(
-      pendingKey,
-      JSON.stringify({ orderVersion: order.updated_at, booking: pending }),
-    );
+    const pendingKey = pendingActionKey("booking", base, order.id);
+    writePendingAction(pendingKey, {
+      orderVersion: order.updated_at,
+      booking: pending,
+    });
     onBooking(pending);
     try {
       await act(async () => {
@@ -119,7 +114,7 @@ export default function CourierBookingPanel({
                   },
             ),
           );
-          sessionStorage.removeItem(pendingKey);
+          writePendingAction(pendingKey, null);
           onBooking(result);
         } catch (cause) {
           const unknown: CourierBooking = {
@@ -128,13 +123,10 @@ export default function CourierBookingPanel({
             message:
               "The booking outcome is unclear. Check the courier before trying again.",
           };
-          sessionStorage.setItem(
-            pendingKey,
-            JSON.stringify({
-              orderVersion: order.updated_at,
-              booking: unknown,
-            }),
-          );
+          writePendingAction(pendingKey, {
+            orderVersion: order.updated_at,
+            booking: unknown,
+          });
           onBooking(unknown);
           if (cause instanceof ApiError && cause.status === 409) {
             // A request lost before the durable claim has no booking for the
@@ -143,7 +135,7 @@ export default function CourierBookingPanel({
             const records = await api<Order[]>(`${base}/orders`);
             const current = records.find((record) => record.id === order.id);
             if (current) {
-              sessionStorage.removeItem(pendingKey);
+              writePendingAction(pendingKey, null);
               onBooking(current.booking);
               await onChange();
               if (reconcile && !current.booking && !current.consignment_id) {

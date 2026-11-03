@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from pocketdokani.bookings import require_no_pending_booking, stock_holds
 from pocketdokani.db import now, utc_iso
 from pocketdokani.demo import DEMO_PHONE, product_photo
-from pocketdokani.model_api import model_call
+from pocketdokani.model_api import PreWriteModelError, model_call
 from pocketdokani.money import LinePrice, calculate_cod
 from pocketdokani.records import (
     BrowserSession,
@@ -237,7 +237,7 @@ def extract(
             response["choices"][0]["message"]["content"]
         )
     except (KeyError, IndexError, TypeError, ValueError, ValidationError):
-        raise HTTPException(
+        raise PreWriteModelError(
             502,
             "The model returned an incomplete draft. Retry extraction; saved work is unchanged.",
         ) from None

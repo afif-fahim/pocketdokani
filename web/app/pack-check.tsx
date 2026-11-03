@@ -2,6 +2,12 @@ import { useEffect, useId, useState } from "react";
 import { api, ApiOutcomeUnknownError, json } from "./api";
 import type { Order } from "./business-lists";
 import { EmptyState } from "./ui";
+import {
+  hasPendingAction,
+  pendingActionKey,
+  readPendingAction,
+  writePendingAction,
+} from "./pending-actions";
 
 type Verdict = "pass" | "fail" | "unsure";
 type BagVerdict = "match" | "mismatch" | "unsure";
@@ -10,10 +16,7 @@ type PendingCheck =
   { kind: "check"; ids: string[] } | { kind: "override"; id: string };
 
 export function hasPendingPackAction(base: string, orderId: string): boolean {
-  return (
-    typeof window !== "undefined" &&
-    Boolean(sessionStorage.getItem(`pd-pack-pending:${base}:${orderId}`))
-  );
+  return hasPendingAction(pendingActionKey("pack", base, orderId));
 }
 
 export type PackCheckSummary = {
@@ -236,23 +239,15 @@ export default function PackCheckPanel({
   >("pass");
   const endpoint = `${base}/orders/${encodeURIComponent(order.id)}/pack-checks`;
   const canCheck = ["confirmed", "packed"].includes(order.status);
-  const pendingKey = `pd-pack-pending:${base}:${order.id}`;
-  const [uncertain, setUncertain] = useState<PendingCheck | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      return JSON.parse(
-        sessionStorage.getItem(pendingKey) || "null",
-      ) as PendingCheck | null;
-    } catch {
-      return null;
-    }
-  });
+  const pendingKey = pendingActionKey("pack", base, order.id);
+  const [uncertain, setUncertain] = useState(() =>
+    readPendingAction<PendingCheck>(pendingKey),
+  );
 
   function remember(value: PendingCheck | null) {
     setUncertain(value);
     onPendingChange?.(Boolean(value));
-    if (value) sessionStorage.setItem(pendingKey, JSON.stringify(value));
-    else sessionStorage.removeItem(pendingKey);
+    writePendingAction(pendingKey, value);
   }
 
   useEffect(() => {

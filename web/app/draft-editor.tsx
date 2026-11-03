@@ -10,6 +10,11 @@ import type { StockItem } from "./business-lists";
 import { money } from "./format";
 import { StatusBadge } from "./ui";
 import OrderProgress from "./order-progress";
+import {
+  pendingActionKey,
+  readPendingAction,
+  writePendingAction,
+} from "./pending-actions";
 
 type Evidence = {
   value: string | null;
@@ -126,17 +131,10 @@ export default function DraftEditor({
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [loadVersion, setLoadVersion] = useState(0);
-  const pendingKey = `pd-draft-pending:${base}:${workspaceId}`;
-  const [uncertain, setUncertain] = useState<PendingDraft | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      return JSON.parse(
-        sessionStorage.getItem(pendingKey) || "null",
-      ) as PendingDraft | null;
-    } catch {
-      return null;
-    }
-  });
+  const pendingKey = pendingActionKey("draft", base, workspaceId);
+  const [uncertain, setUncertain] = useState(() =>
+    readPendingAction<PendingDraft>(pendingKey),
+  );
   const [dirty, setDirty] = useState(false);
   const [success, setSuccess] = useState("");
   const voiceDialog = useRef<HTMLDialogElement>(null);
@@ -170,8 +168,7 @@ export default function DraftEditor({
             status: record?.status ?? null,
           };
     setUncertain(value);
-    if (value) sessionStorage.setItem(pendingKey, JSON.stringify(value));
-    else sessionStorage.removeItem(pendingKey);
+    writePendingAction(pendingKey, value);
   }
 
   useEffect(() => {

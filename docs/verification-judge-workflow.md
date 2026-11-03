@@ -80,10 +80,25 @@ Still open: physical-phone camera/microphone behavior, the denied-microphone int
 
 ### Standards
 
-No documented-standard violations were found. One non-blocking P3 **Duplicated Code** judgment call noted repeated pending-marker storage plumbing across the draft, parcel, booking and status controls. A small shared storage helper could reduce this duplication; reconciliation remains local because each operation has different evidence and retry rules. This optional cleanup was left outside the corrective pass.
+No documented-standard violations were found. One non-blocking P3 **Duplicated Code** judgment call noted repeated pending-marker storage plumbing across the draft, parcel, booking and status controls. This was initially left outside the corrective pass and is addressed in the follow-up below; reconciliation remains local because each operation has different evidence and retry rules.
 
 ### Spec
 
 The review identified recovery locks when a draft/parcel/reset request never reached the server, a reset retry that could clear the original unknown state after a rate-limit refusal, and parcel-marker ordering across a component remount. The fixes permit explicit version-guarded draft/parcel retries after a read, protect reset retries with the original workspace snapshot, preserve unresolved reset state on refusal, and clear parcel markers before refreshing keyed components. The follow-up review confirmed no remaining actionable spec findings. Reset also clears stale session markers after confirmed completion, and the draft editor displays the actual packed/booked progression.
 
-Final counts: Standards **0 hard violations, 1 P3 advisory**; Spec **0 remaining implementation findings**. Local synthetic browser checks passed as described above; the remaining hosted/physical-device gates stay open.
+Earlier review counts: Standards **0 hard violations, 1 P3 advisory**; Spec **0 remaining implementation findings**. Local synthetic browser checks passed as described above; the remaining hosted/physical-device gates stay open.
+
+## Review follow-up
+
+The supplied follow-up review identified two additional behavior bugs and two code-maintenance concerns. All four were confirmed:
+
+- Historical draft orders without a source workspace, including `PD-DEMO-0001`, offered **Review order** without an editor or confirmation action. They now offer **View order**, open their recorded recipient/items/amounts, and explain that **New order** creates an editable draft. Drafts with a source workspace retain their review action.
+- Status changes marked every rejection and follow-up data-load failure as an unknown write. Only `ApiOutcomeUnknownError` now retains the unknown-write marker. A known successful write or reconciliation read clears that marker before refreshing keyed components. A separate refresh-required state blocks stale order actions and offers **Reload shop data** if the refresh fails. Session-expiry errors retain their sign-in handling.
+- Draft, parcel, status and booking controls now share typed pending-marker storage helpers, including reset clearing. Existing keys and per-operation reconciliation rules are preserved; SSR, malformed JSON and blocked storage are handled centrally.
+- Known pre-write model failures now return an explicit top-level `committed: false` alongside their existing error detail. The client uses that guarantee rather than matching prose or endpoint names. Generic 5xx responses, unreadable responses and lost writes remain unknown. Audit/model-budget records may still exist; the guarantee concerns the requested business change.
+
+Temporary focused harnesses exercised the actual API client and status handlers before and after the fixes. They covered deterministic 409 refusal, lost-write locking, successful writes and reconciliation followed by failed refreshes, revised model-error wording, strict boolean guarantees, and generic gateway failures. Isolated HTTP checks also verified disabled extraction/transcription/pack refusals, incomplete model output and a failure after a real sample-draft commit: the post-commit response carried no `committed: false` guarantee and the draft remained available for reconciliation. No external provider request or seller data was used. Shared-marker checks covered existing status markers, session isolation during reset, malformed JSON, SSR and blocked storage. No new test framework was added.
+
+Validation passed: `npm run check`, `npm run test` (3 COD and 12 booking/workflow checks), and `npm --prefix web run build`. The final status-refresh correction also passed the focused component harness, TypeScript and ESLint, and the production build was rerun successfully. Disposable rehearsal servers were stopped and their temporary files removed.
+
+The review's missing-browser-rehearsal finding is partly superseded by the existing **Local browser follow-up** above and its tracked synthetic screenshots. The remaining microphone-denial, deliberately delayed-request/unknown-reset, hosted-branch and physical-device gates are still open. This corrective pass prepared a separate disposable local API and fault-injection proxy, but browser automation became disabled in Work settings before any new interaction could be verified. Preparation and an opened sign-in page are not counted as a completed rehearsal.

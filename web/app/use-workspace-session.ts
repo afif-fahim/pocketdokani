@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, ApiOutcomeUnknownError, json } from "./api";
 import type { Order, Payout, StockItem } from "./business-lists";
 import type { Context, Section, Workspace } from "./workspace-types";
+import { clearPendingActions } from "./pending-actions";
 
 type PendingSampleAction = {
   action: "open" | "reset";
@@ -63,17 +64,7 @@ export default function useWorkspaceSession(
     window.sessionStorage.removeItem(`pd-draft-request:${base}`);
     // Seed orders reuse their IDs after reset. Clear recovery markers only
     // after the server reset is known to have completed.
-    const prefixes = ["draft", "pack", "status", "booking"].map(
-      (kind) => `pd-${kind}-pending:${base}:`,
-    );
-    const keys = Array.from(
-      { length: window.sessionStorage.length },
-      (_, index) => window.sessionStorage.key(index),
-    );
-    keys.forEach((key) => {
-      if (key && prefixes.some((prefix) => key.startsWith(prefix)))
-        window.sessionStorage.removeItem(key);
-    });
+    clearPendingActions(base);
     setAssistantVersion((version) => version + 1);
   }, [base]);
 

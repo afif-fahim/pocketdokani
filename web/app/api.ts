@@ -58,23 +58,14 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
         body && typeof body === "object" && "detail" in body
           ? body.detail
           : null;
-      // These application responses occur before draft/check/transcript writes.
-      // Generic gateway failures still cannot establish whether a write saved.
-      const modelRefusal =
-        method === "POST" &&
-        /\/(draft|pack-checks|voice-notes)$/.test(pathname) &&
-        ((response.status === 503 &&
-          (detail ===
-            "Model calls are disabled. Ask the shop owner to configure the server." ||
-            detail === "Voice notes require ffmpeg on the API server.")) ||
-          (response.status === 502 &&
-            (detail ===
-              "The model could not complete the request. Your saved work is unchanged; try again." ||
-              detail ===
-                "The model returned an incomplete draft. Retry extraction; saved work is unchanged." ||
-              detail ===
-                "No usable transcript was returned. Try a clearer voice note.")));
-      if (businessWrite && response.status >= 500 && !modelRefusal)
+      // Only an explicit server guarantee establishes that no business write ran.
+      // Unmarked gateway failures remain unknown regardless of their wording.
+      const notCommitted =
+        body &&
+        typeof body === "object" &&
+        "committed" in body &&
+        body.committed === false;
+      if (businessWrite && response.status >= 500 && !notCommitted)
         throw new ApiOutcomeUnknownError(path, method);
       throw new ApiError(
         typeof detail === "string"

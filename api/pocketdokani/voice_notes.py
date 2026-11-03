@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from pocketdokani.model_api import model_call
+from pocketdokani.model_api import PreWriteModelError, model_call
 from pocketdokani.records import BrowserSession, Order, Sku, Workspace
 
 MAX_AUDIO_BYTES = 8 * 1024 * 1024
@@ -57,7 +57,7 @@ def transcribe(
                 if not 0 < duration <= 120:
                     raise ValueError()
         except FileNotFoundError:
-            raise HTTPException(
+            raise PreWriteModelError(
                 503, "Voice notes require ffmpeg on the API server."
             ) from None
         except (subprocess.SubprocessError, ValueError, wave.Error):
@@ -117,7 +117,7 @@ def transcribe(
         or not transcript.strip()
         or len(transcript) > 20000
     ):
-        raise HTTPException(
+        raise PreWriteModelError(
             502, "No usable transcript was returned. Try a clearer voice note."
         )
     return transcript, fingerprint

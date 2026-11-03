@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, json } from "./api";
+import { api, ApiError, ApiOutcomeUnknownError, json } from "./api";
 import PackCheckPanel, {
   hasPendingPackAction,
   type PackCheckSummary,
@@ -13,6 +13,11 @@ import StatusChangeWarning from "./status-change-warning";
 import OrderProgress from "./order-progress";
 import { money } from "./format";
 import { EmptyState, StatusBadge } from "./ui";
+import {
+  hasPendingAction,
+  pendingActionKey,
+  writePendingAction,
+} from "./pending-actions";
 
 export type StockItem = {
   sku: string;
@@ -76,7 +81,7 @@ function date(value: string) {
 }
 
 function pendingStatusKey(base: string, orderId: string): string {
-  return `pd-status-pending:${base}:${orderId}`;
+  return pendingActionKey("status", base, orderId);
 }
 
 function StatusActions({
@@ -96,17 +101,29 @@ function StatusActions({
 }) {
   const [target, setTarget] = useState("");
   const pendingKey = pendingStatusKey(base, order.id);
-  const [uncertain, setUncertain] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      Boolean(sessionStorage.getItem(pendingKey)),
+  const [uncertain, setUncertain] = useState(() =>
+    hasPendingAction(pendingKey),
   );
   const [reviewedStatus, setReviewedStatus] = useState("");
+  const [refreshRequired, setRefreshRequired] = useState(false);
   function remember(pending: boolean) {
-    if (pending) sessionStorage.setItem(pendingKey, order.updated_at);
-    else sessionStorage.removeItem(pendingKey);
+    writePendingAction(pendingKey, pending ? order.updated_at : null);
     setUncertain(pending);
     onPendingChange(pending);
+  }
+  async function refreshOrder() {
+    setRefreshRequired(true);
+    onPendingChange(true);
+    try {
+      await onChange();
+      setRefreshRequired(false);
+      onPendingChange(false);
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) throw cause;
+      throw new Error(
+        "The order status is known, but shop data could not be refreshed. Reload shop data before making another change.",
+      );
+    }
   }
   async function checkStatus() {
     const records = await api<Order[]>(`${base}/orders`);
@@ -115,27 +132,32 @@ function StatusActions({
       throw new Error(
         "This order is no longer in this shop. Reload shop data before continuing.",
       );
-    sessionStorage.removeItem(pendingKey);
-    try {
-      await onChange();
-      remember(false);
-      setTarget("");
-      setReviewedStatus(current.status);
-    } catch (cause) {
-      remember(true);
-      throw cause;
-    }
+    remember(false);
+    setTarget("");
+    setReviewedStatus(current.status);
+    await refreshOrder();
   }
+  const currentStatus = reviewedStatus || order.status;
   const options =
-    order.status === "booked"
+    currentStatus === "booked"
       ? ["delivered", "returned", "cancelled"]
-      : ["draft", "confirmed", "packed"].includes(order.status)
+      : ["draft", "confirmed", "packed"].includes(currentStatus)
         ? ["cancelled"]
         : [];
-  if (!options.length && !uncertain) return null;
+  if (!options.length && !uncertain && !refreshRequired) return null;
   return (
     <div className="stack">
-      {uncertain ? (
+      {refreshRequired ? (
+        <div className="message" role="status">
+          <p>
+            The order status is known. Reload shop data before making another
+            change.
+          </p>
+          <button disabled={busy} onClick={() => void act(refreshOrder)}>
+            Reload shop data
+          </button>
+        </div>
+      ) : uncertain ? (
         <div className="message" role="status">
           <p>
             The last status change may already be saved. Check the current order
@@ -169,14 +191,14 @@ function StatusActions({
                         expected_updated_at: order.updated_at,
                       }),
                     );
-                    sessionStorage.removeItem(pendingKey);
-                    await onChange();
-                    remember(false);
-                    setTarget("");
                   } catch (cause) {
-                    remember(true);
+                    remember(cause instanceof ApiOutcomeUnknownError);
                     throw cause;
                   }
+                  remember(false);
+                  setReviewedStatus(target);
+                  setTarget("");
+                  await refreshOrder();
                 })
               }
             >
@@ -228,10 +250,8 @@ function OrderActions({
   const [booking, setBooking] = useState<CourierBooking | null>(() =>
     pendingClientBooking(base, order),
   );
-  const [statusPending, setStatusPending] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      Boolean(sessionStorage.getItem(pendingStatusKey(base, order.id))),
+  const [statusPending, setStatusPending] = useState(() =>
+    hasPendingAction(pendingStatusKey(base, order.id)),
   );
   const [packPending, setPackPending] = useState(() =>
     hasPendingPackAction(base, order.id),
@@ -240,11 +260,19 @@ function OrderActions({
   const locked = bookingLocksOrder(current);
   return (
     <>
-      <OrderProgress order={current} />
+      {order.status === "draft" && !order.source_workspace_id ? (
+        <p className="message">
+          This draft has no editable conversation. View its recorded details
+          below, or choose New order to create a draft you can review and
+          confirm.
+        </p>
+      ) : (
+        <OrderProgress order={current} />
+      )}
       {statusPending && !locked ? (
         <p className="message">
-          Resolve the pending status action below before packing, booking or
-          editing this order.
+          Resolve the order update below before packing, booking or editing this
+          order.
         </p>
       ) : packPending ? (
         <p className="message">
@@ -356,7 +384,7 @@ export default function BusinessLists({
       booking: pendingClientBooking(base, order) ?? order.booking,
     })
       ? "Check booking"
-      : order.status === "draft"
+      : order.status === "draft" && order.source_workspace_id
         ? "Review order"
         : order.status === "confirmed"
           ? "Check parcel"
@@ -382,7 +410,9 @@ export default function BusinessLists({
             </p>
             <div className="section-heading">
               <span>
-                {order.status === "draft" ? "Last confirmed COD" : "COD"}{" "}
+                {order.status === "draft" && order.source_workspace_id
+                  ? "Last confirmed COD"
+                  : "COD"}{" "}
                 <strong>{money(order.cod_amount)}</strong>
               </span>
               <small className="muted">{date(order.created_at)}</small>
@@ -432,9 +462,10 @@ export default function BusinessLists({
           <details
             open={
               expanded &&
-              ["booked", "delivered", "returned", "cancelled"].includes(
-                order.status,
-              )
+              ((order.status === "draft" && !order.source_workspace_id) ||
+                ["booked", "delivered", "returned", "cancelled"].includes(
+                  order.status,
+                ))
             }
           >
             <summary>Recipient, items and amounts</summary>

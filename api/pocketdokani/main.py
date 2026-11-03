@@ -55,7 +55,7 @@ from pocketdokani.imports import (
     validate_original,
     workspace_payload,
 )
-from pocketdokani.model_api import require_models
+from pocketdokani.model_api import PreWriteModelError, require_models
 from pocketdokani.order_actions import (
     NewDraft,
     StatusChange,
@@ -171,6 +171,15 @@ class RequestBoundary:
 
 
 app.add_middleware(RequestBoundary)
+
+
+@app.exception_handler(PreWriteModelError)
+async def model_write_refused(
+    request: Request, error: PreWriteModelError
+) -> JSONResponse:
+    return JSONResponse(
+        {"detail": error.detail, "committed": False}, status_code=error.status_code
+    )
 
 
 @app.exception_handler(RequestValidationError)
