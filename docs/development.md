@@ -52,7 +52,9 @@ There is no append/merge endpoint. Later imports belong to future attributed sel
 
 ## Catalogue
 
-Each judge session starts with five constructed products, ten SKUs across received and in-transit lots, eight orders across lifecycle states (including a multi-item order), and two payouts. Product illustrations and recipients are hand-authored; phones are absent. Reset judge shop restores these records and screenshots only for that session. The seller shop starts empty until reviewed records are imported.
+Each judge session starts with five constructed products, ten SKUs across received and in-transit lots, eight orders across lifecycle states (including a multi-item order), and two payouts. Product illustrations and recipients are hand-authored; phones use the non-contactable `01X-EXAMPLE` marker. Dates are relative to the session's seed/reset time. Reset judge shop restores these records and screenshots only for that session. The seller shop starts empty until reviewed records are imported.
+
+The judge start guide connects the existing screenshot workspace, draft confirmation, parcel check and fake courier booking. Explicit sample drafts and pass/fail/unsure parcel results are labeled **no AI analysis** and stay separate from live processing. The marker is accepted only in isolated judge work with constructed SKUs; seller confirmation and live courier phone validation remain strict. See the [issue #15 walkthrough and verification limits](verification-judge-workflow.md).
 
 ### Private business workbook
 

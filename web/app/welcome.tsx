@@ -20,7 +20,6 @@ export default function Welcome({
   async function submit(event: FormEvent) {
     event.preventDefault();
     await onSignIn(passcode);
-    setPasscode("");
   }
   return (
     <div className="welcome-page">
@@ -59,7 +58,11 @@ export default function Welcome({
                 disabled={!ready || busy}
                 onClick={() => onSignIn("")}
               >
-                {!ready ? "Opening…" : busy ? "Starting demo…" : "Try demo"}
+                {!ready
+                  ? "Checking session…"
+                  : busy
+                    ? "Starting demo…"
+                    : "Start sample shop"}
                 <Icon name="arrow" />
               </button>
             ) : (
@@ -70,6 +73,20 @@ export default function Welcome({
             )}
             <span>No sign-up. Just a sample shop.</span>
           </div>
+          {error && (
+            <p className="message error" role="alert">
+              {error}{" "}
+              {ready &&
+                !busy &&
+                "Use the start or sign-in button to reconnect."}
+            </p>
+          )}
+          {!ready && (
+            <p role="status" className="fine-print">
+              Checking your saved session. This check stops after 20 seconds if
+              the service cannot be reached.
+            </p>
+          )}
           <div className="welcome-assurance">
             <span className="status-dot" />
             AI prepares. You approve.
@@ -143,11 +160,6 @@ export default function Welcome({
                 : "Sign in with your shop passcode to pick up where you left off."}
             </p>
           </div>
-          {error && (
-            <p className="message error" role="alert">
-              {error} {ready && !busy && "Try signing in again."}
-            </p>
-          )}
           {notice && (
             <p className="message success" role="status">
               {notice}

@@ -129,7 +129,8 @@ def orders_payload(db: Session, actor: BrowserSession) -> list[dict[str, object]
             "updated_at": utc_iso(order.updated_at),
             "pack_check": {
                 "id": check.id,
-                "constructed": bool(check.sam_path.get("constructed")),
+                "constructed": bool(check.sam_path.get("constructed"))
+                or check.reading.get("sample_fixture") is True,
                 "verdict": check.verdict,
                 "label_verdict": check.label_verdict,
                 "bag_verdict": check.bag_verdict,

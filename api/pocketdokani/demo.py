@@ -1,18 +1,20 @@
 import hashlib
 import io
 import textwrap
-from datetime import datetime, timezone
+from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
+from typing import Literal
 
 from PIL import Image, ImageDraw, ImageFont
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from pocketdokani.courier import FakeConsignment
 from pocketdokani.db import now
 from pocketdokani.imports import Original
 from pocketdokani.money import LinePrice, calculate_cod
+from pocketdokani.pack_types import PackAnalysis
 from pocketdokani.records import (
     CourierBooking,
     Order,
@@ -26,8 +28,149 @@ from pocketdokani.records import (
 
 # Hand-authored constructed source; no real seller/customer identifiers or phones.
 DEMO_SOURCE_ID = "constructed-conversation-001"
+DEMO_PHONE = "01X-EXAMPLE"
 DEMO_FINAL_PRICE_BN = "চূড়ান্ত দাম: টোট ৪৫০ টাকা, শোল্ডার ব্যাগ ৫৫০ টাকা।"
 DEMO_FINAL_PRICE_GLOSS = "Final price: tote 450 BDT, shoulder bag 550 BDT each."
+SampleScenario = Literal["pass", "fail", "unsure"]
+
+
+def sample_draft_content() -> dict[str, object]:
+    """An explicit sample reading of our constructed screenshots, never model output."""
+
+    def field(value: str, quote: str, screenshot: int) -> dict[str, object]:
+        return {
+            "value": value,
+            "quote": quote,
+            "screenshot_index": screenshot,
+            "voice_note_id": None,
+            "issue": None,
+            "edited": False,
+        }
+
+    return {
+        "sample_fixture": True,
+        "customer_name": field("Demo recipient", "Name: Demo recipient", 2),
+        "phone": field(DEMO_PHONE, "Phone: 01X-EXAMPLE (withheld in demo)", 2),
+        "address": field("Example Road, Dhaka", "Address: Example Road, Dhaka", 2),
+        "customer_delivery_charge": field("80", "Customer delivery charge 80 BDT.", 2),
+        "order_confirmed": field("true", "Ji, ei final price e order confirmed.", 1),
+        "lines": [
+            {
+                "sku": field(sku, "1 blue canvas tote, 1 black shoulder bag.", 1),
+                "quantity": field("1", "1 blue canvas tote, 1 black shoulder bag.", 1),
+                "unit_price": field(price, DEMO_FINAL_PRICE_BN, 1),
+                "line_discount": field("0", "Line discount 0 BDT for each item.", 2),
+            }
+            for sku, price in (("DEMO-TOTE-R1", "450"), ("DEMO-SHOULDER-R1", "550"))
+        ],
+    }
+
+
+def constructed_order(db: Session, owner: str, order_id: str) -> bool:
+    flags = list(
+        db.scalars(
+            select(Sku.constructed)
+            .join(
+                OrderLine, (OrderLine.owner == Sku.owner) & (OrderLine.sku == Sku.sku)
+            )
+            .where(OrderLine.owner == owner, OrderLine.order_id == order_id)
+        )
+    )
+    return owner != "shop" and bool(flags) and all(flags)
+
+
+def sample_pack(
+    order: Order, lines: list[dict[str, object]], scenario: SampleScenario
+) -> tuple[Original, PackAnalysis]:
+    """Explicit synthetic photo and reading; callers must authenticate a judge fixture."""
+    reason = "Constructed sample; no live model analysis. No real customer or parcel."
+    cod = order.cod_amount + (Decimal("100") if scenario == "fail" else Decimal(0))
+    phone = None if scenario == "unsure" else order.phone
+    fields: dict[str, str | None] = {
+        "order_reference": order.label_reference,
+        "customer_name": order.customer_name,
+        "phone": phone,
+        "cod_amount": str(cod),
+        "address": order.address,
+    }
+    image = Image.new("RGB", (1000, 820), "#f3f1e9")
+    draw = ImageDraw.Draw(image)
+    title = ImageFont.load_default(size=28)
+    body = ImageFont.load_default(size=23)
+    draw.text((25, 24), "CONSTRUCTED PARCEL INPUT", font=title, fill="#203831")
+    draw.text(
+        (25, 70),
+        "Synthetic illustration - no live analysis has run",
+        font=body,
+        fill="#53645e",
+    )
+    draw.rounded_rectangle((25, 125, 630, 735), radius=20, fill="#c8ab86")
+    draw.rectangle((55, 160, 600, 690), fill="white")
+    y = 185
+    for key, value in fields.items():
+        label = {
+            "order_reference": "Order number",
+            "customer_name": "Recipient",
+            "cod_amount": "COD BDT",
+        }.get(key, key.title())
+        text = f"{label}: {value or '[obscured]'}"
+        for row in textwrap.wrap(text, width=36):
+            draw.text((75, y), row, font=body, fill="#203831")
+            y += 35
+        y += 20
+    bag_results: list[dict[str, object]] = []
+    for index, line in enumerate(lines):
+        sku = str(line["sku"])
+        product_id = sku.rsplit("-", 1)[0]
+        photo = Image.open(io.BytesIO(product_photo(product_id))).convert("RGB")
+        photo.thumbnail((300, 220))
+        image.paste(photo, (665, 145 + index * 270))
+        draw.text(
+            (660, 370 + index * 270),
+            f"Quantity: {line.get('quantity', 1)}",
+            font=body,
+            fill="#203831",
+        )
+        bag_results.append(
+            {
+                "line_number": line["line_number"],
+                "sku": sku,
+                "verdict": "match",
+                "reason": reason,
+            }
+        )
+    draw.text(
+        (25, 770),
+        f"Sample scenario: {scenario}. Not a shipping label.",
+        font=body,
+        fill="#53645e",
+    )
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return (
+        Original(
+            f"constructed-parcel-{scenario}.png",
+            buffer.getvalue(),
+            "image/png",
+            1000,
+            820,
+        ),
+        {
+            "reading": {
+                "fields": [
+                    {"field": key, "written": value, "legible": value is not None}
+                    for key, value in fields.items()
+                ],
+                "sample_fixture": True,
+            },
+            "bag_results": bag_results,
+            "sam_path": {
+                key: {"path": "constructed_sample", "reason": reason}
+                for key in ("label", "bag")
+            },
+            "crops": {"label": None, "bag": None},
+        },
+    )
 
 
 def screenshots() -> list[Original]:
@@ -247,7 +390,8 @@ def seed_shop(db: Session, owner: str, *, reset: bool = False) -> None:
         lines = [LinePrice(1, Decimal("600.00"), Decimal("50.00"))]
         if index == 2:
             lines.append(LinePrice(2, Decimal("500.00"), Decimal("100.00")))
-        created = datetime(2026, 10, 10 + index, 6, tzinfo=timezone.utc)
+        # Seed relative dates so "today" questions work in each fresh/reset shop.
+        created = timestamp - timedelta(days=(0, 0, 0, 1, 0, 1, 2, 3)[index - 1])
         db.add(
             Order(
                 owner=owner,
@@ -256,7 +400,7 @@ def seed_shop(db: Session, owner: str, *, reset: bool = False) -> None:
                 source_id=source_id,
                 status=status,
                 customer_name=f"Demo customer {index}",
-                phone=None,
+                phone=DEMO_PHONE,
                 address=f"Constructed address {index}; demonstration only",
                 customer_delivery_charge=Decimal("80.00"),
                 verified_prior_payment=Decimal("100.00"),
@@ -344,7 +488,7 @@ def seed_shop(db: Session, owner: str, *, reset: bool = False) -> None:
             Payout(
                 owner=owner,
                 source_id=f"DEMO-PAYOUT-{index}",
-                paid_at=datetime(2026, 10, 20 + index, 6, tzinfo=timezone.utc),
+                paid_at=now() - timedelta(days=index - 1),
                 amount=Decimal(value),
                 note="Constructed courier payout",
             )

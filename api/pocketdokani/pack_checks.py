@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from pocketdokani.bookings import require_no_pending_booking
 from pocketdokani.db import now, utc_iso
-from pocketdokani.demo import product_photo
+from pocketdokani.demo import constructed_order, product_photo
 from pocketdokani.imports import Original, cleanup_objects
 from pocketdokani.order_locking import bump_order_draft_revision
 from pocketdokani.pack_comparison import compare_label
@@ -106,6 +106,8 @@ def check_payload(check: PackCheck, order: Order, context: str) -> dict[str, obj
             for key, value in check.crop_keys.items()
         },
         "reading": check.reading,
+        "constructed": check.sam_path.get("constructed") is True
+        or check.reading.get("sample_fixture") is True,
         "override_by": check.override_by,
         "override_at": utc_iso(check.override_at) if check.override_at else None,
     }
@@ -150,7 +152,13 @@ def save_check(
     analysis: PackAnalysis,
 ) -> PackCheck:
     require_current(order, expected)
-    label_verdict, reasons = compare_label(analysis["reading"], order)
+    label_verdict, reasons = compare_label(
+        analysis["reading"],
+        order,
+        judge=actor.context == "judge"
+        and actor.owner == order.owner
+        and constructed_order(db, actor.owner, order.id),
+    )
     bag_results = analysis["bag_results"]
     bag_values = {item["verdict"] for item in bag_results}
     bag_verdict = (

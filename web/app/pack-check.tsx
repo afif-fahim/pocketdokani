@@ -1,11 +1,20 @@
 import { useEffect, useId, useState } from "react";
-import { api, json } from "./api";
+import { api, ApiOutcomeUnknownError, json } from "./api";
 import type { Order } from "./business-lists";
 import { EmptyState } from "./ui";
 
 type Verdict = "pass" | "fail" | "unsure";
 type BagVerdict = "match" | "mismatch" | "unsure";
 type SegmentationMode = "sam" | "full_photo";
+type PendingCheck =
+  { kind: "check"; ids: string[] } | { kind: "override"; id: string };
+
+export function hasPendingPackAction(base: string, orderId: string): boolean {
+  return (
+    typeof window !== "undefined" &&
+    Boolean(sessionStorage.getItem(`pd-pack-pending:${base}:${orderId}`))
+  );
+}
 
 export type PackCheckSummary = {
   id: string;
@@ -37,7 +46,7 @@ type PackCheck = PackCheckSummary & {
   }[];
   sam_path: Record<
     "label" | "bag",
-    { path: "crop" | "full_photo"; reason: string }
+    { path: "crop" | "full_photo" | "constructed_sample"; reason: string }
   > & { constructed?: boolean };
   photo_url: string;
   crop_urls: { label: string | null; bag: string | null };
@@ -48,13 +57,18 @@ function checkedAt(value: string) {
 }
 
 function Result({ check }: { check: PackCheck }) {
-  const constructed = check.constructed || check.sam_path.constructed;
+  const constructed =
+    check.constructed ||
+    check.sam_path.constructed ||
+    check.sam_path.label.path === "constructed_sample";
   return (
     <article className="pack-result stack">
       <div className="button-row">
         <strong className={`pack-verdict pack-${check.verdict}`}>
           {constructed
-            ? "Constructed packing example"
+            ? check.override_by
+              ? "Sample · seller override · unsure"
+              : `Sample pack check · ${check.verdict}`
             : check.override_by
               ? "Seller override · unsure check"
               : `Pack check · ${check.verdict}`}
@@ -65,8 +79,8 @@ function Result({ check }: { check: PackCheck }) {
       </div>
       {constructed && (
         <p className="message">
-          Constructed packing approval for the judge example. No model was
-          called for this result. Use it to try fake courier booking.
+          Sample result · no AI analysis. This synthetic illustration
+          demonstrates the workflow; it is not evidence of a live model check.
         </p>
       )}
       <p className="muted">{checkedAt(check.created_at)} · Dhaka</p>
@@ -97,6 +111,12 @@ function Result({ check }: { check: PackCheck }) {
         <p>
           Reshoot in good light with all label fields readable. The seller can
           review an unsure check before overriding it.
+        </p>
+      )}
+      {check.valid && (check.verdict === "pass" || check.override_by) && (
+        <p className="message success">
+          This order is ready for courier booking. Review its COD and confirm
+          the booking above.
         </p>
       )}
       <ul className="pack-fields">
@@ -156,7 +176,9 @@ function Result({ check }: { check: PackCheck }) {
                 <strong>{region === "label" ? "Label" : "Bag"} input:</strong>{" "}
                 {check.sam_path[region].path === "crop"
                   ? "SAM crop"
-                  : "Full photo"}{" "}
+                  : check.sam_path[region].path === "constructed_sample"
+                    ? "Sample illustration · no AI analysis"
+                    : "Full photo"}{" "}
                 · {check.sam_path[region].reason}
               </p>
               {check.crop_urls[region] && (
@@ -187,15 +209,19 @@ export default function PackCheckPanel({
   busy,
   act,
   onChange,
+  initialOpen = false,
+  onPendingChange,
 }: {
   order: Order;
   base: string;
   busy: boolean;
   act: (action: () => Promise<void>) => Promise<void>;
   onChange: () => Promise<void>;
+  initialOpen?: boolean;
+  onPendingChange?: (pending: boolean) => void;
 }) {
   const headingId = useId();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const [checks, setChecks] = useState<PackCheck[] | null>(null);
   const [pending, setPending] = useState<{ file: File; url: string } | null>(
     null,
@@ -204,16 +230,42 @@ export default function PackCheckPanel({
   const [historyError, setHistoryError] = useState("");
   const [segmentation, setSegmentation] = useState<SegmentationMode>("sam");
   const [overrideId, setOverrideId] = useState<string | null>(null);
+  const [models, setModels] = useState<boolean | null>(null);
+  const [sampleScenario, setSampleScenario] = useState<
+    "pass" | "fail" | "unsure"
+  >("pass");
   const endpoint = `${base}/orders/${encodeURIComponent(order.id)}/pack-checks`;
   const canCheck = ["confirmed", "packed"].includes(order.status);
+  const pendingKey = `pd-pack-pending:${base}:${order.id}`;
+  const [uncertain, setUncertain] = useState<PendingCheck | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return JSON.parse(
+        sessionStorage.getItem(pendingKey) || "null",
+      ) as PendingCheck | null;
+    } catch {
+      return null;
+    }
+  });
+
+  function remember(value: PendingCheck | null) {
+    setUncertain(value);
+    onPendingChange?.(Boolean(value));
+    if (value) sessionStorage.setItem(pendingKey, JSON.stringify(value));
+    else sessionStorage.removeItem(pendingKey);
+  }
 
   useEffect(() => {
     if (!open) return;
     let stopped = false;
-    api<PackCheck[]>(endpoint)
-      .then((items) => {
+    Promise.all([
+      api<PackCheck[]>(endpoint),
+      api<{ model_calls_enabled: boolean }>(`${base}/session`),
+    ])
+      .then(([items, session]) => {
         if (!stopped) {
           setChecks(items);
+          setModels(session.model_calls_enabled);
           setHistoryError("");
         }
       })
@@ -228,7 +280,7 @@ export default function PackCheckPanel({
     return () => {
       stopped = true;
     };
-  }, [endpoint, open, order.updated_at]);
+  }, [base, endpoint, open, order.updated_at]);
 
   useEffect(
     () => () => {
@@ -255,9 +307,50 @@ export default function PackCheckPanel({
   }
 
   async function refresh() {
-    setChecks(await api<PackCheck[]>(endpoint));
+    const [items, session] = await Promise.all([
+      api<PackCheck[]>(endpoint),
+      api<{ model_calls_enabled: boolean }>(`${base}/session`),
+    ]);
+    setChecks(items);
+    setModels(session.model_calls_enabled);
     setHistoryError("");
+    const recovered =
+      uncertain &&
+      (uncertain.kind === "check"
+        ? items.some((check) => !uncertain.ids.includes(check.id))
+        : items.some(
+            (check) => check.id === uncertain.id && Boolean(check.override_by),
+          ));
+    if (recovered) remember(null);
     await onChange();
+  }
+
+  async function checkParcel(sample: boolean) {
+    if (uncertain || !checks || (!sample && !pending)) return;
+    const operation: PendingCheck = {
+      kind: "check",
+      ids: checks.map((check) => check.id),
+    };
+    await act(async () => {
+      remember(operation);
+      try {
+        const body = new FormData();
+        body.set("expected_updated_at", order.updated_at);
+        if (sample) body.set("sample_scenario", sampleScenario);
+        else {
+          body.set("photo", pending!.file);
+          body.set("segmentation", segmentation);
+        }
+        await api<PackCheck>(endpoint, { method: "POST", body });
+        remember(null);
+        setPending(null);
+        setOverrideId(null);
+        await refresh();
+      } catch (cause) {
+        if (!(cause instanceof ApiOutcomeUnknownError)) remember(null);
+        throw cause;
+      }
+    });
   }
 
   return (
@@ -269,9 +362,8 @@ export default function PackCheckPanel({
       </h3>
       {order.pack_check && (
         <p className={`pack-verdict pack-${order.pack_check.verdict}`}>
-          {order.pack_check.constructed
-            ? "Constructed approval · fake booking example"
-            : `${order.pack_check.override_by ? "Seller override · unsure check" : `Latest check · ${order.pack_check.verdict}`} · label ${order.pack_check.label_verdict} · visible bag ${order.pack_check.bag_verdict}`}
+          {order.pack_check.constructed ? "Sample · no AI analysis · " : ""}
+          {`${order.pack_check.override_by ? "Seller override · unsure check" : `Latest check · ${order.pack_check.verdict}`} · label ${order.pack_check.label_verdict} · visible bag ${order.pack_check.bag_verdict}`}
         </p>
       )}
       <button
@@ -301,87 +393,160 @@ export default function PackCheckPanel({
               {historyError} Choose Refresh checks to try again.
             </p>
           )}
-          {canCheck ? (
-            <form
-              className="stack"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!pending) return;
-                void act(async () => {
-                  const body = new FormData();
-                  body.set("photo", pending.file);
-                  body.set("expected_updated_at", order.updated_at);
-                  body.set("segmentation", segmentation);
-                  await api<PackCheck>(endpoint, { method: "POST", body });
-                  setPending(null);
-                  setOverrideId(null);
-                  await refresh();
-                });
-              }}
-            >
+          {uncertain && (
+            <div className="message" role="status">
               <p>
-                Keep the entire label inside the photo, flat and in focus.
-                Include label order number{" "}
-                <strong>{order.label_reference}</strong>, name, all 11 phone
-                digits, COD and full address. Put every visible ordered bag
-                beside the parcel if it is still open.
+                The last pack action may still be running or may already be
+                saved. Refresh checks to find its result before starting another
+                action. Keep this panel open to retain your selected photo.
               </p>
-              <label className="stack">
-                <strong>Take or choose one parcel photo</strong>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  capture="environment"
-                  disabled={busy}
-                  onChange={(event) => {
-                    choose(event.target.files?.[0]);
-                    event.target.value = "";
-                  }}
-                />
-                <span className="muted">
-                  PNG, JPEG or WebP · up to 8 MiB and 20 megapixels. The
-                  original is kept privately.
-                </span>
-              </label>
-              {selectionError && (
-                <p className="message error" role="alert">
-                  {selectionError}
-                </p>
-              )}
-              {pending && (
-                <div className="stack">
-                  <img
-                    className="pack-photo"
-                    src={pending.url}
-                    alt="Parcel photo selected for pack check"
-                  />
-                  <p className="muted">
-                    Check the preview. Reshoot if the label is cut off, blurred
-                    or covered.
+              <button disabled={busy} onClick={() => void act(refresh)}>
+                Check pack action
+              </button>
+            </div>
+          )}
+          {canCheck ? (
+            <>
+              {base === "/api/judge" && (
+                <section className="stack" aria-label="Synthetic pack example">
+                  <h3>Try a sample pack result</h3>
+                  <p>
+                    Use a clearly synthetic illustration for this same order. No
+                    Meta model runs. Try a mismatch, then a corrected pass; an
+                    unsure result needs a separate seller override.
                   </p>
-                  <label className="stack">
-                    <span>Photo comparison method</span>
+                  <label>
+                    Sample outcome
                     <select
-                      disabled={busy}
-                      value={segmentation}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        if (value === "sam" || value === "full_photo")
-                          setSegmentation(value);
-                      }}
+                      value={sampleScenario}
+                      disabled={busy || Boolean(uncertain)}
+                      onChange={(event) =>
+                        setSampleScenario(
+                          event.target.value as "pass" | "fail" | "unsure",
+                        )
+                      }
                     >
-                      <option value="sam">Find label and bag with SAM</option>
-                      <option value="full_photo">
-                        Use full photo for comparison
-                      </option>
+                      <option value="pass">Corrected parcel · pass</option>
+                      <option value="fail">Wrong label COD · fail</option>
+                      <option value="unsure">Unreadable label · unsure</option>
                     </select>
                   </label>
-                  <button className="primary" disabled={busy} type="submit">
-                    {busy ? "Checking parcel…" : "Check this photo"}
+                  <button
+                    disabled={busy || !checks || Boolean(uncertain)}
+                    onClick={() => void checkParcel(true)}
+                  >
+                    Use sample result · no AI analysis
                   </button>
-                </div>
+                  <a
+                    href={`${endpoint}/sample-photo?scenario=${sampleScenario}`}
+                    download
+                  >
+                    Download synthetic {sampleScenario} photo for a live Meta
+                    check
+                  </a>
+                  <p className="fine-print">
+                    The download is a synthetic input, not an analyzed result.
+                    Choose it below to request live analysis; its outcome may
+                    differ from the sample.
+                  </p>
+                </section>
               )}
-            </form>
+              {models === false && (
+                <p className="message">
+                  Live Meta photo analysis is unavailable in this server
+                  configuration.
+                  {base === "/api/judge"
+                    ? " Use the labeled sample route above to rehearse the workflow."
+                    : " Your order is unchanged. Try again when model processing is enabled."}
+                </p>
+              )}
+              <form
+                className="stack"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void checkParcel(false);
+                }}
+              >
+                <p>
+                  Keep the entire label inside the photo, flat and in focus.
+                  Include label order number{" "}
+                  <strong>{order.label_reference}</strong>, name,{" "}
+                  {base === "/api/judge" && order.phone === "01X-EXAMPLE"
+                    ? "synthetic phone marker 01X-EXAMPLE"
+                    : "all 11 phone digits"}
+                  , COD and full address. Put every visible ordered bag beside
+                  the parcel if it is still open.
+                </p>
+                <label className="stack">
+                  <strong>
+                    Live Meta check · take or choose one parcel photo
+                  </strong>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    capture="environment"
+                    disabled={busy || models !== true || Boolean(uncertain)}
+                    onChange={(event) => {
+                      choose(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                  />
+                  <span className="muted">
+                    PNG, JPEG or WebP · up to 8 MiB and 20 megapixels. The
+                    original is kept privately.
+                  </span>
+                </label>
+                {selectionError && (
+                  <p className="message error" role="alert">
+                    {selectionError}
+                  </p>
+                )}
+                {pending && (
+                  <div className="stack">
+                    <img
+                      className="pack-photo"
+                      src={pending.url}
+                      alt="Parcel photo selected for pack check"
+                    />
+                    <p className="muted">
+                      Check the preview. Reshoot if the label is cut off,
+                      blurred or covered.
+                    </p>
+                    <details>
+                      <summary>Advanced demo options</summary>
+                      <label className="stack">
+                        <span>Photo comparison method</span>
+                        <select
+                          disabled={busy}
+                          value={segmentation}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            if (value === "sam" || value === "full_photo")
+                              setSegmentation(value);
+                          }}
+                        >
+                          <option value="sam">
+                            Find label and bag with SAM
+                          </option>
+                          <option value="full_photo">
+                            Use full photo for comparison
+                          </option>
+                        </select>
+                      </label>
+                    </details>
+                    <button
+                      className="primary"
+                      disabled={
+                        busy || !checks || models !== true || Boolean(uncertain)
+                      }
+                      type="submit"
+                    >
+                      {busy ? "Checking parcel…" : "Check this photo"}
+                    </button>
+                  </div>
+                )}
+              </form>
+            </>
           ) : (
             <p className="muted">
               Confirm the order before taking a pack photo. New checks are
@@ -412,17 +577,25 @@ export default function PackCheckPanel({
                       </p>
                       <div className="button-row">
                         <button
-                          disabled={busy}
+                          disabled={busy || Boolean(uncertain)}
                           onClick={() =>
                             void act(async () => {
-                              await api(
-                                `${endpoint}/${encodeURIComponent(check.id)}/override`,
-                                json("POST", {
-                                  expected_updated_at: order.updated_at,
-                                }),
-                              );
-                              setOverrideId(null);
-                              await refresh();
+                              remember({ kind: "override", id: check.id });
+                              try {
+                                await api(
+                                  `${endpoint}/${encodeURIComponent(check.id)}/override`,
+                                  json("POST", {
+                                    expected_updated_at: order.updated_at,
+                                  }),
+                                );
+                                remember(null);
+                                setOverrideId(null);
+                                await refresh();
+                              } catch (cause) {
+                                if (!(cause instanceof ApiOutcomeUnknownError))
+                                  remember(null);
+                                throw cause;
+                              }
                             })
                           }
                         >
@@ -438,7 +611,7 @@ export default function PackCheckPanel({
                     </div>
                   ) : (
                     <button
-                      disabled={busy}
+                      disabled={busy || Boolean(uncertain)}
                       onClick={() => setOverrideId(check.id)}
                     >
                       I checked it myself · review override
