@@ -314,7 +314,10 @@ export default function DraftEditor({
       total = null;
     }
   }
-  const isConfirmed = draft?.status === "confirmed" && !dirty;
+  const currentStatus = dirty ? "draft" : draft?.status || "draft";
+  const isConfirmed = ["confirmed", "packed", "booked", "delivered"].includes(
+    currentStatus,
+  );
 
   async function save(confirm: boolean) {
     if (!draft || !values) return;
@@ -380,8 +383,9 @@ export default function DraftEditor({
           record.revision === uncertain.revision &&
           record.status === uncertain.status)
       ) {
+        rememberPending(false);
         setSuccess(
-          "No completed change is visible yet. The request may still be running; check again before retrying.",
+          "Current saved state checked; no completed change is visible. You can explicitly retry or choose the sample route. The earlier request may still finish; revision checks protect saved drafts from duplicate changes.",
         );
         return;
       }
@@ -420,13 +424,11 @@ export default function DraftEditor({
     <section className="draft-editor stack" aria-labelledby="draft-heading">
       <div className="section-heading">
         <h2 id="draft-heading">{draft?.order_reference || "Order draft"}</h2>
-        <StatusBadge
-          status={isConfirmed ? "confirmed" : dirty ? "Unsaved edits" : "draft"}
-        />
+        <StatusBadge status={dirty ? "Unsaved edits" : currentStatus} />
       </div>
       <OrderProgress
         order={{
-          status: isConfirmed ? "confirmed" : "draft",
+          status: currentStatus,
           booking: null,
           consignment_id: null,
         }}
@@ -787,7 +789,7 @@ export default function DraftEditor({
                 enough stock before confirming.
               </p>
             )}
-            {dirty && draft.status === "confirmed" && (
+            {dirty && ["confirmed", "packed"].includes(draft.status) && (
               <p className="message">
                 Saving these edits returns this order to a draft and requires a
                 new confirmation and pack check.
@@ -818,7 +820,12 @@ export default function DraftEditor({
                   disabled={busy}
                   onClick={() => onConfirmed(draft.order_reference!)}
                 >
-                  Continue to Check parcel ↗
+                  {currentStatus === "confirmed"
+                    ? "Continue to Check parcel"
+                    : currentStatus === "packed"
+                      ? "Continue to Book courier"
+                      : "Open order"}{" "}
+                  ↗
                 </button>
               )}
             </div>

@@ -36,6 +36,7 @@ export default function useWorkspaceSession(
   const acting = useRef(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [sampleResetPending, setSampleResetPending] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [active, setActive] = useState<Workspace | null>(null);
   const [stock, setStock] = useState<StockItem[]>([]);
@@ -50,6 +51,7 @@ export default function useWorkspaceSession(
   const visibleUrl = useRef<string | null>(null);
 
   const resetSampleSelection = useCallback(() => {
+    setSampleResetPending(false);
     const url = new URL(window.location.href);
     url.search = "?section=orders";
     window.history.replaceState(null, "", url);
@@ -59,6 +61,19 @@ export default function useWorkspaceSession(
     setSection("orders");
     draftRequestId.current = null;
     window.sessionStorage.removeItem(`pd-draft-request:${base}`);
+    // Seed orders reuse their IDs after reset. Clear recovery markers only
+    // after the server reset is known to have completed.
+    const prefixes = ["draft", "pack", "status", "booking"].map(
+      (kind) => `pd-${kind}-pending:${base}:`,
+    );
+    const keys = Array.from(
+      { length: window.sessionStorage.length },
+      (_, index) => window.sessionStorage.key(index),
+    );
+    keys.forEach((key) => {
+      if (key && prefixes.some((prefix) => key.startsWith(prefix)))
+        window.sessionStorage.removeItem(key);
+    });
     setAssistantVersion((version) => version + 1);
   }, [base]);
 
@@ -91,10 +106,12 @@ export default function useWorkspaceSession(
             pending.workspaceIds.every(
               (id) => !items.some((item) => item.id === id),
             );
-          if (!resetObserved)
+          if (!resetObserved) {
+            setSampleResetPending(true);
             throw new Error(
-              "The reset result is still unknown. Your current selection is kept and further changes are blocked. Reload shop data to check again; do not reset twice.",
+              "The reset result is still unknown. Check shop data again, or choose Retry interrupted reset to finish that same reset safely. Other changes are blocked until its state is checked.",
             );
+          }
           // Fetch business records after observing the committed reset, so a
           // parallel request from before the reset cannot restore stale rows.
           [skus, orderRecords, payoutRecords] = await Promise.all([
@@ -185,6 +202,7 @@ export default function useWorkspaceSession(
     draftRequestId.current = null;
     window.sessionStorage.removeItem(`pd-draft-request:${base}`);
     window.sessionStorage.removeItem(`pd-sample-action:${base}`);
+    setSampleResetPending(false);
     setAssistantVersion((version) => version + 1);
   }, [base]);
 
@@ -273,7 +291,7 @@ export default function useWorkspaceSession(
     setSection("conversations");
   }
 
-  async function act(action: () => Promise<void>) {
+  async function act(action: () => Promise<void>, resumeReset = false) {
     if (acting.current) return;
     acting.current = true;
     setBusy(true);
@@ -282,7 +300,7 @@ export default function useWorkspaceSession(
     try {
       // A lost reset/open response survives reload. Reconcile it using reads
       // before allowing another action to change this judge shop.
-      if (judge && pendingSampleAction(base)) {
+      if (judge && pendingSampleAction(base) && !resumeReset) {
         await load(true);
         setNotice((current) =>
           `${current} Review the current shop, then choose the next action.`.trim(),
@@ -342,29 +360,60 @@ export default function useWorkspaceSession(
     });
   }
 
-  async function updateSample(action: "open" | "reset") {
+  async function updateSample(action: "open" | "reset", retry = false) {
     await act(async () => {
       const reset = action === "reset";
+      const previous = retry ? pendingSampleAction(base) : null;
+      // Read current state before an explicit retry; its original ID set is
+      // reused below so the server cannot repeat an already completed reset.
       const current = await api<Workspace[]>(`${base}/workspaces`);
+      const baseline = previous?.workspaceIds ?? current.map((item) => item.id);
       window.sessionStorage.setItem(
         `pd-sample-action:${base}`,
         JSON.stringify({
           action,
-          workspaceIds: current.map((item) => item.id),
+          workspaceIds: baseline,
         }),
       );
       let workspace: Workspace;
       try {
         workspace = await api<Workspace>(
           `${base}/example`,
-          json("POST", { reset }),
+          json("POST", {
+            reset,
+            ...(reset ? { expected_workspace_ids: baseline } : {}),
+          }),
         );
       } catch (cause) {
         if (cause instanceof ApiOutcomeUnknownError) {
           await load(true);
           return;
         }
+        if (reset && cause instanceof ApiError && cause.status === 409) {
+          const items = await api<Workspace[]>(`${base}/workspaces`);
+          if (
+            items.some(
+              (item) => item.layout === "messenger-mobile-bubbles-v1",
+            ) &&
+            baseline.every((id) => !items.some((item) => item.id === id))
+          )
+            resetSampleSelection();
+          window.sessionStorage.removeItem(`pd-sample-action:${base}`);
+          setSampleResetPending(false);
+          await load(true);
+          setNotice(
+            "The previous reset was checked. Review the current sample shop; no second reset was performed.",
+          );
+          return;
+        }
+        if (previous?.action === "reset") {
+          // A refusal of this retry (for example a rate limit) says nothing
+          // about the original reset, which may still finish later.
+          setSampleResetPending(true);
+          throw cause;
+        }
         window.sessionStorage.removeItem(`pd-sample-action:${base}`);
+        setSampleResetPending(false);
         throw cause;
       }
       window.sessionStorage.removeItem(`pd-sample-action:${base}`);
@@ -380,7 +429,7 @@ export default function useWorkspaceSession(
           ? "Sample shop reset. You can start again."
           : "Sample screenshots opened. Review them to create a draft.",
       );
-    });
+    }, retry);
   }
 
   async function createDraft() {
@@ -443,6 +492,8 @@ export default function useWorkspaceSession(
     signOut,
     openSampleScreenshots: () => updateSample("open"),
     resetSampleShop: () => updateSample("reset"),
+    retrySampleReset: () => updateSample("reset", true),
+    sampleResetPending,
     createDraft,
     chooseWorkspace,
     openWorkspace,

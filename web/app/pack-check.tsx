@@ -314,15 +314,16 @@ export default function PackCheckPanel({
     setChecks(items);
     setModels(session.model_calls_enabled);
     setHistoryError("");
-    const recovered =
-      uncertain &&
-      (uncertain.kind === "check"
-        ? items.some((check) => !uncertain.ids.includes(check.id))
-        : items.some(
-            (check) => check.id === uncertain.id && Boolean(check.override_by),
-          ));
-    if (recovered) remember(null);
-    await onChange();
+    // A successful state read permits an explicit retry even when the earlier
+    // request never reached the server. The order-version claim rejects a late
+    // competing check/override; this read never resubmits either action.
+    remember(null);
+    try {
+      await onChange();
+    } catch (cause) {
+      remember(uncertain);
+      throw cause;
+    }
   }
 
   async function checkParcel(sample: boolean) {

@@ -398,6 +398,30 @@ class BookingCheck(unittest.IsolatedAsyncioTestCase):
                 (await self.client.get("/api/seller/orders")).json(), seller_before
             )
 
+    async def test_reset_snapshot_allows_one_explicit_retry_and_rejects_replay(
+        self,
+    ) -> None:
+        workspaces = (await self.client.get("/api/judge/workspaces")).json()
+        self.assertEqual(workspaces, [])
+        baseline: list[str] = []
+        for _ in range(2):
+            payload = {"reset": True, "expected_workspace_ids": baseline}
+            response = await self.client.post("/api/judge/example", json=payload)
+            self.assertEqual(response.status_code, 200)
+            current_id = response.json()["id"]
+            self.assertNotIn(current_id, baseline)
+            before = await self.orders()
+            response = await self.client.post("/api/judge/example", json=payload)
+            self.assertEqual(response.status_code, 409)
+            self.assertEqual(
+                response.json()["detail"],
+                "The sample changed. Reload current state; reset was not repeated.",
+            )
+            current = (await self.client.get("/api/judge/workspaces")).json()
+            self.assertEqual([workspace["id"] for workspace in current], [current_id])
+            self.assertEqual(await self.orders(), before)
+            baseline = [current_id]
+
     async def test_repeated_and_concurrent_booking_keeps_one_consignment(self) -> None:
         responses = await asyncio.gather(
             *[

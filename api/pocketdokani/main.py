@@ -362,6 +362,9 @@ def original_image(
 class ExampleRequest(BaseModel):
     reset: bool = False
     workspace_id: str | None = Field(default=None, max_length=36)
+    expected_workspace_ids: list[Annotated[str, Field(max_length=36)]] | None = Field(
+        default=None, max_length=100
+    )
 
 
 @app.post("/api/judge/example")
@@ -380,6 +383,15 @@ def open_or_reset_example(
             )
         )
     )
+    if (
+        payload.reset
+        and payload.expected_workspace_ids is not None
+        and set(payload.expected_workspace_ids)
+        != {workspace.id for workspace in prior_workspaces}
+    ):
+        raise HTTPException(
+            409, "The sample changed. Reload current state; reset was not repeated."
+        )
     if not payload.reset and payload.workspace_id is None:
         for prior in prior_workspaces:
             if prior.layout == LAYOUT:

@@ -85,6 +85,14 @@ export default function WorkspaceApp({ context }: { context: Context }) {
           >
             Reload shop data
           </button>
+          {shop.sampleResetPending && (
+            <button
+              disabled={shop.busy}
+              onClick={() => void shop.retrySampleReset()}
+            >
+              Retry interrupted reset · this session only
+            </button>
+          )}
         </div>
       )}
       {shop.notice && (

@@ -25,17 +25,20 @@ The existing booking HTTP regression script was extended at the user-agreed draf
 - Downloading an illustration creates no pack-check record.
 - Fresh/reset fixtures include today's orders and payouts in the Dhaka calendar. Existing starter questions also use pending dispatch, available stock and all-time records.
 - A second judge cannot open/check the first judge's order. Reset preserves the second judge's records and a nonempty seller snapshot.
+- Reset requests carry their expected workspace IDs. Replaying the same reset is refused without changing records, including an initially empty workspace. An interrupted request can be explicitly retried against the same snapshot; a refused retry retains the original unknown state.
 - Existing concurrent/duplicate invoice, timeout reconciliation, late-success and one-time stock-restoration checks remain included.
 
 Failing checks were observed before implementing sample draft, sample pack, photo download and relative dates, then passed after their corresponding changes.
 
-`npm run check`, `npm run test` (3 COD and 11 booking/workflow checks), and `npm --prefix web run build` passed. The in-process HTTP tests stalled under the Windows sandbox and passed when the same command ran outside it. No new test framework was added.
+`npm run check`, `npm run test` (3 COD and 12 booking/workflow checks), and `npm --prefix web run build` passed. The in-process HTTP tests stalled under the Windows sandbox and passed when the same command ran outside it. No new test framework was added.
 
 ## Loading and failure handling
 
 Reads have a 20-second deadline; session writes allow 60 seconds, ordinary writes 120 seconds, extraction/transcription 180 seconds, and multi-step pack/assistant processing 360 seconds. Deadlines cover response-body reading as well as the initial connection. No write is automatically retried. A timed-out or lost business-write response is labeled unknown; it is not treated as proof that nothing saved.
 
 Draft, parcel, status and courier recovery retain pending action markers across reload and require a state check before another write. Manual draft creation retains its request ID for idempotent recovery. Recoverable draft/assistant errors preserve current fields, typed questions or recorded audio. Microphone denial has a typed fallback; an unanswered permission request releases typed input after 20 seconds. Sample reset recovery checks the session's workspace state before accepting further mutations.
+
+A successful state read enables explicit draft/parcel retries even if the first request never reached the server. Server revision/version claims prevent a late competing request from authorizing a second change. Booking still requires invoice reconciliation. Reset's expected-workspace guard prevents a completed reset from deleting new work during a retry; a rate-limited retry cannot clear the original unknown reset.
 
 These recovery and navigation paths were inspected in code and checked by TypeScript/ESLint. Their interactive browser behavior still needs rehearsal.
 
@@ -61,3 +64,15 @@ Separate read-only measurements returned the judge page in 0.555 s, proxied heal
 Local computer-use verification was attempted. The in-app browser could not reach localhost. The local Windows Firefox path then stopped with: “browser URL policy enforcement is not yet supported for the current Windows browser.” Computer use ended at that point. No UI screenshot, phone/desktop visual pass, denied-microphone interaction, back/reload rehearsal or slow-network recovery is claimed for this branch.
 
 Before marking hosted UI acceptance complete, rehearse the walkthrough at phone and desktop widths, capture synthetic screenshots, verify the typed Bangla fallback after microphone denial, exercise a slow/unavailable API, reset during recovery, and check reload/back/order deep links. This remains distinct from the successful endpoint checks and deployed AI calls.
+
+## Independent review
+
+### Standards
+
+No documented-standard violations were found. One non-blocking P3 **Duplicated Code** judgment call noted repeated pending-marker storage plumbing across the draft, parcel, booking and status controls. A small shared storage helper could reduce this duplication; reconciliation remains local because each operation has different evidence and retry rules. This optional cleanup was left outside the corrective pass.
+
+### Spec
+
+The review identified recovery locks when a draft/parcel/reset request never reached the server, a reset retry that could clear the original unknown state after a rate-limit refusal, and parcel-marker ordering across a component remount. The fixes permit explicit version-guarded draft/parcel retries after a read, protect reset retries with the original workspace snapshot, preserve unresolved reset state on refusal, and clear parcel markers before refreshing keyed components. The follow-up review confirmed no remaining actionable spec findings. Reset also clears stale session markers after confirmed completion, and the draft editor displays the actual packed/booked progression.
+
+Final counts: Standards **0 hard violations, 1 P3 advisory**; Spec **0 remaining implementation findings**. Browser acceptance remains open as described above.
