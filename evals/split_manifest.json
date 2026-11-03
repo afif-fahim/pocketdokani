@@ -12,6 +12,17 @@
       ]
     },
     {
+      "source_id": "constructed-parcel-illustration",
+      "kind": "label",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": [
+        "constructed-parcel-correct",
+        "constructed-parcel-wrong-cod",
+        "constructed-parcel-unreadable"
+      ]
+    },
+    {
       "source_id": "constructed-label-001",
       "kind": "label",
       "split": "development",

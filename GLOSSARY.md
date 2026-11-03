@@ -1,6 +1,6 @@
 # PocketDokani
 
-PocketDokani is a phone copilot for small Messenger sellers. It drafts orders from sales conversations, checks packed parcels, books the courier and answers business questions in Bangla. The seller confirms every order, amount and change.
+PocketDokani is a phone copilot for small online sellers taking orders through social apps, chat or phone calls. It drafts orders from sales conversations, checks packed parcels, books the courier and answers business questions in Bangla. The seller confirms every order, amount and change.
 
 ## Language
 

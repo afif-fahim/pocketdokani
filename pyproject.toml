@@ -1,7 +1,7 @@
 [project]
 name = "pocketdokani"
 version = "0.1.0"
-description = "Evidence-preserving conversation imports for PocketDokani"
+description = "Bangla AI copilot for online sellers: orders, parcel checks, courier booking and business questions"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.135,<1",
@@ -29,10 +29,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["api/pocketdokani"]
+packages = ["apps/api/pocketdokani"]
 
 [tool.mypy]
-files = ["api/pocketdokani"]
+files = ["apps/api/pocketdokani"]
 strict = true
 plugins = ["pydantic.mypy"]
 

@@ -3,7 +3,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -r
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 WORKDIR /app
 COPY pyproject.toml uv.lock alembic.ini ./
-COPY api ./api
+COPY apps/api ./apps/api
 RUN uv sync --frozen --no-dev
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000

@@ -3,7 +3,7 @@
 import unittest
 from decimal import Decimal
 
-from pocketdokani.money import LinePrice, calculate_cod
+from pocketdokani.features.orders.money import LinePrice, calculate_cod
 
 
 class CodCheck(unittest.TestCase):
