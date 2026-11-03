@@ -59,10 +59,10 @@ Before model experiments, register sources and all related variants in [the eval
 For reviewed historical business data, keep the recalculated workbook under ignored `data/private/`. Inspect the dry-run before intentionally importing:
 
 ```sh
-uv run --frozen python -m pocketdokani.seed_business data/private/business.xlsx --reviewed-by seller --dry-run
+uv run --frozen python -m pocketdokani.commands.seed_business data/private/business.xlsx --reviewed-by seller --dry-run
 ```
 
-Run without `--dry-run` only against the intended database. Cached formula results are required. Repeated identical inputs do not write; changed imports can overwrite matching historical snapshots and are not operational synchronisation. Use `uv run --frozen python -m pocketdokani.seed_catalogue --help` for the catalogue-only input contract.
+Run without `--dry-run` only against the intended database. Cached formula results are required. Repeated identical inputs do not write; changed imports can overwrite matching historical snapshots and are not operational synchronisation. Use `uv run --frozen python -m pocketdokani.commands.seed_catalogue --help` for the catalogue-only input contract.
 
 ## Deployment
 

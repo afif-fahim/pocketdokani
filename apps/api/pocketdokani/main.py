@@ -20,12 +20,28 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from pocketdokani.assistant import Question, answer_question
-from pocketdokani.bookings import BookOrder, book_order, reconcile_booking
-from pocketdokani.business import orders_payload, payouts_payload, stock_payload
-from pocketdokani.config import settings
-from pocketdokani.db import database
-from pocketdokani.demo import (
+from pocketdokani.core.config import settings
+from pocketdokani.core.security import (
+    Context,
+    authenticate,
+    budget,
+    digest,
+    issue_session,
+    require_mutation,
+)
+from pocketdokani.data.db import database
+from pocketdokani.data.records import (
+    BrowserSession,
+    OrderDraft,
+    PackCheck,
+    Product,
+    SourceImage,
+    VoiceNote,
+    Workspace,
+    identifier,
+)
+from pocketdokani.data.storage import ObjectStorage
+from pocketdokani.demo.fixtures import (
     ParcelInput,
     constructed_order,
     parcel_input,
@@ -33,16 +49,13 @@ from pocketdokani.demo import (
     screenshots,
     seed_shop,
 )
-from pocketdokani.drafting import (
-    DraftRevision,
-    SaveDraft,
-    confirm_draft,
-    draft_payload,
-    extract,
-    owned_draft,
-    save_draft,
+from pocketdokani.features.assistant.assistant import Question, answer_question
+from pocketdokani.features.business.business import (
+    orders_payload,
+    payouts_payload,
+    stock_payload,
 )
-from pocketdokani.imports import (
+from pocketdokani.features.conversations.imports import (
     MAX_BATCH_BYTES,
     MAX_FILE_BYTES,
     MAX_FILES,
@@ -53,14 +66,27 @@ from pocketdokani.imports import (
     validate_original,
     workspace_payload,
 )
-from pocketdokani.model_api import PreWriteModelError, require_models
-from pocketdokani.order_actions import (
+from pocketdokani.features.courier.bookings import (
+    BookOrder,
+    book_order,
+    reconcile_booking,
+)
+from pocketdokani.features.orders.drafting import (
+    DraftRevision,
+    SaveDraft,
+    confirm_draft,
+    draft_payload,
+    extract,
+    owned_draft,
+    save_draft,
+)
+from pocketdokani.features.orders.order_actions import (
     NewDraft,
     StatusChange,
     change_status,
     create_draft,
 )
-from pocketdokani.pack_checks import (
+from pocketdokani.features.packing.pack_checks import (
     PackOverride,
     check_payload,
     override_check,
@@ -70,28 +96,10 @@ from pocketdokani.pack_checks import (
     save_check,
     sku_photos,
 )
-from pocketdokani.pack_types import SegmentationMode
-from pocketdokani.pack_vision import analyse_pack
-from pocketdokani.records import (
-    BrowserSession,
-    OrderDraft,
-    PackCheck,
-    Product,
-    SourceImage,
-    VoiceNote,
-    Workspace,
-    identifier,
-)
-from pocketdokani.security import (
-    Context,
-    authenticate,
-    budget,
-    digest,
-    issue_session,
-    require_mutation,
-)
-from pocketdokani.storage import ObjectStorage
-from pocketdokani.voice_notes import MAX_AUDIO_BYTES, transcribe
+from pocketdokani.features.packing.pack_types import SegmentationMode
+from pocketdokani.features.packing.pack_vision import analyse_pack
+from pocketdokani.integrations.model_api import PreWriteModelError, require_models
+from pocketdokani.integrations.voice_notes import MAX_AUDIO_BYTES, transcribe
 
 app = FastAPI(title="PocketDokani", docs_url=None, redoc_url=None, openapi_url=None)
 Database = Annotated[Session, Depends(database)]

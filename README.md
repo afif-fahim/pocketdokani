@@ -59,7 +59,16 @@ In another terminal, run `npm run dev:web` and open [localhost:3000/judge](http:
 
 ```text
 apps/
-  api/                  FastAPI, business rules, model/courier adapters, migrations
+  api/
+    pocketdokani/
+      main.py           FastAPI entrypoint and HTTP routes
+      core/             Configuration and request security
+      data/             Database, records and object storage
+      integrations/     Model calls and voice transcription
+      features/         Assistant, business, conversations, courier, orders and packing
+      demo/             Constructed shop fixtures and assets
+      commands/         Reviewed business and catalogue imports
+    migrations/         Database schema migrations
   web/src/
     app/                Next.js routes and global styles
     features/           Orders, conversations, assistant and workspace
