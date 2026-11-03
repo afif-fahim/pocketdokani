@@ -25,7 +25,16 @@ from pocketdokani.bookings import BookOrder, book_order, reconcile_booking
 from pocketdokani.business import orders_payload, payouts_payload, stock_payload
 from pocketdokani.config import settings
 from pocketdokani.db import database
-from pocketdokani.demo import pack_photo, product_photo, screenshots, seed_shop
+from pocketdokani.demo import (
+    SampleScenario,
+    constructed_order,
+    pack_photo,
+    product_photo,
+    sample_draft_content,
+    sample_pack,
+    screenshots,
+    seed_shop,
+)
 from pocketdokani.drafting import (
     DraftRevision,
     SaveDraft,
@@ -46,7 +55,7 @@ from pocketdokani.imports import (
     validate_original,
     workspace_payload,
 )
-from pocketdokani.model_api import require_models
+from pocketdokani.model_api import PreWriteModelError, require_models
 from pocketdokani.order_actions import (
     NewDraft,
     StatusChange,
@@ -162,6 +171,15 @@ class RequestBoundary:
 
 
 app.add_middleware(RequestBoundary)
+
+
+@app.exception_handler(PreWriteModelError)
+async def model_write_refused(
+    request: Request, error: PreWriteModelError
+) -> JSONResponse:
+    return JSONResponse(
+        {"detail": error.detail, "committed": False}, status_code=error.status_code
+    )
 
 
 @app.exception_handler(RequestValidationError)
@@ -353,6 +371,9 @@ def original_image(
 class ExampleRequest(BaseModel):
     reset: bool = False
     workspace_id: str | None = Field(default=None, max_length=36)
+    expected_workspace_ids: list[Annotated[str, Field(max_length=36)]] | None = Field(
+        default=None, max_length=100
+    )
 
 
 @app.post("/api/judge/example")
@@ -371,6 +392,15 @@ def open_or_reset_example(
             )
         )
     )
+    if (
+        payload.reset
+        and payload.expected_workspace_ids is not None
+        and set(payload.expected_workspace_ids)
+        != {workspace.id for workspace in prior_workspaces}
+    ):
+        raise HTTPException(
+            409, "The sample changed. Reload current state; reset was not repeated."
+        )
     if not payload.reset and payload.workspace_id is None:
         for prior in prior_workspaces:
             if prior.layout == LAYOUT:
@@ -457,16 +487,27 @@ def get_draft(
 
 @app.post("/api/{context}/workspaces/{workspace_id}/draft")
 def extract_draft(
-    context: Context, workspace_id: str, request: Request, db: Database
+    context: Context,
+    workspace_id: str,
+    request: Request,
+    db: Database,
+    sample: bool = False,
 ) -> dict[str, object]:
     require_mutation(request)
     actor = authenticate(db, request, context)
     workspace = owned_workspace(db, actor, workspace_id)
+    if sample and (actor.context != "judge" or workspace.layout != LAYOUT):
+        raise HTTPException(
+            403, "Sample readings are available only for judge screenshots."
+        )
     existing = db.get(OrderDraft, workspace_id)
     if existing:
         return draft_payload(db, existing)
-    require_models()
-    content = extract(db, actor, workspace)
+    if sample:
+        content = sample_draft_content()
+    else:
+        require_models()
+        content = extract(db, actor, workspace)
     # Model calls commit their audit records. Recheck ownership after the network wait.
     actor = authenticate(db, request, context, lock=True)
     owned_workspace(db, actor, workspace_id)
@@ -667,26 +708,41 @@ def check_parcel(
     order_id: str,
     request: Request,
     db: Database,
-    photo: Annotated[UploadFile, File()],
     expected_updated_at: Annotated[datetime, Form()],
+    photo: Annotated[UploadFile | None, File()] = None,
     segmentation: Annotated[SegmentationMode, Form()] = "sam",
+    sample_scenario: Annotated[SampleScenario | None, Form()] = None,
 ) -> dict[str, object]:
     require_mutation(request)
     actor = authenticate(db, request, context)
     order = owned_order(db, actor, order_id)
     require_current(order, expected_updated_at)
-    require_models()
-    try:
-        original = validate_original(
-            photo.filename or "parcel",
-            photo.file.read(MAX_FILE_BYTES + 1),
-            photo.content_type or "",
-        )
-    finally:
-        photo.file.close()
     photos = sku_photos(db, actor, order_id)
     check_id = identifier()
-    analysis = analyse_pack(db, actor, original, check_id, photos, segmentation)
+    if sample_scenario is not None:
+        if actor.context != "judge" or not constructed_order(db, actor.owner, order_id):
+            raise HTTPException(
+                403, "Sample checks are available only for constructed judge orders."
+            )
+        if photo is not None:
+            photo.file.close()
+            raise HTTPException(422, "Choose a sample or a live photo, not both.")
+        original, analysis = sample_pack(order, photos, sample_scenario)
+    else:
+        require_models()
+        if photo is None:
+            raise HTTPException(
+                422, "Choose a parcel photo before running a live check."
+            )
+        try:
+            original = validate_original(
+                photo.filename or "parcel",
+                photo.file.read(MAX_FILE_BYTES + 1),
+                photo.content_type or "",
+            )
+        finally:
+            photo.file.close()
+        analysis = analyse_pack(db, actor, original, check_id, photos, segmentation)
     # Calls audit their attempts with commits; revalidate after the network wait.
     actor = authenticate(db, request, context, lock=True)
     order = owned_order(db, actor, order_id)
@@ -694,6 +750,29 @@ def check_parcel(
         db, actor, order, expected_updated_at, check_id, original, analysis
     )
     return check_payload(check, owned_order(db, actor, order_id), context)
+
+
+@app.get("/api/{context}/orders/{order_id}/pack-checks/sample-photo")
+def sample_parcel_photo(
+    context: Context,
+    order_id: str,
+    request: Request,
+    db: Database,
+    scenario: SampleScenario = "pass",
+) -> Response:
+    actor = authenticate(db, request, context)
+    order = owned_order(db, actor, order_id)
+    if actor.context != "judge" or not constructed_order(db, actor.owner, order_id):
+        raise HTTPException(
+            403,
+            "Synthetic parcel inputs are available only for constructed judge orders.",
+        )
+    original, _ = sample_pack(order, sku_photos(db, actor, order_id), scenario)
+    return Response(
+        original.data,
+        media_type=original.media_type,
+        headers={"Content-Disposition": f'attachment; filename="{original.filename}"'},
+    )
 
 
 @app.post("/api/{context}/orders/{order_id}/pack-checks/{check_id}/override")

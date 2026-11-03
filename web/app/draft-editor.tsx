@@ -5,10 +5,16 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { api, json } from "./api";
+import { api, ApiOutcomeUnknownError, json } from "./api";
 import type { StockItem } from "./business-lists";
 import { money } from "./format";
 import { StatusBadge } from "./ui";
+import OrderProgress from "./order-progress";
+import {
+  pendingActionKey,
+  readPendingAction,
+  writePendingAction,
+} from "./pending-actions";
 
 type Evidence = {
   value: string | null;
@@ -33,6 +39,7 @@ type Content = {
   lines: Line[];
 };
 type Draft = {
+  sample?: boolean;
   revision: number;
   content: Content;
   verified_prior_payment: string;
@@ -41,6 +48,7 @@ type Draft = {
   order_reference: string | null;
 };
 type Note = { id: string; transcript: string };
+type PendingDraft = { revision: number | null; status: string | null };
 type LineValues = { [K in keyof Line]: string } & {
   source_line: number | null;
 };
@@ -100,6 +108,7 @@ export default function DraftEditor({
   onSource,
   onChange,
   onDirtyChange,
+  onConfirmed,
 }: {
   base: string;
   workspaceId: string;
@@ -109,7 +118,9 @@ export default function DraftEditor({
   onSource: (sequence: number) => void;
   onChange: () => Promise<void>;
   onDirtyChange?: (dirty: boolean) => void;
+  onConfirmed: (reference: string) => void;
 }) {
+  const judge = base === "/api/judge";
   const path = `${base}/workspaces/${workspaceId}`;
   const [draft, setDraft] = useState<Draft | null>(null);
   const [values, setValues] = useState<Values | null>(null);
@@ -119,6 +130,11 @@ export default function DraftEditor({
   const [enabled, setEnabled] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [loadVersion, setLoadVersion] = useState(0);
+  const pendingKey = pendingActionKey("draft", base, workspaceId);
+  const [uncertain, setUncertain] = useState(() =>
+    readPendingAction<PendingDraft>(pendingKey),
+  );
   const [dirty, setDirty] = useState(false);
   const [success, setSuccess] = useState("");
   const voiceDialog = useRef<HTMLDialogElement>(null);
@@ -141,6 +157,18 @@ export default function DraftEditor({
   function markEdited() {
     setDirty(true);
     setSuccess("");
+  }
+
+  function rememberPending(record: Draft | null | false) {
+    const value =
+      record === false
+        ? null
+        : {
+            revision: record?.revision ?? null,
+            status: record?.status ?? null,
+          };
+    setUncertain(value);
+    writePendingAction(pendingKey, value);
   }
 
   useEffect(() => {
@@ -168,7 +196,7 @@ export default function DraftEditor({
     return () => {
       stopped = true;
     };
-  }, [base, path]);
+  }, [base, path, loadVersion]);
 
   function change(key: Exclude<keyof Values, "lines">, value: string) {
     setValues((current) => current && { ...current, [key]: value });
@@ -226,6 +254,11 @@ export default function DraftEditor({
           <small>Source needs review</small>
         )}
         {field.quote && <q>{field.quote}</q>}
+        {field.issue && (
+          <small className="unresolved-field">
+            Needs review: {field.issue}
+          </small>
+        )}
       </div>
     );
   }
@@ -233,7 +266,9 @@ export default function DraftEditor({
   const used = new Map<string, number>();
   let total: number | null = 0;
   const validPhone = Boolean(
-    values && /^01[3-9]\d{8}$/.test(normalize(values.phone)),
+    values &&
+    (/^01[3-9]\d{8}$/.test(normalize(values.phone)) ||
+      (judge && values.phone === "01X-EXAMPLE")),
   );
   let valid = Boolean(
     values?.customer_name.trim() &&
@@ -276,31 +311,89 @@ export default function DraftEditor({
       total = null;
     }
   }
-  const isConfirmed = draft?.status === "confirmed" && !dirty;
+  const currentStatus = dirty ? "draft" : draft?.status || "draft";
+  const isConfirmed = ["confirmed", "packed", "booked", "delivered"].includes(
+    currentStatus,
+  );
 
   async function save(confirm: boolean) {
     if (!draft || !values) return;
     await act(async () => {
-      const saved = await api<Draft>(
-        `${path}/draft`,
-        json("PUT", {
-          revision: draft.revision,
-          values,
-          verified_prior_payment: payment,
-          payment_verified: verified,
-        }),
-      );
-      accept(saved);
-      await onChange();
-      if (confirm) {
-        const confirmed = await api<Draft>(
-          `${path}/draft/confirm`,
-          json("POST", { revision: saved.revision }),
+      try {
+        rememberPending(draft);
+        const saved = await api<Draft>(
+          `${path}/draft`,
+          json("PUT", {
+            revision: draft.revision,
+            values,
+            verified_prior_payment: payment,
+            payment_verified: verified,
+          }),
         );
-        accept(confirmed);
-        await onChange();
-        setSuccess(`Confirmed ${confirmed.order_reference}.`);
-      } else setSuccess("Draft saved. Review and confirm when ready.");
+        accept(saved);
+        rememberPending(false);
+        if (confirm) {
+          rememberPending(saved);
+          const confirmed = await api<Draft>(
+            `${path}/draft/confirm`,
+            json("POST", { revision: saved.revision }),
+          );
+          accept(confirmed);
+          rememberPending(false);
+          await onChange();
+          setSuccess(`Confirmed ${confirmed.order_reference}.`);
+          if (confirmed.order_reference) onConfirmed(confirmed.order_reference);
+        } else {
+          await onChange();
+          setSuccess("Draft saved. Review and confirm when ready.");
+        }
+      } catch (error) {
+        if (!(error instanceof ApiOutcomeUnknownError)) rememberPending(false);
+        throw error;
+      }
+    });
+  }
+
+  async function prepareDraft(sample: boolean) {
+    await act(async () => {
+      try {
+        rememberPending(draft);
+        accept(
+          await api<Draft>(`${path}/draft${sample ? "?sample=true" : ""}`, {
+            method: "POST",
+          }),
+        );
+        rememberPending(false);
+      } catch (error) {
+        if (!(error instanceof ApiOutcomeUnknownError)) rememberPending(false);
+        throw error;
+      }
+    });
+  }
+
+  async function checkSavedDraft() {
+    await act(async () => {
+      const record = await api<Draft | null>(`${path}/draft`);
+      if (
+        !record ||
+        (uncertain &&
+          record.revision === uncertain.revision &&
+          record.status === uncertain.status)
+      ) {
+        rememberPending(false);
+        setSuccess(
+          "Current saved state checked; no completed change is visible. You can explicitly retry or choose the sample route. The earlier request may still finish; revision checks protect saved drafts from duplicate changes.",
+        );
+        return;
+      }
+      // Preserve local field edits while reconciling the server's revision.
+      if (values && dirty) setDraft(record);
+      else accept(record);
+      rememberPending(false);
+      await onChange();
+      setSuccess("Saved state checked. Review the draft before continuing.");
+      if (record.status === "confirmed" && record.order_reference && !dirty)
+        onConfirmed(record.order_reference);
     });
   }
 
@@ -313,7 +406,14 @@ export default function DraftEditor({
     return (
       <div className="message error" role="alert">
         {loadError}{" "}
-        <button onClick={() => window.location.reload()}>Reload draft</button>
+        <button
+          onClick={() => {
+            setLoadError("");
+            setLoadVersion((version) => version + 1);
+          }}
+        >
+          Retry opening draft
+        </button>
       </div>
     );
   if (!loaded) return <p role="status">Opening order draft…</p>;
@@ -321,14 +421,43 @@ export default function DraftEditor({
     <section className="draft-editor stack" aria-labelledby="draft-heading">
       <div className="section-heading">
         <h2 id="draft-heading">{draft?.order_reference || "Order draft"}</h2>
-        <StatusBadge
-          status={isConfirmed ? "confirmed" : dirty ? "Unsaved edits" : "draft"}
-        />
+        <StatusBadge status={dirty ? "Unsaved edits" : currentStatus} />
       </div>
+      <OrderProgress
+        order={{
+          status: currentStatus,
+          booking: null,
+          consignment_id: null,
+        }}
+      />
       <p>
         Review every field against its source. You approve the order and every
         amount.
       </p>
+      {judge && (
+        <p className="message">
+          Synthetic judge data only. Keep the non-contactable phone marker{" "}
+          <code>01X-EXAMPLE</code>; it cannot be used for a real courier
+          booking.
+        </p>
+      )}
+      {draft?.sample && (
+        <p className="message">
+          Sample draft · hand-authored from the sample screenshots. No AI
+          analysis ran. Review and confirm it yourself.
+        </p>
+      )}
+      {uncertain && (
+        <div className="message error" role="alert">
+          <p>
+            The response was lost. This request may have saved; check its state
+            before another write. Your current fields are retained.
+          </p>
+          <button disabled={busy} onClick={() => void checkSavedDraft()}>
+            Check saved draft
+          </button>
+        </div>
+      )}
       {!draft ? (
         <>
           {!enabled && (
@@ -368,30 +497,37 @@ export default function DraftEditor({
           ))}
           <button
             className="primary"
-            disabled={busy || !enabled}
-            onClick={() =>
-              act(async () =>
-                accept(await api<Draft>(`${path}/draft`, { method: "POST" })),
-              )
-            }
+            disabled={busy || !enabled || Boolean(uncertain)}
+            onClick={() => void prepareDraft(false)}
           >
-            {busy ? "Preparing draft…" : "Extract order draft ↗"}
+            {busy ? "Preparing draft…" : "Extract draft with live AI ↗"}
           </button>
+          {judge && (
+            <div className="message stack">
+              <p>
+                Continue with an editable example if live extraction is
+                unavailable. This prepares sample fields on these same
+                screenshots and does not call a model.
+              </p>
+              <button
+                disabled={busy || Boolean(uncertain)}
+                onClick={() => void prepareDraft(true)}
+              >
+                Use sample draft · no AI analysis
+              </button>
+            </div>
+          )}
         </>
       ) : (
         values && (
           <form className="stack" onSubmit={submit}>
-            <fieldset className="stack" disabled={busy}>
-              <legend>Recipient and agreement</legend>
+            <fieldset className="stack" disabled={busy || Boolean(uncertain)}>
+              <legend>1. Recipient details</legend>
               {(
                 [
                   ["customer_name", "Customer name"],
                   ["phone", "Mobile number"],
                   ["address", "Delivery address"],
-                  [
-                    "customer_delivery_charge",
-                    "Customer delivery charge (BDT)",
-                  ],
                 ] as const
               ).map(([key, label]) => (
                 <div className="draft-field" key={key}>
@@ -406,24 +542,21 @@ export default function DraftEditor({
                             ? 160
                             : 40
                       }
-                      inputMode={
-                        key === "phone"
-                          ? "tel"
-                          : key === "customer_delivery_charge"
-                            ? "decimal"
-                            : "text"
-                      }
+                      inputMode={key === "phone" ? "tel" : "text"}
                       value={values[key]}
                       aria-invalid={
-                        !values[key].trim() ||
-                        (key === "phone" && !validPhone) ||
-                        (key === "customer_delivery_charge" &&
-                          cents(values[key]) === null)
+                        !values[key].trim() || (key === "phone" && !validPhone)
                       }
                       onChange={(event) => change(key, event.target.value)}
                     />
                   </label>
                   {source(draft.content[key])}
+                  {key === "phone" && !validPhone && (
+                    <small className="unresolved-field">
+                      Enter an 11-digit Bangladesh mobile number
+                      {judge ? " or keep 01X-EXAMPLE for this sample" : ""}.
+                    </small>
+                  )}
                 </div>
               ))}
               <div className="draft-field">
@@ -448,10 +581,10 @@ export default function DraftEditor({
               return (
                 <fieldset
                   className="draft-line stack"
-                  disabled={busy}
+                  disabled={busy || Boolean(uncertain)}
                   key={index}
                 >
-                  <legend>Item {index + 1}</legend>
+                  <legend>2. Order line {index + 1} · prices</legend>
                   {item?.photo_url && (
                     <img
                       className="draft-product"
@@ -578,7 +711,7 @@ export default function DraftEditor({
             })}
             <button
               type="button"
-              disabled={busy || values.lines.length >= 30}
+              disabled={busy || Boolean(uncertain) || values.lines.length >= 30}
               onClick={() => {
                 setValues({ ...values, lines: [...values.lines, emptyLine()] });
                 markEdited();
@@ -586,8 +719,24 @@ export default function DraftEditor({
             >
               Add item +
             </button>
-            <fieldset className="stack" disabled={busy}>
-              <legend>Seller-verified prior payment</legend>
+            <fieldset className="stack" disabled={busy || Boolean(uncertain)}>
+              <legend>3. Payment and COD review</legend>
+              <div className="draft-field">
+                <label>
+                  Customer delivery charge (BDT)
+                  <input
+                    required
+                    inputMode="decimal"
+                    maxLength={40}
+                    value={values.customer_delivery_charge}
+                    aria-invalid={delivery === null}
+                    onChange={(event) =>
+                      change("customer_delivery_charge", event.target.value)
+                    }
+                  />
+                </label>
+                {source(draft.content.customer_delivery_charge)}
+              </div>
               <label className="checkbox-row">
                 <input
                   type="checkbox"
@@ -637,7 +786,7 @@ export default function DraftEditor({
                 enough stock before confirming.
               </p>
             )}
-            {dirty && draft.status === "confirmed" && (
+            {dirty && ["confirmed", "packed"].includes(draft.status) && (
               <p className="message">
                 Saving these edits returns this order to a draft and requires a
                 new confirmation and pack check.
@@ -651,17 +800,31 @@ export default function DraftEditor({
             <div className="button-row">
               <button
                 type="button"
-                disabled={busy || !dirty}
+                disabled={busy || Boolean(uncertain) || !dirty}
                 onClick={() => save(false)}
               >
                 Save draft
               </button>
               <button
                 className="primary"
-                disabled={busy || !valid || isConfirmed}
+                disabled={busy || Boolean(uncertain) || !valid || isConfirmed}
               >
                 {busy ? "Saving…" : "Confirm order ↗"}
               </button>
+              {isConfirmed && draft.order_reference && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onConfirmed(draft.order_reference!)}
+                >
+                  {currentStatus === "confirmed"
+                    ? "Continue to Check parcel"
+                    : currentStatus === "packed"
+                      ? "Continue to Book courier"
+                      : "Open order"}{" "}
+                  ↗
+                </button>
+              )}
             </div>
           </form>
         )

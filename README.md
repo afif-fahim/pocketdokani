@@ -24,6 +24,8 @@ Issue #6 adds Steadfast live and fake courier adapters, packed-order booking, as
 
 Not yet implemented: evaluation and pilot results. Automatic courier status updates by webhook remain separate scope.
 
+Issue #15 connects review, parcel check and fake booking on the same order, adds an isolated synthetic sample path and bounds loading/failure recovery. Existing endpoint regression checks cover the sample workflow and isolation. A local browser follow-up exercised desktop/phone viewports, fail/correction, unsure override, fake booking, reset, navigation and unavailable-API recovery; deployed live extraction, Bangla assistant and parcel analysis were attempted separately. Physical-phone microphone/camera and hosted acceptance of this branch remain open; see the [walkthrough and observed results](docs/verification-judge-workflow.md).
+
 Local development also supports SQLite/private files. See [local setup and acceptance checks](docs/development.md), [deployment setup](docs/deployment.md), [evaluation partitions](evals/README.md) and the [verification record](docs/verification.md).
 
 ## Planned scope

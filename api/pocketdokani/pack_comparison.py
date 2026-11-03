@@ -10,6 +10,8 @@ from decimal import Decimal, InvalidOperation
 from difflib import SequenceMatcher
 from typing import TYPE_CHECKING
 
+from pocketdokani.demo import DEMO_PHONE
+
 if TYPE_CHECKING:
     from pocketdokani.records import Order
 
@@ -181,7 +183,7 @@ def address_result(written: str, expected: str) -> tuple[str, str]:
 
 
 def compare_label(
-    reading: dict[str, object], order: Order
+    reading: dict[str, object], order: Order, *, judge: bool = False
 ) -> tuple[str, list[dict[str, object]]]:
     expected = {
         "order_reference": order.label_reference,
@@ -255,7 +257,17 @@ def compare_label(
                 )
             elif key == "phone":
                 actual, target = phone_digits(written), phone_digits(wanted)
-                if re.fullmatch(r"[0-9]{11}", actual) and actual == target:
+                if (
+                    judge
+                    and order.owner != "shop"
+                    and wanted == DEMO_PHONE
+                    and written == DEMO_PHONE
+                ):
+                    verdict, reason = (
+                        "pass",
+                        "Non-contactable judge demo marker matches; no telephone number is verified.",
+                    )
+                elif re.fullmatch(r"[0-9]{11}", actual) and actual == target:
                     verdict, reason = "pass", "All 11 phone digits match."
                 elif (
                     len(actual) == len(target) == 11

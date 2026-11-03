@@ -13,10 +13,14 @@ from pocketdokani.records import BrowserSession, ModelRun
 from pocketdokani.security import budget
 
 
+class PreWriteModelError(HTTPException):
+    """Model failure before business writes; audit/budget records may be saved."""
+
+
 def require_models() -> None:
     config = settings()
     if not config.model_calls_enabled or not config.model_api_key.get_secret_value():
-        raise HTTPException(
+        raise PreWriteModelError(
             503, "Model calls are disabled. Ask the shop owner to configure the server."
         )
 
@@ -104,7 +108,7 @@ def model_call(
         if not retryable or attempt == 1:
             break
         time.sleep(0.5)
-    raise HTTPException(
+    raise PreWriteModelError(
         502,
         "The model could not complete the request. Your saved work is unchanged; try again.",
     )

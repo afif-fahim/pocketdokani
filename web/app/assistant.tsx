@@ -7,7 +7,7 @@ import {
   useState,
   type FormEvent,
 } from "react";
-import { api, json } from "./api";
+import { api, ApiOutcomeUnknownError, json } from "./api";
 import type { CourierBooking } from "./courier-booking";
 import StatusChangeWarning from "./status-change-warning";
 import { money } from "./format";
@@ -127,6 +127,9 @@ export default function Assistant({
   const [voiceError, setVoiceError] = useState("");
   const [working, setWorking] = useState("");
   const [transcriptReady, setTranscriptReady] = useState(false);
+  const [modelsEnabled, setModelsEnabled] = useState<boolean | null>(null);
+  const [capabilityError, setCapabilityError] = useState("");
+  const [audioToRetry, setAudioToRetry] = useState<Blob | null>(null);
   const questionRef = useRef<HTMLTextAreaElement>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -136,6 +139,23 @@ export default function Assistant({
   const startingRef = useRef(false);
   const deciding = useRef(new Set<string>());
   const activeRef = useRef(active);
+
+  useEffect(() => {
+    let stopped = false;
+    api<{ model_calls_enabled: boolean }>(`${base}/session`)
+      .then((result) => {
+        if (!stopped) setModelsEnabled(result.model_calls_enabled);
+      })
+      .catch(() => {
+        if (!stopped)
+          setCapabilityError(
+            "Could not check live assistant availability. Your typed question will stay here if a request fails.",
+          );
+      });
+    return () => {
+      stopped = true;
+    };
+  }, [base]);
 
   useEffect(() => {
     mounted.current = true;
@@ -164,6 +184,27 @@ export default function Assistant({
     if (transcriptReady && !busy && active) questionRef.current?.focus();
   }, [transcriptReady, busy, active]);
 
+  async function transcribeAudio(audio: Blob) {
+    await act(async () => {
+      setWorking("Transcribing… / কথা লেখা হচ্ছে…");
+      try {
+        const form = new FormData();
+        form.set("audio", audio, "question");
+        const result = await api<{ transcript: string }>(
+          `${base}/assistant/transcribe`,
+          { method: "POST", body: form },
+        );
+        if (mounted.current && activeRef.current) {
+          setQuestion(result.transcript);
+          setTranscriptReady(true);
+          setAudioToRetry(null);
+        }
+      } finally {
+        if (mounted.current) setWorking("");
+      }
+    });
+  }
+
   async function startRecording() {
     if (busy || startingRef.current || recorder.current?.state === "recording")
       return;
@@ -181,7 +222,18 @@ export default function Assistant({
           "Voice recording needs a supported browser over HTTPS.",
         );
       setPermissionPending(true);
+      timer.current = setTimeout(() => {
+        holding.current = false;
+        if (mounted.current) {
+          setStarting(false);
+          setVoiceError(
+            "The microphone request is still waiting. Dismiss the browser prompt and type your question below to continue.",
+          );
+          questionRef.current?.focus();
+        }
+      }, 20_000);
       const media = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (timer.current) clearTimeout(timer.current);
       stream.current = media;
       if (!mounted.current || !holding.current) {
         media.getTracks().forEach((track) => track.stop());
@@ -216,27 +268,9 @@ export default function Assistant({
           );
           return;
         }
-        void act(async () => {
-          setWorking("Transcribing… / কথা লেখা হচ্ছে…");
-          try {
-            const form = new FormData();
-            form.set(
-              "audio",
-              new Blob(chunks, { type: next.mimeType }),
-              "question",
-            );
-            const result = await api<{ transcript: string }>(
-              `${base}/assistant/transcribe`,
-              { method: "POST", body: form },
-            );
-            if (mounted.current && activeRef.current) {
-              setQuestion(result.transcript);
-              setTranscriptReady(true);
-            }
-          } finally {
-            if (mounted.current) setWorking("");
-          }
-        });
+        const audio = new Blob(chunks, { type: next.mimeType });
+        setAudioToRetry(audio);
+        void transcribeAudio(audio);
       };
       next.onerror = () => {
         stopRecording();
@@ -261,6 +295,8 @@ export default function Assistant({
                 : "Microphone access failed. Type your question below to continue.",
         );
     } finally {
+      if (timer.current && recorder.current?.state !== "recording")
+        clearTimeout(timer.current);
       startingRef.current = false;
       if (mounted.current) {
         setStarting(false);
@@ -297,14 +333,26 @@ export default function Assistant({
     try {
       await act(async () => {
         if (proposal.kind === "status") {
-          await api(
-            `${base}/orders/${encodeURIComponent(proposal.order_id)}/status`,
-            json("POST", {
-              status: proposal.status,
-              expected_status: proposal.expected_status,
-              expected_updated_at: proposal.expected_updated_at,
-            }),
-          );
+          try {
+            await api(
+              `${base}/orders/${encodeURIComponent(proposal.order_id)}/status`,
+              json("POST", {
+                status: proposal.status,
+                expected_status: proposal.expected_status,
+                expected_updated_at: proposal.expected_updated_at,
+              }),
+            );
+          } catch (cause) {
+            if (cause instanceof ApiOutcomeUnknownError) {
+              setDecisions((items) => ({
+                ...items,
+                [key]:
+                  "Status result unknown. Open the current order to review its status before another change.",
+              }));
+              await onChange().catch(() => {});
+            }
+            throw cause;
+          }
           setDecisions((items) => ({
             ...items,
             [key]: "Confirmed / নিশ্চিত হয়েছে",
@@ -373,12 +421,24 @@ export default function Assistant({
           change.
         </p>
       </div>
+      {modelsEnabled === false && (
+        <p className="message" role="status">
+          Live assistant and voice transcription are unavailable because models
+          are disabled on this server. You can browse Orders and Stock. No
+          sample answer is substituted for a live response.
+        </p>
+      )}
+      {capabilityError && <p className="message">{capabilityError}</p>}
       <form className="stack assistant-compose" onSubmit={ask}>
         <div className="mic-controls button-row">
           <button
             type="button"
             className="primary mic-button"
-            disabled={busy || (permissionPending && !starting)}
+            disabled={
+              busy ||
+              modelsEnabled === false ||
+              (permissionPending && !starting)
+            }
             aria-pressed={recording || starting}
             aria-describedby="mic-help"
             onClick={() => {
@@ -412,6 +472,23 @@ export default function Assistant({
           <p role="alert" className="error message">
             {voiceError}
           </p>
+        )}
+        {audioToRetry && !working && (
+          <div className="message">
+            <p>
+              Your recording is kept in this tab. Retry transcription or type
+              your question below.
+            </p>
+            <button
+              type="button"
+              disabled={
+                busy || recording || starting || modelsEnabled === false
+              }
+              onClick={() => void transcribeAudio(audioToRetry)}
+            >
+              Retry voice transcription
+            </button>
+          </div>
         )}
         <label>
           Your question · আপনার প্রশ্ন
@@ -460,11 +537,22 @@ export default function Assistant({
         </p>
         <button
           className="primary"
-          disabled={busy || recording || starting || !question.trim()}
+          disabled={
+            busy ||
+            modelsEnabled === false ||
+            recording ||
+            starting ||
+            !question.trim()
+          }
         >
           {working ? "Working…" : "Ask assistant · জিজ্ঞেস করুন"}
         </button>
-        {working && <p role="status">{working}</p>}
+        {working && (
+          <p role="status">
+            {working} Live processing can take several minutes. Your question
+            stays here if it cannot finish.
+          </p>
+        )}
       </form>
       <div className="assistant-starters" aria-label="Starter questions">
         {starterQuestions.map((starter) => (
@@ -549,10 +637,25 @@ export default function Assistant({
                 <article className="proposal-card stack" key={key}>
                   <h3>{proposal.label}</h3>
                   {proposal.kind === "status" && (
-                    <StatusChangeWarning
-                      previousStatus={proposal.expected_status}
-                      nextStatus={proposal.status}
-                    />
+                    <>
+                      <StatusChangeWarning
+                        previousStatus={proposal.expected_status}
+                        nextStatus={proposal.status}
+                      />
+                      <button
+                        disabled={busy}
+                        onClick={() =>
+                          onRecord({
+                            key: proposal.order_id,
+                            kind: "order",
+                            section: "orders",
+                            label: proposal.reference,
+                          })
+                        }
+                      >
+                        Open current order ↗
+                      </button>
+                    </>
                   )}
                   {proposal.kind === "order_draft" && (
                     <>

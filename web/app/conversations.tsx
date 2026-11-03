@@ -26,8 +26,8 @@ export default function Conversations({
   onImported,
   onChange,
   onExample,
-  onReset,
   onDirtyChange,
+  onConfirmed,
 }: {
   base: string;
   judge: boolean;
@@ -42,8 +42,8 @@ export default function Conversations({
   onImported: (workspace: Workspace) => Promise<void>;
   onChange: () => Promise<void>;
   onExample: () => void;
-  onReset: () => void;
   onDirtyChange: (dirty: boolean) => void;
+  onConfirmed: (reference: string) => void;
 }) {
   const [pending, setPending] = useState<Pending[]>([]);
   const pendingRef = useRef<Pending[]>([]);
@@ -167,8 +167,25 @@ export default function Conversations({
                 </div>
                 <span className="pill">{active.sources.length} originals</span>
               </div>
+              <DraftEditor
+                key={active.id}
+                base={base}
+                workspaceId={active.id}
+                stock={stock}
+                busy={busy}
+                act={act}
+                onSource={(sequence) => {
+                  const source = active.sources.find(
+                    (item) => item.sequence === sequence,
+                  );
+                  if (source) preview(source);
+                }}
+                onChange={onChange}
+                onDirtyChange={setEditorDirty}
+                onConfirmed={onConfirmed}
+              />
               {active.sources.length > 0 && (
-                <details>
+                <details className="source-archive">
                   <summary>
                     Source screenshots · {active.sources.length} originals
                   </summary>
@@ -234,31 +251,6 @@ export default function Conversations({
                     </ol>
                   </div>
                 </details>
-              )}
-              <DraftEditor
-                key={active.id}
-                base={base}
-                workspaceId={active.id}
-                stock={stock}
-                busy={busy}
-                act={act}
-                onSource={(sequence) => {
-                  const source = active.sources.find(
-                    (item) => item.sequence === sequence,
-                  );
-                  if (source) preview(source);
-                }}
-                onChange={onChange}
-                onDirtyChange={setEditorDirty}
-              />
-              {judge && (
-                <button
-                  className="danger"
-                  disabled={busy}
-                  onClick={() => onReset()}
-                >
-                  {busy ? "Resetting…" : "Reset sample shop"}
-                </button>
               )}
             </>
           ) : judge ? (

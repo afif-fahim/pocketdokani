@@ -10,12 +10,13 @@ import useWorkspaceSession from "./use-workspace-session";
 import type { Context } from "./workspace-types";
 
 export default function WorkspaceApp({ context }: { context: Context }) {
-  const shop = useWorkspaceSession(context);
+  const shop = useWorkspaceSession(context, requestLeave);
   const [dirty, setDirty] = useState(false);
   const [conversationVersion, setConversationVersion] = useState(0);
   const [leaveAction, setLeaveAction] = useState<(() => void) | null>(null);
   const newOrder = useRef<HTMLDialogElement>(null);
   const leave = useRef<HTMLDialogElement>(null);
+  const reset = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     if (!dirty) return;
@@ -73,7 +74,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
       }}
       onNewOrder={() => newOrder.current?.showModal()}
       onSignOut={() => requestLeave(() => void shop.signOut())}
-      onReset={() => requestLeave(() => void shop.resetSampleShop())}
+      onReset={() => requestLeave(() => reset.current?.showModal())}
     >
       {shop.error && (
         <div className="message error" role="alert">
@@ -84,6 +85,14 @@ export default function WorkspaceApp({ context }: { context: Context }) {
           >
             Reload shop data
           </button>
+          {shop.sampleResetPending && (
+            <button
+              disabled={shop.busy}
+              onClick={() => void shop.retrySampleReset()}
+            >
+              Retry interrupted reset · this session only
+            </button>
+          )}
         </div>
       )}
       {shop.notice && (
@@ -96,7 +105,52 @@ export default function WorkspaceApp({ context }: { context: Context }) {
           Working… Please wait for this step to finish.
         </p>
       )}
-      {shop.section === "orders" && (
+      {shop.judge && shop.section === "orders" && (
+        <section
+          className="judge-guide panel stack"
+          aria-labelledby="judge-guide-heading"
+        >
+          <div>
+            <p className="eyebrow">YOUR SAMPLE SHOP · SYNTHETIC DATA</p>
+            <h2 id="judge-guide-heading">
+              Take one order from chat to courier.
+            </h2>
+            <p>
+              Open the screenshots, review a draft and confirm it. Then check
+              that same parcel and book the fake courier. Nothing is sent to a
+              real customer.
+            </p>
+          </div>
+          <ol className="order-progress" aria-label="Sample walkthrough">
+            <li>1. Review order</li>
+            <li>2. Check parcel</li>
+            <li>3. Book fake courier</li>
+          </ol>
+          <div className="button-row">
+            <button
+              className="primary"
+              disabled={shop.busy}
+              onClick={() =>
+                requestLeave(() => void shop.openSampleScreenshots())
+              }
+            >
+              Start sample order ↗
+            </button>
+            <button
+              disabled={shop.busy}
+              onClick={() => moveToTask(() => shop.navigate("assistant"))}
+            >
+              Try assistant · বাংলা / English
+            </button>
+          </div>
+          <p className="fine-print">
+            Live AI depends on the configured service. Clearly labeled sample
+            draft and parcel results are available without AI. Reset sample
+            restores only your isolated sample shop.
+          </p>
+        </section>
+      )}
+      {!shop.judge && shop.section === "orders" && (
         <div className="assistant-shortcut">
           <div>
             <Icon name="assistant" />
@@ -128,7 +182,12 @@ export default function WorkspaceApp({ context }: { context: Context }) {
           }}
           onRecord={(record) => {
             moveToTask(() => {
-              shop.navigate(record.section);
+              const order =
+                record.kind === "order"
+                  ? shop.orders.find((item) => item.id === record.key)
+                  : null;
+              if (order) shop.focusOrder(order.reference);
+              else shop.navigate(record.section);
               requestAnimationFrame(() => {
                 const element = document.getElementById(
                   record.kind + "-" + record.key,
@@ -143,6 +202,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
       </div>
       {(shop.section === "orders" || shop.section === "stock") && (
         <BusinessLists
+          key={shop.assistantVersion}
           view={shop.section}
           orders={shop.orders}
           stock={shop.stock}
@@ -151,6 +211,8 @@ export default function WorkspaceApp({ context }: { context: Context }) {
           busy={shop.busy}
           act={shop.act}
           onChange={() => shop.load(true)}
+          selectedReference={shop.focusedOrderReference}
+          onSelectOrder={shop.focusOrder}
           onOpenWorkspace={(id) =>
             requestLeave(() => void shop.act(() => shop.openWorkspace(id)))
           }
@@ -158,7 +220,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
       )}
       {shop.section === "conversations" && (
         <Conversations
-          key={`${shop.active?.id ?? "import"}-${conversationVersion}`}
+          key={`${shop.active?.id ?? "import"}-${conversationVersion}-${shop.assistantVersion}`}
           base={shop.base}
           judge={shop.judge}
           busy={shop.busy}
@@ -180,10 +242,37 @@ export default function WorkspaceApp({ context }: { context: Context }) {
           onExample={() =>
             requestLeave(() => void shop.openSampleScreenshots())
           }
-          onReset={() => requestLeave(() => void shop.resetSampleShop())}
           onDirtyChange={setDirty}
+          onConfirmed={(reference) => {
+            setDirty(false);
+            shop.focusOrder(reference);
+          }}
         />
       )}
+      <dialog ref={reset} className="task-dialog" aria-labelledby="reset-title">
+        <h2 id="reset-title">Reset your sample shop?</h2>
+        <p>
+          This removes this judge session’s drafts, checks, fake bookings and
+          assistant conversation, then restores its synthetic starting data.
+          Seller records and other judge sessions stay separate. The model-call
+          budget does not reset.
+        </p>
+        <div className="button-row">
+          <button autoFocus onClick={() => reset.current?.close()}>
+            Keep exploring
+          </button>
+          <button
+            className="danger"
+            disabled={shop.busy}
+            onClick={() => {
+              reset.current?.close();
+              void shop.resetSampleShop();
+            }}
+          >
+            Reset this sample shop
+          </button>
+        </div>
+      </dialog>
       <dialog
         ref={newOrder}
         className="task-dialog"
