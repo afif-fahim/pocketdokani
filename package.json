@@ -5,10 +5,13 @@
     "node": "^20.19.0 || ^22.13.0 || >=24"
   },
   "scripts": {
-    "format": "prettier --write . && uv run --frozen ruff format api scripts",
-    "format:check": "prettier --check . && uv run --frozen ruff format --check api scripts",
-    "lint": "uv run --frozen ruff check api scripts && npm --prefix web run lint",
-    "typecheck": "uv run --frozen mypy api/pocketdokani && npm --prefix web run typecheck",
+    "dev:api": "uv run --frozen uvicorn pocketdokani.main:app --host 127.0.0.1 --port 8000 --no-access-log",
+    "dev:web": "npm --prefix apps/web run dev",
+    "build": "npm --prefix apps/web run build",
+    "format": "prettier --write . && uv run --frozen ruff format apps/api scripts",
+    "format:check": "prettier --check . && uv run --frozen ruff format --check apps/api scripts",
+    "lint": "uv run --frozen ruff check apps/api scripts && npm --prefix apps/web run lint",
+    "typecheck": "uv run --frozen mypy apps/api/pocketdokani && npm --prefix apps/web run typecheck",
     "test": "uv run --frozen python scripts/check_cod.py && uv run --frozen python scripts/check_booking.py",
     "check": "npm run format:check && npm run lint && npm run typecheck && uv run --frozen python scripts/check_split_manifest.py",
     "hooks:install": "git config core.hooksPath .githooks"

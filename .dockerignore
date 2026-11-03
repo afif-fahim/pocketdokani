@@ -10,5 +10,5 @@ data
 media
 evals/private
 **/node_modules
-web/.next
+**/.next
 **/__pycache__

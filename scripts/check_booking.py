@@ -1,12 +1,15 @@
 """Issue #6's automated exception: booking HTTP endpoints with a fake courier."""
 
 import asyncio
+import json
 import os
 import tempfile
 import unittest
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 # Never load the seller's database, storage or credentials into these checks.
 os.environ.update(
@@ -27,6 +30,7 @@ from pocketdokani.db import Base, database, now  # noqa: E402
 from pocketdokani.main import app  # noqa: E402
 from pocketdokani.records import BrowserSession, Order, OrderLine, PackCheck, Sku  # noqa: E402
 from pocketdokani.security import digest  # noqa: E402
+from pydantic import SecretStr  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
@@ -164,58 +168,179 @@ class BookingCheck(unittest.IsolatedAsyncioTestCase):
         response.raise_for_status()
         return response.json()
 
-    async def sample_draft(self):
-        response = await self.client.post("/api/judge/session")
-        response.raise_for_status()
-        response = await self.client.post("/api/judge/example", json={})
-        response.raise_for_status()
-        workspace = response.json()
+    async def test_judge_analysis_cannot_bypass_disabled_models(self) -> None:
+        self.client.cookies.clear()
+        (await self.client.post("/api/judge/session")).raise_for_status()
+        workspace = (await self.client.post("/api/judge/example", json={})).json()
         path = f"/api/judge/workspaces/{workspace['id']}/draft"
         response = await self.client.post(path + "?sample=true")
+        self.assertEqual(response.status_code, 503)
+        self.assertIsNone((await self.client.get(path)).json())
+        for order in await self.orders():
+            self.assertIsNone(order["pack_check"])
+            self.assertNotEqual(order["status"], "packed")
+
+    @contextmanager
+    def provider(self, **results):
+        """Substitute only the external Meta HTTP boundary, never app analysis."""
+        config = settings()
+        previous = (config.model_calls_enabled, config.model_api_key)
+        config.model_calls_enabled = True
+        config.model_api_key = SecretStr("synthetic-provider-check")
+        client_type = httpx.Client
+
+        def respond(request):
+            self.assertEqual(
+                str(request.url), "https://api.meta.ai/v1/chat/completions"
+            )
+            payload = json.loads(request.content)
+            schema = payload["response_format"]["json_schema"]["name"]
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {
+                            "finish_reason": "stop",
+                            "message": {"content": json.dumps(results[schema])},
+                        }
+                    ],
+                },
+            )
+
+        try:
+            with patch(
+                "httpx.Client",
+                side_effect=lambda **kwargs: client_type(
+                    transport=httpx.MockTransport(respond), **kwargs
+                ),
+            ):
+                yield
+        finally:
+            config.model_calls_enabled, config.model_api_key = previous
+
+    async def extracted_draft(self):
+        (await self.client.post("/api/judge/session")).raise_for_status()
+        workspace = (await self.client.post("/api/judge/example", json={})).json()
+        path = f"/api/judge/workspaces/{workspace['id']}/draft"
+
+        def field(value, quote, screenshot):
+            return {
+                "value": value,
+                "quote": quote,
+                "screenshot_index": screenshot,
+                "voice_note_id": None,
+            }
+
+        reading = {
+            "customer_name": field("AI test recipient", "Name: AI test recipient", 2),
+            "phone": field("01X-EXAMPLE", "Phone: 01X-EXAMPLE", 2),
+            "address": field("Example Road, Dhaka", "Address: Example Road, Dhaka", 2),
+            "customer_delivery_charge": field(
+                "80", "Customer delivery charge 80 BDT.", 2
+            ),
+            "order_confirmed": field("true", "order confirmed", 1),
+            "lines": [
+                {
+                    "sku": field(sku, "1 blue canvas tote, 1 black shoulder bag.", 1),
+                    "quantity": field(
+                        "1", "1 blue canvas tote, 1 black shoulder bag.", 1
+                    ),
+                    "unit_price": field(
+                        price,
+                        "Final price: tote 450 BDT, shoulder bag 550 BDT each.",
+                        1,
+                    ),
+                    "line_discount": field(
+                        "0", "Line discount 0 BDT for each item.", 2
+                    ),
+                }
+                for sku, price in (("DEMO-TOTE-R1", "450"), ("DEMO-SHOULDER-R1", "550"))
+            ],
+        }
+        with self.provider(OrderDraft=reading):
+            response = await self.client.post(path)
         self.assertEqual(response.status_code, 200)
         return path, response.json()
 
-    async def test_sample_draft_confirms_with_non_contactable_phone(self) -> None:
-        path, draft = await self.sample_draft()
-        self.assertIs(draft["sample"], True)
+    async def test_ai_draft_confirms_with_non_contactable_judge_phone(self) -> None:
+        path, draft = await self.extracted_draft()
+        self.assertNotIn("sample", draft)
+        self.assertEqual(
+            draft["content"]["customer_name"]["value"], "AI test recipient"
+        )
         self.assertEqual(draft["content"]["phone"]["value"], "01X-EXAMPLE")
         response = await self.client.post(
             path + "/confirm", json={"revision": draft["revision"]}
         )
         self.assertEqual(response.status_code, 200)
-        reference = response.json()["order_reference"]
         order = next(
-            item for item in await self.orders() if item["reference"] == reference
+            item
+            for item in await self.orders()
+            if item["reference"] == response.json()["order_reference"]
         )
         self.assertEqual(order["phone"], "01X-EXAMPLE")
         self.assertEqual(order["status"], "confirmed")
         self.assertEqual(Decimal(str(order["cod_amount"])), Decimal("1080"))
 
-    async def confirmed_sample_order(self):
-        path, draft = await self.sample_draft()
+    async def confirmed_judge_order(self):
+        path, draft = await self.extracted_draft()
         response = await self.client.post(
             path + "/confirm", json={"revision": draft["revision"]}
         )
         response.raise_for_status()
-        reference = response.json()["order_reference"]
         return next(
-            item for item in await self.orders() if item["reference"] == reference
+            item
+            for item in await self.orders()
+            if item["reference"] == response.json()["order_reference"]
         )
 
-    async def test_sample_mismatch_then_correction_books_same_order_once(self) -> None:
-        order = await self.confirmed_sample_order()
+    async def analysed_parcel(self, order, *, cod="1080", phone="01X-EXAMPLE"):
         path = f"/api/judge/orders/{order['id']}/pack-checks"
-        response = await self.client.post(
-            path,
-            data={
-                "sample_scenario": "fail",
-                "expected_updated_at": order["updated_at"],
-            },
-        )
+        photo = await self.client.get(path + "/sample-photo?scenario=correct")
+        photo.raise_for_status()
+        fields = {
+            "order_reference": order["label_reference"],
+            "customer_name": "AI test recipient",
+            "phone": phone,
+            "cod_amount": cod,
+            "address": "Example Road, Dhaka",
+        }
+        reading = {
+            "fields": [
+                {"field": key, "written": value, "legible": value is not None}
+                for key, value in fields.items()
+            ]
+        }
+        bags = {
+            "lines": [
+                {
+                    "line_number": i,
+                    "sku": sku,
+                    "verdict": "match",
+                    "reason": "The photographed colour and quantity match.",
+                }
+                for i, sku in enumerate(("DEMO-TOTE-R1", "DEMO-SHOULDER-R1"), 1)
+            ]
+        }
+        with self.provider(BlindLabelReading=reading, VisibleBagComparison=bags):
+            return await self.client.post(
+                path,
+                data={
+                    "expected_updated_at": order["updated_at"],
+                    "segmentation": "full_photo",
+                },
+                files={"photo": ("parcel.png", photo.content, "image/png")},
+            )
+
+    async def test_ai_mismatch_then_correction_books_same_order_once(self) -> None:
+        order = await self.confirmed_judge_order()
+        path = f"/api/judge/orders/{order['id']}/pack-checks"
+        response = await self.analysed_parcel(order, cod="1180")
         self.assertEqual(response.status_code, 201)
         check = response.json()
         self.assertEqual(check["verdict"], "fail")
-        self.assertEqual(check["sam_path"]["label"]["path"], "constructed_sample")
+        self.assertEqual(check["sam_path"]["label"]["path"], "full_photo")
+        self.assertNotIn("constructed", check)
         failed_order = next(
             item for item in await self.orders() if item["id"] == order["id"]
         )
@@ -224,58 +349,56 @@ class BookingCheck(unittest.IsolatedAsyncioTestCase):
             json={"expected_updated_at": failed_order["updated_at"]},
         )
         self.assertEqual(response.status_code, 409)
-        response = await self.client.post(
-            path,
-            data={
-                "sample_scenario": "pass",
-                "expected_updated_at": failed_order["updated_at"],
-            },
-        )
+        response = await self.analysed_parcel(failed_order)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["verdict"], "pass")
-        packed_order = next(
-            item for item in await self.orders() if item["id"] == order["id"]
-        )
+        packed = next(item for item in await self.orders() if item["id"] == order["id"])
+        booking_path = f"/api/judge/orders/{order['id']}/booking"
         response = await self.client.post(
-            f"/api/judge/orders/{order['id']}/booking",
-            json={"expected_updated_at": packed_order["updated_at"]},
+            booking_path, json={"expected_updated_at": packed["updated_at"]}
         )
         self.assertEqual(response.json()["state"], "booked")
         self.assertEqual(response.json()["mode"], "fake")
         await self.client.post(
-            f"/api/judge/orders/{order['id']}/booking",
-            json={"expected_updated_at": packed_order["updated_at"]},
+            booking_path, json={"expected_updated_at": packed["updated_at"]}
         )
         booked = next(item for item in await self.orders() if item["id"] == order["id"])
         self.assertEqual(booked["reference"], order["reference"])
         stock = (await self.client.get("/api/judge/stock")).json()
-        tote = next(item for item in stock if item["sku"] == "DEMO-TOTE-R1")
-        self.assertEqual(tote["stock_qty"], 0)
+        self.assertEqual(
+            next(item for item in stock if item["sku"] == "DEMO-TOTE-R1")["stock_qty"],
+            0,
+        )
 
-    async def test_synthetic_photo_is_available_without_claiming_a_model_result(
+    async def test_synthetic_photo_is_input_only_and_cannot_bypass_disabled_models(
         self,
     ) -> None:
-        order = await self.confirmed_sample_order()
+        order = await self.confirmed_judge_order()
         path = f"/api/judge/orders/{order['id']}/pack-checks"
-        response = await self.client.get(path + "/sample-photo?scenario=fail")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers["content-type"], "image/png")
-        self.assertIn("attachment", response.headers["content-disposition"])
-        checks = await self.client.get(path)
-        self.assertEqual(checks.json(), [])
+        photo = await self.client.get(path + "/sample-photo?scenario=wrong-cod")
+        self.assertEqual(photo.status_code, 200)
+        self.assertEqual(photo.headers["content-type"], "image/png")
+        self.assertIn("attachment", photo.headers["content-disposition"])
+        self.assertEqual((await self.client.get(path)).json(), [])
+        for fields in ({"sample_scenario": "pass"}, {}):
+            response = await self.client.post(
+                path,
+                data={**fields, "expected_updated_at": order["updated_at"]},
+                files={"photo": ("parcel.png", photo.content, "image/png")},
+            )
+            self.assertEqual(response.status_code, 503)
+        self.assertEqual((await self.client.get(path)).json(), [])
 
     async def test_judge_starters_have_orders_and_payouts_from_today(self) -> None:
-        response = await self.client.post("/api/judge/session")
-        response.raise_for_status()
+        (await self.client.post("/api/judge/session")).raise_for_status()
         dhaka = timezone(timedelta(hours=6))
         today = now().astimezone(dhaka).date()
-        orders = await self.orders()
         self.assertTrue(
             any(
                 order["status"] == "confirmed"
                 and datetime.fromisoformat(order["created_at"]).astimezone(dhaka).date()
                 == today
-                for order in orders
+                for order in await self.orders()
             )
         )
         payouts = (await self.client.get("/api/judge/payouts")).json()
@@ -287,16 +410,9 @@ class BookingCheck(unittest.IsolatedAsyncioTestCase):
             )
         )
 
-    async def test_unsure_sample_requires_a_distinct_recorded_override(self) -> None:
-        order = await self.confirmed_sample_order()
-        path = f"/api/judge/orders/{order['id']}/pack-checks"
-        response = await self.client.post(
-            path,
-            data={
-                "sample_scenario": "unsure",
-                "expected_updated_at": order["updated_at"],
-            },
-        )
+    async def test_ai_unsure_requires_a_distinct_recorded_override(self) -> None:
+        order = await self.confirmed_judge_order()
+        response = await self.analysed_parcel(order, phone=None)
         self.assertEqual(response.status_code, 201)
         check = response.json()
         self.assertEqual(check["verdict"], "unsure")
@@ -310,20 +426,20 @@ class BookingCheck(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(response.status_code, 409)
         response = await self.client.post(
-            path + f"/{check['id']}/override",
+            f"/api/judge/orders/{order['id']}/pack-checks/{check['id']}/override",
             json={"expected_updated_at": current["updated_at"]},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["verdict"], "unsure")
         self.assertEqual(response.json()["override_by"], "booking-check")
 
-    async def test_demo_marker_and_sample_readings_are_rejected_for_sellers(
-        self,
-    ) -> None:
-        response = await self.client.post(
-            "/api/seller/session", json={"passcode": "constructed-booking-check-only"}
-        )
-        response.raise_for_status()
+    async def test_demo_phone_and_input_images_are_rejected_for_sellers(self) -> None:
+        (
+            await self.client.post(
+                "/api/seller/session",
+                json={"passcode": "constructed-booking-check-only"},
+            )
+        ).raise_for_status()
         response = await self.client.post(
             "/api/seller/order-drafts",
             json={
@@ -340,23 +456,13 @@ class BookingCheck(unittest.IsolatedAsyncioTestCase):
         )
         response.raise_for_status()
         path = f"/api/seller/workspaces/{response.json()['id']}/draft"
-        response = await self.client.post(path + "?sample=true")
-        self.assertEqual(response.status_code, 403)
         draft = (await self.client.get(path)).json()
         response = await self.client.post(
             path + "/confirm", json={"revision": draft["revision"]}
         )
         self.assertEqual(response.status_code, 422)
         self.assertIn("valid mobile number", response.json()["detail"])
-        order = (await self.seed_seller_order())[0]
-        response = await self.client.post(
-            "/api/seller/orders/seller-example/pack-checks",
-            data={
-                "sample_scenario": "pass",
-                "expected_updated_at": order["updated_at"],
-            },
-        )
-        self.assertEqual(response.status_code, 403)
+        await self.seed_seller_order()
         response = await self.client.get(
             "/api/seller/orders/seller-example/pack-checks/sample-photo"
         )
@@ -365,7 +471,7 @@ class BookingCheck(unittest.IsolatedAsyncioTestCase):
     async def test_reset_and_second_judge_cannot_affect_each_other_or_seller(
         self,
     ) -> None:
-        order = await self.confirmed_sample_order()
+        order = await self.confirmed_judge_order()
         seller_before = await self.seed_seller_order()
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),
@@ -374,20 +480,18 @@ class BookingCheck(unittest.IsolatedAsyncioTestCase):
         ) as second:
             (await second.post("/api/judge/session")).raise_for_status()
             second_orders = (await second.get("/api/judge/orders")).json()
-            response = await second.get(f"/api/judge/orders/{order['id']}/pack-checks")
-            self.assertEqual(response.status_code, 404)
+            path = f"/api/judge/orders/{order['id']}/pack-checks"
+            self.assertEqual((await second.get(path)).status_code, 404)
             response = await second.post(
-                f"/api/judge/orders/{order['id']}/pack-checks",
-                data={
-                    "sample_scenario": "pass",
-                    "expected_updated_at": order["updated_at"],
-                },
+                path, data={"expected_updated_at": order["updated_at"]}
             )
             self.assertEqual(response.status_code, 404)
-            response = await self.client.post(
-                "/api/judge/example", json={"reset": True}
+            self.assertEqual(
+                (
+                    await self.client.post("/api/judge/example", json={"reset": True})
+                ).status_code,
+                200,
             )
-            self.assertEqual(response.status_code, 200)
             self.assertEqual(
                 (await second.get("/api/judge/orders")).json(), second_orders
             )
