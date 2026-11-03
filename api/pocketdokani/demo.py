@@ -3,6 +3,7 @@ import io
 import textwrap
 from datetime import datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 from sqlalchemy import delete
@@ -25,6 +26,8 @@ from pocketdokani.records import (
 
 # Hand-authored constructed source; no real seller/customer identifiers or phones.
 DEMO_SOURCE_ID = "constructed-conversation-001"
+DEMO_FINAL_PRICE_BN = "চূড়ান্ত দাম: টোট ৪৫০ টাকা, শোল্ডার ব্যাগ ৫৫০ টাকা।"
+DEMO_FINAL_PRICE_GLOSS = "Final price: tote 450 BDT, shoulder bag 550 BDT each."
 
 
 def screenshots() -> list[Original]:
@@ -35,7 +38,7 @@ def screenshots() -> list[Original]:
             ("left", "1 blue canvas tote, 1 black shoulder bag."),
             ("right", "Tote 500, shoulder bag 600 BDT each."),
             ("left", "Final price aro kom hobe?"),
-            ("right", "Final: tote 450, shoulder 550 BDT each."),
+            ("right", DEMO_FINAL_PRICE_BN),
             ("left", "Ji, ei final price e order confirmed."),
         ],
         [
@@ -56,20 +59,43 @@ def screenshots() -> list[Original]:
         draw.text(
             (28, 75), "CONSTRUCTED - no real conversation", font=font, fill="#53645e"
         )
-        for index, (side, message) in enumerate(bubbles):
+        y = 190
+        for side, message in bubbles:
             x = 28 if side == "left" else 160
-            y = 190 + index * 170
             draw.rounded_rectangle(
                 (x, y, x + 530, y + 110),
                 radius=24,
                 fill="#e2e5ed" if side == "left" else "#d4eee5",
             )
-            draw.multiline_text(
-                (x + 20, y + 25),
-                "\n".join(textwrap.wrap(message, width=40)),
-                font=font,
-                fill="#203831",
-            )
+            if message == DEMO_FINAL_PRICE_BN:
+                # Pre-rendered with Bengali shaping; works without OS fonts/RAQM.
+                # Keep this original quote separate from its explanatory gloss.
+                with Image.open(
+                    Path(__file__).with_name("assets")
+                    / "constructed-final-price-bn.png"
+                ) as original:
+                    image.paste(original, (x + 20, y + 15), original)
+                draw.text(
+                    (x, y + 120),
+                    "English gloss (guide, not source):",
+                    font=ImageFont.load_default(size=18),
+                    fill="#53645e",
+                )
+                draw.multiline_text(
+                    (x, y + 147),
+                    "\n".join(textwrap.wrap(DEMO_FINAL_PRICE_GLOSS, width=44)),
+                    font=ImageFont.load_default(size=20),
+                    fill="#53645e",
+                )
+                y += 60
+            else:
+                draw.multiline_text(
+                    (x + 20, y + 25),
+                    "\n".join(textwrap.wrap(message, width=40)),
+                    font=font,
+                    fill="#203831",
+                )
+            y += 170
         draw.text(
             (28, 1330),
             f"Development source | screenshot {sequence}/2",

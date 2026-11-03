@@ -109,13 +109,7 @@ export default function CourierBookingPanel({
         <h3>কুরিয়ার · Courier</h3>
         {(importedConsignment || mode !== "disabled") && (
           <StatusBadge
-            status={
-              importedConsignment
-                ? "Imported consignment"
-                : mode === "fake"
-                  ? "Fake · no parcel is sent"
-                  : "Live · Steadfast"
-            }
+            status={importedConsignment ? "Imported consignment" : mode}
           />
         )}
       </div>

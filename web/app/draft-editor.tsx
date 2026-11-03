@@ -130,16 +130,6 @@ export default function DraftEditor({
 
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
-  useEffect(() => {
-    if (!dirty) return;
-    function warnBeforeLeaving(event: BeforeUnloadEvent) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
-    window.addEventListener("beforeunload", warnBeforeLeaving);
-    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
-  }, [dirty]);
-
   function accept(record: Draft) {
     setDraft(record);
     setValues(unpack(record.content));

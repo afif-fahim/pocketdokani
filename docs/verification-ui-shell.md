@@ -36,3 +36,11 @@ For follow-up workflow work, preserve `onOpenWorkspace(id)` from Orders and `onR
 ## Review
 
 The independent Standards review found no actionable violations or baseline smells. The Spec review found one microphone-cancellation issue: an unanswered browser permission request kept typed input disabled after cancellation. The correction separates the outstanding permission request from active voice entry, so cancelling restores typing immediately and a late permission result cannot start recording. A focused Spec re-review confirmed the fix with no remaining actionable findings.
+
+### Follow-up review fixes
+
+A subsequent review identified four valid fixes: use **Pending dispatch** for the Assistant starter, centralize the browser unload guard in `WorkspaceApp`, distinguish opening sample screenshots from resetting the shop, and use canonical courier badge keys so the fake courier receives the warning tone. The sample endpoint now accepts `{ "reset": true }` without a workspace ID, while preserving legacy ID-based reset requests and their ownership/staleness validation.
+
+The production-build browser checks confirmed that draft edits and selected screenshots still trigger the leave guard and block reload, and that saving the draft or removing the selection permits reload. The starter still fills editable input without sending. Opening sample screenshots preserved the saved manual draft; resetting restored the sample while retaining the current section. The fake courier badge rendered with `data-tone="warning"` and retained its no-parcel explanation.
+
+Disposable HTTP checks covered a one-request reset with no workspaces, sample opening/reopening without changing drafts or shop records, reset isolation from another judge and the seller, and legacy/stale/foreign workspace IDs. `npm run check`, all seven existing COD/courier checks, and the production build passed again. A focused independent review found no actionable regressions. No new automated test files were added.

@@ -350,13 +350,14 @@ def original_image(
     )
 
 
-class ResetExample(BaseModel):
+class ExampleRequest(BaseModel):
+    reset: bool = False
     workspace_id: str | None = Field(default=None, max_length=36)
 
 
 @app.post("/api/judge/example")
-def reset_example(
-    payload: ResetExample, request: Request, db: Database
+def open_or_reset_example(
+    payload: ExampleRequest, request: Request, db: Database
 ) -> dict[str, object]:
     require_mutation(request)
     actor = authenticate(db, request, "judge")
@@ -370,7 +371,7 @@ def reset_example(
             )
         )
     )
-    if payload.workspace_id is None:
+    if not payload.reset and payload.workspace_id is None:
         for prior in prior_workspaces:
             if prior.layout == LAYOUT:
                 return workspace_payload(db, prior)

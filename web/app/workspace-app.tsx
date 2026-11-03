@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BusinessLists from "./business-lists";
 import Assistant from "./assistant";
 import AppShell, { Icon } from "./app-shell";
@@ -16,6 +16,16 @@ export default function WorkspaceApp({ context }: { context: Context }) {
   const [leaveAction, setLeaveAction] = useState<(() => void) | null>(null);
   const newOrder = useRef<HTMLDialogElement>(null);
   const leave = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    if (!dirty) return;
+    function warnBeforeLeaving(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [dirty]);
 
   function requestLeave(action: () => void) {
     if (dirty) {
@@ -63,7 +73,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
       }}
       onNewOrder={() => newOrder.current?.showModal()}
       onSignOut={() => requestLeave(() => void shop.signOut())}
-      onReset={() => requestLeave(() => void shop.openExample(true))}
+      onReset={() => requestLeave(() => void shop.resetSampleShop())}
     >
       {shop.error && (
         <div className="message error" role="alert">
@@ -107,6 +117,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
         <Assistant
           key={shop.assistantVersion}
           base={shop.base}
+          defaultAnswerLanguage={context === "judge" ? "en" : "auto"}
           busy={shop.busy}
           active={shop.section === "assistant"}
           act={shop.act}
@@ -166,8 +177,10 @@ export default function WorkspaceApp({ context }: { context: Context }) {
             await shop.load(true);
           }}
           onChange={() => shop.load(true)}
-          onExample={() => requestLeave(() => void shop.openExample())}
-          onReset={() => requestLeave(() => void shop.openExample(true))}
+          onExample={() =>
+            requestLeave(() => void shop.openSampleScreenshots())
+          }
+          onReset={() => requestLeave(() => void shop.resetSampleShop())}
           onDirtyChange={setDirty}
         />
       )}
@@ -195,7 +208,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
             disabled={shop.busy}
             onClick={() =>
               startOrder(() => {
-                if (shop.judge) void shop.openExample();
+                if (shop.judge) void shop.openSampleScreenshots();
                 else shop.chooseWorkspace(null);
               })
             }

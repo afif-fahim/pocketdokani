@@ -69,15 +69,6 @@ export default function Conversations({
     onDirtyChange(editorDirty || pending.length > 0);
   }, [editorDirty, pending.length, onDirtyChange]);
   useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
-  useEffect(() => {
-    if (!pending.length) return;
-    function warnBeforeLeaving(event: BeforeUnloadEvent) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
-    window.addEventListener("beforeunload", warnBeforeLeaving);
-    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
-  }, [pending.length]);
 
   function selectFiles(files: FileList | null) {
     if (!files) return;

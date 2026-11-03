@@ -163,22 +163,13 @@ export default function useWorkspaceSession(context: Context) {
     });
   }
 
-  async function openExample(reset = false) {
+  async function updateSample(action: "open" | "reset") {
     await act(async () => {
       const previous = section;
-      let resetId = active?.id ?? workspaces[0]?.id;
-      if (reset && !resetId) {
-        const example = await api<Workspace>(
-          `${base}/example`,
-          json("POST", {}),
-        );
-        resetId = example.id;
-      }
+      const reset = action === "reset";
       const workspace = await api<Workspace>(
         `${base}/example`,
-        json("POST", {
-          workspace_id: reset ? resetId : undefined,
-        }),
+        json("POST", { reset }),
       );
       chooseWorkspace(workspace);
       setAssistantVersion((version) => version + 1);
@@ -240,7 +231,8 @@ export default function useWorkspaceSession(context: Context) {
     act,
     signIn,
     signOut,
-    openExample,
+    openSampleScreenshots: () => updateSample("open"),
+    resetSampleShop: () => updateSample("reset"),
     createDraft,
     chooseWorkspace,
     openWorkspace,

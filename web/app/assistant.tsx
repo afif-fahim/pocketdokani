@@ -57,6 +57,7 @@ type Turn = {
   id: string;
   question: string;
   answer: string;
+  answer_language: "en" | "bn";
   incomplete: boolean;
   facts: {
     id: string;
@@ -68,6 +69,7 @@ type Turn = {
   }[];
   proposals: Proposal[];
 };
+type AnswerLanguage = "en" | "bn" | "auto";
 const metricLabels: Record<string, string> = {
   order_count: "Orders / অর্ডার",
   available_quantity: "Available units / বিক্রির জন্য আছে",
@@ -78,16 +80,19 @@ const metricLabels: Record<string, string> = {
 };
 const starterQuestions = [
   {
-    label: "Pending orders",
-    question: "কয়টা অর্ডার পাঠানো বাকি আছে?",
+    label: "Pending dispatch",
+    english: "How many orders are left to send?",
+    bangla: "কয়টা অর্ডার পাঠানো বাকি আছে?",
   },
   {
     label: "Available stock",
-    question: "বিক্রির জন্য মোট কয়টা পণ্য স্টকে আছে?",
+    english: "How many units are available to sell?",
+    bangla: "বিক্রির জন্য মোট কয়টা পণ্য স্টকে আছে?",
   },
   {
     label: "Recorded sales & payouts",
-    question: "সব সময়ের অর্ডারের মূল্য আর রেকর্ড করা পেআউট কত?",
+    english: "What are the all-time order value and recorded payouts?",
+    bangla: "সব সময়ের অর্ডারের মূল্য আর রেকর্ড করা পেআউট কত?",
   },
 ];
 
@@ -99,6 +104,7 @@ export default function Assistant({
   onDraft,
   onChange,
   active = true,
+  defaultAnswerLanguage = "auto",
 }: {
   base: string;
   busy: boolean;
@@ -107,8 +113,12 @@ export default function Assistant({
   onDraft: (id: string) => Promise<void>;
   onChange: () => Promise<void>;
   active?: boolean;
+  defaultAnswerLanguage?: AnswerLanguage;
 }) {
   const [question, setQuestion] = useState("");
+  const [answerLanguage, setAnswerLanguage] = useState<AnswerLanguage>(
+    defaultAnswerLanguage,
+  );
   const [turns, setTurns] = useState<Turn[]>([]);
   const [decisions, setDecisions] = useState<Record<string, string>>({});
   const [recording, setRecording] = useState(false);
@@ -267,7 +277,10 @@ export default function Assistant({
       try {
         const turn = await api<Turn>(
           `${base}/assistant/turns`,
-          json("POST", { transcript: question }),
+          json("POST", {
+            transcript: question,
+            answer_language: answerLanguage,
+          }),
         );
         setTurns((items) => [...items, turn]);
         setQuestion("");
@@ -423,6 +436,28 @@ export default function Assistant({
             Voice transcribed. Review your question above.
           </p>
         )}
+        <label>
+          Answer language
+          <select
+            value={answerLanguage}
+            onChange={(event) =>
+              setAnswerLanguage(event.target.value as AnswerLanguage)
+            }
+            disabled={busy}
+            aria-describedby="answer-language-help"
+          >
+            <option value="en">English</option>
+            <option value="bn" lang="bn">
+              বাংলা
+            </option>
+            <option value="auto">Automatic</option>
+          </select>
+        </label>
+        <p id="answer-language-help" className="fine-print">
+          Speak or type in any language. Automatic uses Bangla when the question
+          contains Bangla script; otherwise English. Source quotes stay in their
+          original language.
+        </p>
         <button
           className="primary"
           disabled={busy || recording || starting || !question.trim()}
@@ -433,20 +468,31 @@ export default function Assistant({
       </form>
       <div className="assistant-starters" aria-label="Starter questions">
         {starterQuestions.map((starter) => (
-          <button
-            type="button"
-            className="starter-question"
+          <div
+            className="starter-card stack"
             key={starter.label}
-            disabled={busy || recording || starting}
-            onClick={() => {
-              setQuestion(starter.question);
-              setTranscriptReady(false);
-              questionRef.current?.focus();
-            }}
+            role="group"
+            aria-label={starter.label}
           >
-            <strong>{starter.label} ↗</strong>
-            <span lang="bn">{starter.question}</span>
-          </button>
+            <h3>{starter.label}</h3>
+            {(["english", "bangla"] as const).map((language) => (
+              <button
+                type="button"
+                className="starter-question"
+                key={language}
+                lang={language === "bangla" ? "bn" : "en"}
+                disabled={busy || recording || starting}
+                onClick={() => {
+                  setQuestion(starter[language]);
+                  setTranscriptReady(false);
+                  questionRef.current?.focus();
+                }}
+              >
+                <strong>{language === "bangla" ? "বাংলা" : "English"} ↗</strong>
+                <span>{starter[language]}</span>
+              </button>
+            ))}
+          </div>
         ))}
       </div>
       {!turns.length && !working && (
@@ -459,7 +505,9 @@ export default function Assistant({
         {turns.map((turn) => (
           <li className="stack assistant-turn" key={turn.id}>
             <h3>{turn.question}</h3>
-            <p className="assistant-answer">{turn.answer}</p>
+            <p className="assistant-answer" lang={turn.answer_language}>
+              {turn.answer}
+            </p>
             {turn.incomplete && (
               <p className="muted">
                 The request stopped early. Only completed record lookups are
