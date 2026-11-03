@@ -9,7 +9,7 @@ export default defineConfig([
   prettier,
   {
     files: [
-      "app/workspace-app.tsx",
+      "app/conversations.tsx",
       "app/business-lists.tsx",
       "app/draft-editor.tsx",
       "app/pack-check.tsx",

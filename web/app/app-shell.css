@@ -1,0 +1,533 @@
+.app-header,
+.welcome-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  min-height: 76px;
+  padding: 0.8rem clamp(1rem, 3vw, 3rem);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.brand-period {
+  color: var(--green);
+  margin-left: -0.6rem;
+}
+.brand-mark svg {
+  width: 21px;
+  height: 21px;
+}
+.shop-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  border-left: 1px solid var(--line);
+  padding-left: 1rem;
+}
+.session-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+.text-button {
+  background: transparent;
+  border-color: transparent;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.app-body {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  min-height: calc(100svh - 76px);
+}
+.app-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 2rem 1rem;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  position: sticky;
+  top: 76px;
+  align-self: start;
+  height: calc(100svh - 76px);
+}
+.nav-caption {
+  margin: 0 0 1rem 0.8rem;
+}
+.app-nav > button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-color: transparent;
+  background: transparent;
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.app-nav > button[aria-current="page"] {
+  color: var(--green);
+  background: var(--soft);
+  border-color: color-mix(in oklch, var(--green) 15%, var(--surface));
+  font-weight: 700;
+}
+.nav-hint {
+  margin-left: auto;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+.nav-note {
+  margin-top: auto;
+  padding: 2rem 0.75rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.nav-note p {
+  margin-top: 0.4rem;
+}
+.app-main {
+  padding: clamp(1rem, 2.8vw, 2.5rem);
+  max-width: 1250px;
+  width: 100%;
+  margin-inline: auto;
+  scroll-margin-top: 110px;
+}
+.working-status {
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding-block: 0.5rem;
+}
+.app-main:focus {
+  outline: none;
+}
+.page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+.page-heading h1 {
+  font-size: clamp(1.8rem, 3vw, 2.2rem);
+  font-weight: 650;
+  margin-block: 0.45rem;
+  line-height: 1.3;
+}
+.page-heading .muted {
+  font-size: 0.85rem;
+}
+.new-order-button,
+.welcome-actions .primary,
+.seller-form button,
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+}
+.app-footnote {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin-top: 2rem;
+  padding: 1rem;
+}
+.assistant-shortcut {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.25rem;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+}
+.assistant-shortcut > div {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+.assistant-shortcut p {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.assistant-shortcut button {
+  font-size: 0.8rem;
+}
+.task-dialog {
+  width: min(94%, 32rem);
+  max-height: 90svh;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  color: var(--ink);
+}
+.task-dialog::backdrop {
+  background: rgb(18 30 25 / 45%);
+}
+.task-dialog .section-heading {
+  margin-bottom: 1rem;
+}
+.task-dialog > p {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+.order-choices {
+  display: grid;
+  gap: 0.75rem;
+}
+.order-choices button {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 1rem;
+  padding: 1.1rem;
+}
+.order-choices button > span {
+  flex: 1;
+}
+.order-choices small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+.source-history > summary {
+  font-weight: 600;
+  color: var(--ink);
+}
+.welcome-page {
+  max-width: 1440px;
+  margin-inline: auto;
+}
+.welcome-header {
+  background: transparent;
+  min-height: 88px;
+}
+.welcome-header .quiet-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 44px;
+  text-decoration: none;
+}
+.welcome-content {
+  padding: clamp(1.25rem, 4vw, 4rem);
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  align-items: center;
+  gap: 3.5rem;
+}
+.welcome-intro {
+  padding-block: 1.25rem;
+}
+.welcome-intro h1 {
+  font-size: clamp(2.75rem, 5vw, 4.7rem);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+  line-height: 1.1;
+  margin-block: 1.5rem;
+}
+.welcome-intro h1 > span {
+  color: var(--green);
+}
+.welcome-promise {
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.welcome-detail {
+  max-width: 29rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-top: 1rem;
+}
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.75rem;
+}
+.welcome-actions > span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.button-link {
+  min-height: 48px;
+  padding: 0.7rem 1.4rem;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  font-weight: 600;
+}
+.button-link.primary {
+  background: var(--green);
+  color: white;
+}
+.welcome-assurance {
+  margin-top: 2rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.welcome-preview {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 1.75rem;
+}
+.preview-topline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+.welcome-steps > li {
+  display: flex;
+  gap: 1rem;
+  align-items: start;
+  padding-block: 1.65rem;
+  border-bottom: 1px solid var(--line);
+}
+.welcome-step-icon {
+  display: grid;
+  place-items: center;
+  background: var(--soft);
+  color: var(--green);
+  border: 1px solid var(--line);
+  min-width: 42px;
+  height: 42px;
+  border-radius: 0.6rem;
+}
+.welcome-steps h2 {
+  font-size: 1rem;
+  margin-top: 0.2rem;
+  margin-bottom: 0.6rem;
+  letter-spacing: -0.02em;
+}
+.welcome-steps p {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.welcome-steps [lang="bn"] {
+  color: var(--green);
+  font-size: 1rem;
+  margin-bottom: 0.3rem;
+}
+.step-count {
+  flex: none;
+  white-space: nowrap;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.sample-note {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-top: 1.25rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.sample-note .status-dot {
+  flex: none;
+}
+.seller-entry {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem 2rem;
+  align-items: center;
+  scroll-margin: 1rem;
+}
+.seller-entry h2 {
+  font-size: 1.25rem;
+  margin-block: 0.4rem;
+}
+.seller-entry .muted {
+  font-size: 0.85rem;
+  max-width: 31rem;
+}
+.seller-entry .message {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.seller-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+.seller-form label {
+  flex: 1;
+  min-width: min(100%, 10rem);
+  font-size: 0.8rem;
+}
+.seller-form button {
+  min-height: 48px;
+}
+.welcome-footer {
+  margin: 0 clamp(1.25rem, 4vw, 4rem);
+  font-size: 0.72rem;
+}
+@media (max-width: 760px) {
+  .app-header {
+    gap: 0.5rem 0.75rem;
+    min-height: 68px;
+    padding: 0.65rem 1rem;
+  }
+  .app-header .wordmark {
+    font-size: 1.1rem;
+  }
+  .shop-label {
+    font-size: 0.7rem;
+    padding-left: 0.75rem;
+  }
+  .session-actions {
+    gap: 0;
+  }
+  .session-actions button {
+    font-size: 0.7rem;
+    padding-inline: 0.4rem;
+  }
+  .app-body {
+    display: block;
+    min-height: calc(100svh - 68px);
+  }
+  .app-main {
+    padding: 1.5rem 1rem calc(6rem + env(safe-area-inset-bottom));
+  }
+  .app-nav {
+    position: fixed;
+    inset: auto 0 0;
+    height: auto;
+    z-index: 10;
+    flex-direction: row;
+    gap: 0;
+    padding: 0.4rem 0.5rem calc(0.4rem + env(safe-area-inset-bottom));
+    border: 0;
+    border-top: 1px solid var(--line);
+  }
+  .app-nav > button {
+    flex: 1;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.45rem 0.1rem;
+    font-size: 0.68rem;
+    line-height: 1.5;
+  }
+  .nav-caption,
+  .nav-hint,
+  .nav-note {
+    display: none;
+  }
+  .page-heading {
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+  .page-heading > div {
+    flex: 1;
+  }
+  .page-heading .eyebrow {
+    font-size: 0.6rem;
+  }
+  .page-heading .muted {
+    font-size: 0.8rem;
+    flex-basis: 100%;
+  }
+  .new-order-button {
+    font-size: 0.8rem;
+    gap: 0.35rem;
+    padding-inline: 0.75rem !important;
+  }
+  .assistant-shortcut {
+    padding: 0.85rem;
+  }
+  .welcome-header {
+    min-height: 72px;
+    padding: 0.7rem 1.25rem;
+  }
+  .welcome-header .wordmark {
+    font-size: 1.15rem;
+  }
+  .welcome-content {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2rem;
+    padding: 1.5rem 1.25rem;
+  }
+  .welcome-intro {
+    padding: 0;
+  }
+  .welcome-intro h1 {
+    margin-block: 1.25rem;
+  }
+  .welcome-promise {
+    font-size: 1rem;
+  }
+  .welcome-detail {
+    font-size: 0.85rem;
+  }
+  .welcome-assurance {
+    margin-top: 1.5rem;
+  }
+  .welcome-preview {
+    padding: 1.25rem;
+  }
+  .welcome-steps > li {
+    gap: 0.75rem;
+    padding-block: 1.25rem;
+  }
+  .seller-entry {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .desktop-break {
+    display: none;
+  }
+}
+@media (max-width: 410px) {
+  .app-header .shop-label {
+    order: 3;
+    flex-basis: 100%;
+    border: 0;
+    padding: 0;
+  }
+  .app-header .brand-mark {
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+}
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.6rem 1rem;
+  background: var(--surface);
+  border: 2px solid var(--green);
+  border-radius: 0.5rem;
+  transform: translateY(-200%);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}

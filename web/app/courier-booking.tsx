@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { api, json } from "./api";
 import type { Order } from "./business-lists";
+import { StatusBadge } from "./ui";
 
 export type CourierBooking = {
   state:
@@ -107,13 +108,15 @@ export default function CourierBookingPanel({
       <div className="button-row">
         <h3>কুরিয়ার · Courier</h3>
         {(importedConsignment || mode !== "disabled") && (
-          <span className="pill">
-            {importedConsignment
-              ? "Imported consignment"
-              : mode === "fake"
-                ? "Fake · no parcel is sent"
-                : "Live · Steadfast"}
-          </span>
+          <StatusBadge
+            status={
+              importedConsignment
+                ? "Imported consignment"
+                : mode === "fake"
+                  ? "Fake · no parcel is sent"
+                  : "Live · Steadfast"
+            }
+          />
         )}
       </div>
       {order.consignment_id && (

@@ -370,8 +370,14 @@ def reset_example(
             )
         )
     )
-    if prior_workspaces and payload.workspace_id is None:
-        return workspace_payload(db, prior_workspaces[0])
+    if payload.workspace_id is None:
+        for prior in prior_workspaces:
+            if prior.layout == LAYOUT:
+                return workspace_payload(db, prior)
+        # Opening the sample after a manual draft must preserve that draft and shop.
+        workspace = create_workspace(db, actor, "right", screenshots())
+        commit_workspace(db, workspace)
+        return workspace_payload(db, workspace)
     if payload.workspace_id is not None and (
         payload.workspace_id not in [workspace.id for workspace in prior_workspaces]
     ):

@@ -6,6 +6,8 @@ import CourierBookingPanel, {
   type CourierBooking,
 } from "./courier-booking";
 import StatusChangeWarning from "./status-change-warning";
+import { money } from "./format";
+import { EmptyState, StatusBadge } from "./ui";
 
 export type StockItem = {
   sku: string;
@@ -59,13 +61,6 @@ export type Payout = {
   order_references: string[];
 };
 
-const currency = new Intl.NumberFormat("en-BD", {
-  style: "currency",
-  currency: "BDT",
-});
-function money(value: string) {
-  return currency.format(Number(value));
-}
 function date(value: string) {
   return new Date(value).toLocaleDateString("en-BD", {
     timeZone: "Asia/Dhaka",
@@ -235,8 +230,8 @@ export default function BusinessLists({
         aria-labelledby="stock-heading"
       >
         <div className="section-heading">
-          <h2 id="stock-heading">Stock</h2>
-          <span className="pill">{stock.length} SKUs</span>
+          <h2 id="stock-heading">Products &amp; variants</h2>
+          <span className="pill">{stock.length} variants</span>
         </div>
         <p className="muted">
           Only received lots with stock are available to sell.
@@ -256,10 +251,7 @@ export default function BusinessLists({
                   <p className="muted">Photo not recorded</p>
                 )}
                 <h3>{sku.product_name}</h3>
-                <p>
-                  {sku.variant} · {sku.lot}
-                </p>
-                <code>{sku.sku}</code>
+                <p>{sku.variant}</p>
                 <span
                   className={`pill ${sku.available_qty > 0 ? "eligible" : "ineligible"}`}
                 >
@@ -283,11 +275,20 @@ export default function BusinessLists({
                     <dd>{money(sku.list_price)}</dd>
                   </div>
                 </dl>
+                <details>
+                  <summary>SKU and lot details</summary>
+                  <p>
+                    <code>{sku.sku}</code> · {sku.lot}
+                  </p>
+                </details>
               </li>
             ))}
           </ul>
         ) : (
-          <p>No stock loaded yet.</p>
+          <EmptyState title="Your stock will appear here">
+            Review and import your product records to see photos, prices and
+            available quantities.
+          </EmptyState>
         )}
       </section>
     );
@@ -298,7 +299,7 @@ export default function BusinessLists({
       aria-labelledby="orders-heading"
     >
       <div className="section-heading">
-        <h2 id="orders-heading">Orders</h2>
+        <h2 id="orders-heading">All orders</h2>
         <span className="pill">{orders.length} orders</span>
       </div>
       {orders.length ? (
@@ -308,7 +309,7 @@ export default function BusinessLists({
               <details className="order-card" id={`order-${order.id}`}>
                 <summary>
                   <strong className="reference">{order.reference}</strong>
-                  <span className="pill">{order.status}</span>
+                  <StatusBadge status={order.status} />
                   <span>
                     {order.customer_name || "Name not recorded"} ·{" "}
                     {date(order.created_at)}
@@ -341,7 +342,7 @@ export default function BusinessLists({
                         <h3>
                           {line.product_name} · {line.variant}
                         </h3>
-                        <code>{line.sku}</code>
+                        <small className="muted">SKU · {line.sku}</small>
                         <p>
                           {line.quantity} × {money(line.unit_price)} −{" "}
                           {money(line.line_discount)} line discount
@@ -366,7 +367,12 @@ export default function BusinessLists({
                       </dd>
                     </div>
                   </dl>
-                  <p className="muted">{order.note}</p>
+                  {order.note && (
+                    <details>
+                      <summary>Order notes</summary>
+                      <p>{order.note}</p>
+                    </details>
+                  )}
                   <OrderActions
                     key={`${order.updated_at}-${order.booking?.state ?? ""}`}
                     order={order}
@@ -382,10 +388,18 @@ export default function BusinessLists({
           ))}
         </ul>
       ) : (
-        <p>No orders loaded yet.</p>
+        <EmptyState title="Ready for your first order">
+          Choose New order to import Messenger screenshots or start a manual
+          draft. Review the details before confirming.
+        </EmptyState>
       )}
       <details>
         <summary>Payouts · {payouts.length} recorded</summary>
+        {payouts.length === 0 && (
+          <p className="muted">
+            No payouts recorded yet. Only recorded payments appear here.
+          </p>
+        )}
         <ul className="order-lines">
           {payouts.map((payout) => (
             <li key={payout.statement} id={`payout-${payout.statement}`}>
