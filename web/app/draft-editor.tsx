@@ -7,6 +7,8 @@ import {
 } from "react";
 import { api, json } from "./api";
 import type { StockItem } from "./business-lists";
+import { money } from "./format";
+import { StatusBadge } from "./ui";
 
 type Evidence = {
   value: string | null;
@@ -97,6 +99,7 @@ export default function DraftEditor({
   act,
   onSource,
   onChange,
+  onDirtyChange,
 }: {
   base: string;
   workspaceId: string;
@@ -105,6 +108,7 @@ export default function DraftEditor({
   act: (action: () => Promise<void>) => Promise<void>;
   onSource: (sequence: number) => void;
   onChange: () => Promise<void>;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const path = `${base}/workspaces/${workspaceId}`;
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -119,6 +123,12 @@ export default function DraftEditor({
   const [success, setSuccess] = useState("");
   const voiceDialog = useRef<HTMLDialogElement>(null);
   const [voiceSource, setVoiceSource] = useState<Note | null>(null);
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   function accept(record: Draft) {
     setDraft(record);
@@ -311,9 +321,9 @@ export default function DraftEditor({
     <section className="draft-editor stack" aria-labelledby="draft-heading">
       <div className="section-heading">
         <h2 id="draft-heading">{draft?.order_reference || "Order draft"}</h2>
-        <span className="pill">
-          {isConfirmed ? "Confirmed" : dirty ? "Unsaved edits" : "Draft"}
-        </span>
+        <StatusBadge
+          status={isConfirmed ? "confirmed" : dirty ? "Unsaved edits" : "draft"}
+        />
       </div>
       <p>
         Review every field against its source. You approve the order and every
@@ -323,8 +333,8 @@ export default function DraftEditor({
         <>
           {!enabled && (
             <p className="message">
-              Live extraction is disabled on this server. The shop owner can
-              enable the Meta models in server settings.
+              Screenshot extraction is unavailable right now. Choose New order,
+              then Manual draft to enter the details yourself.
             </p>
           )}
           <label>
@@ -613,7 +623,7 @@ export default function DraftEditor({
               <span>COD to collect</span>
               <strong>
                 {total !== null && total >= 0
-                  ? `৳${(total / 100).toFixed(2)}`
+                  ? money(total / 100)
                   : "Review amounts"}
               </strong>
             </div>

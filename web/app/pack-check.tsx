@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import { api, json } from "./api";
 import type { Order } from "./business-lists";
+import { EmptyState } from "./ui";
 
 type Verdict = "pass" | "fail" | "unsure";
 type BagVerdict = "match" | "mismatch" | "unsure";
@@ -255,6 +256,7 @@ export default function PackCheckPanel({
 
   async function refresh() {
     setChecks(await api<PackCheck[]>(endpoint));
+    setHistoryError("");
     await onChange();
   }
 
@@ -296,7 +298,7 @@ export default function PackCheckPanel({
         <>
           {historyError && (
             <p className="message error" role="alert">
-              {historyError}
+              {historyError} Choose Refresh checks to try again.
             </p>
           )}
           {canCheck ? (
@@ -444,13 +446,17 @@ export default function PackCheckPanel({
                   ))}
               </div>
             ))
-          ) : (
-            <p className="muted">
-              {checks
-                ? "No pack checks recorded for this order."
-                : "Loading check history…"}
+          ) : checks ? (
+            <EmptyState title="No pack checks yet">
+              {canCheck
+                ? "Choose a clear parcel photo above to compare its label and visible bag with this order."
+                : "Confirm the order before starting a pack check."}
+            </EmptyState>
+          ) : !historyError ? (
+            <p className="muted" role="status">
+              Loading check history…
             </p>
-          )}
+          ) : null}
         </>
       )}
     </section>
