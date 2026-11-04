@@ -2,6 +2,13 @@
   "schema_version": 1,
   "source_groups": [
     {
+      "source_id": "constructed-assistant-voice-001",
+      "kind": "conversation",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": ["constructed-assistant-voice-en"]
+    },
+    {
       "source_id": "constructed-conversation-001",
       "kind": "conversation",
       "split": "development",

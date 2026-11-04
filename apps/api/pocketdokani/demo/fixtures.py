@@ -156,7 +156,8 @@ def screenshots() -> list[Original]:
                     Path(__file__).with_name("assets")
                     / "constructed-final-price-bn.png"
                 ) as original:
-                    image.paste(original, (x + 20, y + 15), original)
+                    quote_image = original.convert("RGBA")
+                    image.paste(quote_image, (x + 20, y + 15), quote_image)
                 draw.text(
                     (x, y + 120),
                     "English gloss (guide, not source):",
