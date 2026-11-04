@@ -1,13 +1,14 @@
 :root {
-  --paper: #f5f7f6;
-  --surface: #ffffff;
-  --ink: #21312a;
-  --muted: #5b6962;
-  --green: #24654c;
-  --line: #dce3df;
+  --paper: oklch(0.973 0.004 165);
+  --surface: oklch(1 0 none);
+  --ink: oklch(0.295 0.022 162);
+  --muted: oklch(0.505 0.018 162);
+  --green: oklch(0.455 0.082 162);
+  --line: oklch(0.905 0.009 162);
   --soft: color-mix(in oklch, var(--green) 7%, var(--paper));
-  --danger: #a33930;
-  --accent: #ac812e;
+  --danger: oklch(0.495 0.145 27);
+  --accent: oklch(0.625 0.115 78);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --space: clamp(1rem, 0.75rem + 1vw, 1.75rem);
   --heading: clamp(2.1rem, 1.5rem + 2.5vw, 3.9rem);
   color-scheme: light;
@@ -18,6 +19,14 @@
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+}
+html {
+  scroll-padding-block-start: 5.5rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 .draft-editor {
   border-block-start: 1px solid var(--line);

@@ -40,6 +40,11 @@ The assistant selects tools through the live model; displayed counts come from s
 | `parcel-input.png` | 1000 × 820 | Constructed parcel input for the same order, with the phone obscured and two illustrated bags. |
 | `parcel-check.jpg` | 291 × 298 | Actual check returns unsure because the label fields could not be read; reshoot before proceeding. |
 | `bangla-answer.jpg` | 305 × 335 | A typed Bangla question returns three orders awaiting dispatch, with three supporting order chips. |
+| `workspace-overview.jpg` | 724 × 866 | Judge entry and sample shop view from the local browser review (`evals/evidence/judge-entry-2026-11-04.jpg`). |
+| `parcel-clean-dome.jpg` | 1199 × 800 | Generated parcel scene modeled after a real order (`#PD-SAMPLE-01`, `980/-`, brown monogram dome bag), with customer surname, phone digits and building details redacted for privacy. |
+| `parcel-swapped-error.jpg` | 1199 × 800 | Generated parcel failure scene on the same order (`#PD-SAMPLE-01`) with swapped `NAME`/`NUMBER` rows and wrong `890/-` COD amount, redacted for privacy. |
+| `parcel-prepaid-bag.jpg` | 1200 × 696 | Generated parcel scene modeled after a real prepaid order (`#PD-SAMPLE-03`, scratched phone correction, `0/-` COD, brown leather chain shoulder bag), redacted for privacy. |
+| `parcel-black-dome.jpg` | 1199 × 800 | Generated parcel scene modeled after a real variant order (`#PD-SAMPLE-04`, `970/-`, black monogram dome bag), redacted for privacy. |
 
 Keep the synthetic-input disclosure near reused images. Captions must describe the visible crop and its observed result. A parcel check establishes nothing about sealed contents. Keep the distinction between live AI analysis and the simulated judge courier. Add no invented testimonials, impact counts, accuracy percentages or video links.
 
