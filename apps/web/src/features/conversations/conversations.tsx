@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Icon } from "@/components/app-shell";
 import { useImageViewer } from "@/components/image-viewer";
 import { api } from "@/lib/api";
 import DraftEditor from "@/features/orders/draft-editor";
@@ -165,7 +166,7 @@ export default function Conversations({
         <section className="panel workspace-main">
           {active ? (
             <>
-              <div className="section-heading">
+              <div className="section-heading conversation-heading">
                 <div>
                   <p className="eyebrow">
                     {active.layout === "seller-draft-v1"
@@ -267,8 +268,11 @@ export default function Conversations({
               )}
             </>
           ) : judge ? (
-            <div className="empty-state">
-              <span className="step-number">01</span>
+            <div className="empty-state conversation-example">
+              <span className="step-number" aria-hidden="true">
+                01
+              </span>
+              <p className="eyebrow">SAMPLE CONVERSATION</p>
               <h2>A safe place to try it.</h2>
               <p>
                 Open two synthetic sales-chat screenshots. The seller speaks on
@@ -284,12 +288,14 @@ export default function Conversations({
             </div>
           ) : (
             <form className="import-form" onSubmit={importBatch}>
-              <div className="section-heading">
+              <div className="section-heading conversation-heading">
                 <div>
                   <p className="eyebrow">SCREENSHOT IMPORT</p>
                   <h2>Start an order from a chat.</h2>
                 </div>
-                <span className="step-number">01</span>
+                <span className="step-number" aria-hidden="true">
+                  01
+                </span>
               </div>
               <p>
                 Choose screenshots from one conversation, then put them in
@@ -297,7 +303,16 @@ export default function Conversations({
               </p>
               <label className="upload-box">
                 <span className="upload-icon" aria-hidden="true">
-                  ↥
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 16V3m-5 5 5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5" />
+                  </svg>
                 </span>
                 <strong>Choose screenshots</strong>
                 <span>
@@ -437,8 +452,15 @@ export default function Conversations({
         </section>
         <aside className="workspace-aside stack">
           <section className="panel compact">
-            <p className="eyebrow">YOUR TRAIL</p>
-            <h2>Conversations</h2>
+            <header className="conversation-list-heading">
+              <div>
+                <p className="eyebrow">YOUR TRAIL</p>
+                <h2>Saved conversations</h2>
+              </div>
+              <span className="conversation-list-icon">
+                <Icon name="conversations" />
+              </span>
+            </header>
             {workspaces.length ? (
               <ul className="workspace-list">
                 {workspaces.map((item) => (
@@ -455,6 +477,7 @@ export default function Conversations({
                           timeZone: "Asia/Dhaka",
                         })}
                       </span>
+                      <Icon name="arrow" />
                     </button>
                   </li>
                 ))}
@@ -466,7 +489,7 @@ export default function Conversations({
             )}
           </section>
           <p className="aside-note">
-            ↳ Every original stays linked to its conversation. A screenshot of a
+            Every original stays linked to its conversation. A screenshot of a
             voice note does not provide its audio.
           </p>
         </aside>

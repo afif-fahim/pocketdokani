@@ -394,7 +394,10 @@ export default function PackCheckPanel({
           {canCheck ? (
             <>
               {base === "/api/judge" && (
-                <section className="stack" aria-label="Example parcel images">
+                <section
+                  className="pack-examples stack"
+                  aria-label="Example parcel images"
+                >
                   <h3>Need a parcel photo to try?</h3>
                   <p>
                     Download a generated label and bag image for this order,

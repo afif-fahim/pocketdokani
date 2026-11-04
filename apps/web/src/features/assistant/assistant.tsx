@@ -7,6 +7,7 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import { Icon } from "@/components/app-shell";
 import { api, ApiOutcomeUnknownError, json } from "@/lib/api";
 import type { CourierBooking } from "@/features/orders/courier-booking";
 import StatusChangeWarning from "@/features/orders/status-change-warning";
@@ -410,15 +411,18 @@ export default function Assistant({
   }
 
   return (
-    <section
-      className="panel assistant stack"
-      aria-labelledby="assistant-heading"
-    >
-      <div className="assistant-welcome stack">
-        <h2 id="assistant-heading">Ask your shop</h2>
+    <section className="assistant stack" aria-labelledby="assistant-heading">
+      <div className="assistant-welcome">
+        <span className="assistant-mark">
+          <Icon name="assistant" />
+        </span>
+        <div>
+          <p className="eyebrow">BANGLA VOICE &amp; CHAT</p>
+          <h2 id="assistant-heading">Ask your shop</h2>
+        </div>
         <p>
-          <span lang="bn">বাংলায় বলুন বা লিখুন.</span> You approve every
-          change.
+          <span lang="bn">বাংলায় বলুন বা লিখুন।</span> Answers link back to
+          your shop records. You approve every change.
         </p>
       </div>
       {modelsEnabled === false && (
@@ -430,44 +434,52 @@ export default function Assistant({
       )}
       {capabilityError && <p className="message">{capabilityError}</p>}
       <form className="stack assistant-compose" onSubmit={ask}>
-        <div className="mic-controls button-row">
-          <button
-            type="button"
-            className="primary mic-button"
-            disabled={
-              busy ||
-              modelsEnabled === false ||
-              (permissionPending && !starting)
-            }
-            aria-pressed={recording || starting}
-            aria-describedby="mic-help"
-            onClick={() => {
-              if (recording || starting) stopRecording();
-              else void startRecording();
-            }}
-          >
-            <span aria-hidden="true">{recording ? "■" : "◉"}</span>{" "}
-            {recording
-              ? "Stop & review · থামুন"
-              : starting
-                ? "Cancel microphone"
-                : "Talk in Bangla · কথা বলুন"}
-          </button>
-          {recording && (
-            <span role="status">Recording… Tap Stop when done.</span>
-          )}
-          {starting && (
-            <span role="status">Allow microphone access to begin.</span>
-          )}
-          {permissionPending && !starting && (
-            <span role="status">
-              Type below while you dismiss the browser’s microphone prompt.
-            </span>
-          )}
+        <div className="assistant-voice">
+          <div className="mic-controls">
+            <button
+              type="button"
+              className="mic-button"
+              disabled={
+                busy ||
+                modelsEnabled === false ||
+                (permissionPending && !starting)
+              }
+              aria-pressed={recording || starting}
+              aria-describedby="mic-help"
+              onClick={() => {
+                if (recording || starting) stopRecording();
+                else void startRecording();
+              }}
+            >
+              {recording ? (
+                <span aria-hidden="true">■</span>
+              ) : (
+                <Icon name="assistant" />
+              )}
+              <span>
+                {recording
+                  ? "Stop & review · থামুন"
+                  : starting
+                    ? "Cancel microphone"
+                    : "Talk in Bangla · কথা বলুন"}
+              </span>
+            </button>
+            {recording && (
+              <span role="status">Recording… Tap Stop when done.</span>
+            )}
+            {starting && (
+              <span role="status">Allow microphone access to begin.</span>
+            )}
+            {permissionPending && !starting && (
+              <span role="status">
+                Type below while you dismiss the browser’s microphone prompt.
+              </span>
+            )}
+          </div>
+          <p id="mic-help" className="muted">
+            Record up to two minutes, then stop and review. Or type below.
+          </p>
         </div>
-        <p id="mic-help" className="muted">
-          Record up to two minutes, then stop and review. Or type below.
-        </p>
         {voiceError && (
           <p role="alert" className="error message">
             {voiceError}
@@ -490,63 +502,70 @@ export default function Assistant({
             </button>
           </div>
         )}
-        <label>
-          Your question · আপনার প্রশ্ন
-          <textarea
-            ref={questionRef}
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            maxLength={4000}
-            required
-            disabled={busy || recording || starting}
-            placeholder="Ask in Bangla, Banglish or English…"
-            aria-describedby="question-help"
-          />
-        </label>
-        <p id="question-help" className="fine-print">
-          {transcriptReady
-            ? "Transcript ready. Check names and amounts, then send when you’re ready."
-            : "Review before sending. Starter questions fill this box."}
-        </p>
+        <div className="assistant-field">
+          <label>
+            Your question · আপনার প্রশ্ন
+            <textarea
+              ref={questionRef}
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              maxLength={4000}
+              required
+              disabled={busy || recording || starting}
+              placeholder="Ask in Bangla, Banglish or English…"
+              aria-describedby="question-help"
+            />
+          </label>
+          <p id="question-help" className="fine-print">
+            {transcriptReady
+              ? "Transcript ready. Check names and amounts, then send when you’re ready."
+              : "Review before sending. Starter questions fill this box."}
+          </p>
+        </div>
         {transcriptReady && (
           <p role="status" className="transcript-ready success">
             Voice transcribed. Review your question above.
           </p>
         )}
-        <label>
-          Answer language
-          <select
-            value={answerLanguage}
-            onChange={(event) =>
-              setAnswerLanguage(event.target.value as AnswerLanguage)
+        <div className="assistant-options">
+          <div className="assistant-field assistant-language">
+            <label>
+              Answer language
+              <select
+                value={answerLanguage}
+                onChange={(event) =>
+                  setAnswerLanguage(event.target.value as AnswerLanguage)
+                }
+                disabled={busy}
+                aria-describedby="answer-language-help"
+              >
+                <option value="en">English</option>
+                <option value="bn" lang="bn">
+                  বাংলা
+                </option>
+                <option value="auto">Automatic</option>
+              </select>
+            </label>
+            <p id="answer-language-help" className="fine-print">
+              Speak or type in any language. Automatic uses Bangla when the
+              question contains Bangla script and English otherwise. Source
+              quotes stay in their original language.
+            </p>
+          </div>
+          <button
+            className="primary assistant-submit"
+            disabled={
+              busy ||
+              modelsEnabled === false ||
+              recording ||
+              starting ||
+              !question.trim()
             }
-            disabled={busy}
-            aria-describedby="answer-language-help"
           >
-            <option value="en">English</option>
-            <option value="bn" lang="bn">
-              বাংলা
-            </option>
-            <option value="auto">Automatic</option>
-          </select>
-        </label>
-        <p id="answer-language-help" className="fine-print">
-          Speak or type in any language. Automatic uses Bangla when the question
-          contains Bangla script; otherwise English. Source quotes stay in their
-          original language.
-        </p>
-        <button
-          className="primary"
-          disabled={
-            busy ||
-            modelsEnabled === false ||
-            recording ||
-            starting ||
-            !question.trim()
-          }
-        >
-          {working ? "Working…" : "Ask assistant · জিজ্ঞেস করুন"}
-        </button>
+            <span>{working ? "Working…" : "Ask assistant · জিজ্ঞেস করুন"}</span>
+            <Icon name="arrow" />
+          </button>
+        </div>
         {working && (
           <p role="status">
             {working} Live processing can take several minutes. Your question
@@ -554,35 +573,49 @@ export default function Assistant({
           </p>
         )}
       </form>
-      <div className="assistant-starters" aria-label="Starter questions">
-        {starterQuestions.map((starter) => (
-          <div
-            className="starter-card stack"
-            key={starter.label}
-            role="group"
-            aria-label={starter.label}
-          >
-            <h3>{starter.label}</h3>
-            {(["english", "bangla"] as const).map((language) => (
-              <button
-                type="button"
-                className="starter-question"
-                key={language}
-                lang={language === "bangla" ? "bn" : "en"}
-                disabled={busy || recording || starting}
-                onClick={() => {
-                  setQuestion(starter[language]);
-                  setTranscriptReady(false);
-                  questionRef.current?.focus();
-                }}
-              >
-                <strong>{language === "bangla" ? "বাংলা" : "English"} ↗</strong>
-                <span>{starter[language]}</span>
-              </button>
-            ))}
-          </div>
-        ))}
-      </div>
+      <section className="assistant-prompts" aria-labelledby="starter-heading">
+        <div className="assistant-prompts-heading">
+          <h3 id="starter-heading">Starter questions</h3>
+          <p className="muted">Pick a prompt to fill the question box.</p>
+        </div>
+        <div className="assistant-starters">
+          {starterQuestions.map((starter, index) => (
+            <div
+              className="starter-card stack"
+              key={starter.label}
+              role="group"
+              aria-label={starter.label}
+            >
+              <h4>
+                <span aria-hidden="true">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                {starter.label}
+              </h4>
+              {(["english", "bangla"] as const).map((language) => (
+                <button
+                  type="button"
+                  className="starter-question"
+                  key={language}
+                  lang={language === "bangla" ? "bn" : "en"}
+                  disabled={busy || recording || starting}
+                  onClick={() => {
+                    setQuestion(starter[language]);
+                    setTranscriptReady(false);
+                    questionRef.current?.focus();
+                  }}
+                >
+                  <strong>
+                    {language === "bangla" ? "বাংলা" : "English"}
+                    <Icon name="arrow" />
+                  </strong>
+                  <span>{starter[language]}</span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
       {!turns.length && !working && (
         <p className="assistant-empty muted">
           Your answers and links to the source records will appear here. Courier
@@ -592,10 +625,16 @@ export default function Assistant({
       <ol className="assistant-turns" aria-live="polite">
         {turns.map((turn) => (
           <li className="stack assistant-turn" key={turn.id}>
-            <h3>{turn.question}</h3>
-            <p className="assistant-answer" lang={turn.answer_language}>
-              {turn.answer}
-            </p>
+            <header className="assistant-question">
+              <p className="eyebrow">YOUR QUESTION</p>
+              <h3>{turn.question}</h3>
+            </header>
+            <div className="assistant-reply">
+              <p className="eyebrow">ANSWER</p>
+              <p className="assistant-answer" lang={turn.answer_language}>
+                {turn.answer}
+              </p>
+            </div>
             {turn.incomplete && (
               <p className="muted">
                 The request stopped early. Only completed record lookups are
@@ -603,7 +642,8 @@ export default function Assistant({
               </p>
             )}
             {turn.facts.map((fact) => (
-              <div className="stack" key={fact.id}>
+              <div className="assistant-fact stack" key={fact.id}>
+                <p className="eyebrow">SHOP RECORDS</p>
                 {fact.period && (
                   <p className="muted">
                     Period: {fact.period.replaceAll("_", " ")}
@@ -635,6 +675,7 @@ export default function Assistant({
               const key = `${turn.id}-${index}`;
               return (
                 <article className="proposal-card stack" key={key}>
+                  <p className="eyebrow">REVIEW PROPOSAL</p>
                   <h3>{proposal.label}</h3>
                   {proposal.kind === "status" && (
                     <>

@@ -393,49 +393,61 @@ export default function BusinessLists({
             : "View order";
     return (
       <li key={order.id}>
-        <article className="order-card" id={`order-${order.id}`}>
-          <div className="order-overview stack">
-            <div className="section-heading">
-              <strong className="reference">{order.reference}</strong>
-              <StatusBadge status={order.status} />
+        <article
+          className="order-card"
+          id={`order-${order.id}`}
+          data-open={expanded || undefined}
+        >
+          <div className="order-overview">
+            <div className="order-identity">
+              <div className="button-row">
+                <strong className="order-reference">{order.reference}</strong>
+                <StatusBadge status={order.status} />
+              </div>
+              <h3>{order.customer_name || "Name not recorded"}</h3>
+              <p className="order-product-summary">
+                {order.lines
+                  .map(
+                    (line) =>
+                      `${line.quantity} × ${line.product_name} · ${line.variant}`,
+                  )
+                  .join("; ") || "Items need review"}
+              </p>
             </div>
-            <h3>{order.customer_name || "Name not recorded"}</h3>
-            <p className="order-product-summary">
-              {order.lines
-                .map(
-                  (line) =>
-                    `${line.quantity} × ${line.product_name} · ${line.variant}`,
-                )
-                .join("; ") || "Items need review"}
-            </p>
-            <div className="section-heading">
-              <span>
-                {order.status === "draft" && order.source_workspace_id
-                  ? "Last confirmed COD"
-                  : "COD"}{" "}
-                <strong>{money(order.cod_amount)}</strong>
-              </span>
-              <small className="muted">{date(order.created_at)}</small>
-            </div>
-            <div className="order-next-action button-row">
-              <button
-                className="primary"
-                disabled={busy}
-                aria-expanded={expanded}
-                aria-controls={expanded ? `task-${order.reference}` : undefined}
-                onClick={() => openOrder(order)}
-              >
-                {next} <span aria-hidden="true">→</span>
-              </button>
-              {order.pack_check && (
-                <span
-                  className={`pack-verdict pack-${order.pack_check.verdict}`}
+            <div className="order-card-actions">
+              <div className="order-card-meta">
+                <div className="order-cod">
+                  <span className="eyebrow">
+                    {order.status === "draft" && order.source_workspace_id
+                      ? "Last confirmed COD"
+                      : "COD amount"}
+                  </span>
+                  <strong>{money(order.cod_amount)}</strong>
+                </div>
+                <small className="muted">{date(order.created_at)}</small>
+              </div>
+              <div className="order-next-action button-row">
+                <button
+                  className="primary"
+                  disabled={busy}
+                  aria-expanded={expanded}
+                  aria-controls={
+                    expanded ? `task-${order.reference}` : undefined
+                  }
+                  onClick={() => openOrder(order)}
                 >
-                  {order.pack_check.override_by
-                    ? "Seller override · unsure"
-                    : `Pack ${order.pack_check.verdict}`}
-                </span>
-              )}
+                  {next} <span aria-hidden="true">→</span>
+                </button>
+                {order.pack_check && (
+                  <span
+                    className={`pack-verdict pack-${order.pack_check.verdict}`}
+                  >
+                    {order.pack_check.override_by
+                      ? "Seller override · unsure"
+                      : `Pack ${order.pack_check.verdict}`}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           {expanded && (
@@ -537,12 +549,14 @@ export default function BusinessLists({
         aria-labelledby="stock-heading"
       >
         <div className="section-heading">
-          <h2 id="stock-heading">Products &amp; variants</h2>
+          <div>
+            <h2 id="stock-heading">Products &amp; variants</h2>
+            <p className="muted">
+              Only received lots with stock are available to sell.
+            </p>
+          </div>
           <span className="pill">{stock.length} variants</span>
         </div>
-        <p className="muted">
-          Only received lots with stock are available to sell.
-        </p>
         {stock.length ? (
           <ul className="stock-grid">
             {stock.map((sku) => (
@@ -555,19 +569,25 @@ export default function BusinessLists({
                     loading="lazy"
                   />
                 ) : (
-                  <p className="muted">Photo not recorded</p>
+                  <p className="product-photo stock-photo-placeholder">
+                    Photo not recorded
+                  </p>
                 )}
-                <h3>{sku.product_name}</h3>
-                <p>{sku.variant}</p>
-                <span
-                  className={`pill ${sku.available_qty > 0 ? "eligible" : "ineligible"}`}
-                >
-                  {!sku.lot_received
-                    ? "In transit · unavailable"
-                    : sku.stock_qty === 0
-                      ? "Out of stock"
-                      : `${sku.available_qty} available`}
-                </span>
+                <div className="stock-card-heading">
+                  <div>
+                    <h3>{sku.product_name}</h3>
+                    <p className="muted">{sku.variant}</p>
+                  </div>
+                  <span
+                    className={`pill ${sku.available_qty > 0 ? "eligible" : "ineligible"}`}
+                  >
+                    {!sku.lot_received
+                      ? "In transit · unavailable"
+                      : sku.stock_qty === 0
+                        ? "Out of stock"
+                        : `${sku.available_qty} available`}
+                  </span>
+                </div>
                 <dl className="record-amounts">
                   <div>
                     <dt>Remaining quantity</dt>
@@ -618,6 +638,7 @@ export default function BusinessLists({
       )}
       {historyOrders.length > 0 && (
         <details
+          className="order-disclosure"
           open={historyOrders.some((order) => order.reference === selected)}
         >
           <summary>
@@ -626,7 +647,7 @@ export default function BusinessLists({
           <ul className="order-list">{historyOrders.map(renderOrder)}</ul>
         </details>
       )}
-      <details>
+      <details className="order-disclosure">
         <summary>Payouts · {payouts.length} recorded</summary>
         {payouts.length === 0 && (
           <p className="muted">
