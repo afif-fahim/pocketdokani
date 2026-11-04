@@ -3,26 +3,18 @@
 import { useSyncExternalStore } from "react";
 import { themeStorageKey } from "@/lib/theme";
 
-const darkPreference = "(prefers-color-scheme: dark)";
-
 function subscribe(onChange: () => void) {
-  const preference = window.matchMedia(darkPreference);
   const observer = new MutationObserver(onChange);
   observer.observe(document.documentElement, {
     attributeFilter: ["data-theme"],
   });
-  preference.addEventListener("change", onChange);
   return () => {
     observer.disconnect();
-    preference.removeEventListener("change", onChange);
   };
 }
 
 function isDark() {
-  const theme = document.documentElement.dataset.theme;
-  return (
-    theme === "dark" || (!theme && window.matchMedia(darkPreference).matches)
-  );
+  return document.documentElement.dataset.theme === "dark";
 }
 
 export function ThemeSwitch() {

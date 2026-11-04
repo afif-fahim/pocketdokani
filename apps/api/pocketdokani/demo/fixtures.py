@@ -251,8 +251,14 @@ DEMO_PRODUCTS = [
 ]
 
 
+PIL_BROWN_READS_AS_RED = {"brown": "#6b4226"}
+
+
 def _product_colour(product_id: str) -> str:
-    return next(colour.lower() for key, _, colour in DEMO_PRODUCTS if key == product_id)
+    colour = next(
+        colour.lower() for key, _, colour in DEMO_PRODUCTS if key == product_id
+    )
+    return PIL_BROWN_READS_AS_RED.get(colour, colour)
 
 
 def product_photo(product_id: str) -> bytes:

@@ -12,6 +12,7 @@ import { api, ApiOutcomeUnknownError, json } from "@/lib/api";
 import type { CourierBooking } from "@/features/orders/courier-booking";
 import StatusChangeWarning from "@/features/orders/status-change-warning";
 import { money } from "@/lib/format";
+import { Stamp } from "@/components/khata";
 
 type RecordChip = {
   key: string;
@@ -97,6 +98,28 @@ const starterQuestions = [
   },
 ];
 
+const confirmedPrefixes = [
+  "Confirmed",
+  "Draft created",
+  "Fake booking confirmed",
+  "Steadfast booking confirmed",
+];
+function AiValue({
+  value,
+  fallback,
+}: {
+  value: string | null | undefined;
+  fallback: string;
+}) {
+  return value && value !== "Not recorded" ? (
+    <span className="ai-mark">{value}</span>
+  ) : (
+    <span className="absent">{fallback}</span>
+  );
+}
+const isConfirmed = (decision: string) =>
+  confirmedPrefixes.some((prefix) => decision.startsWith(prefix));
+
 export default function Assistant({
   base,
   busy,
@@ -140,6 +163,8 @@ export default function Assistant({
   const startingRef = useRef(false);
   const deciding = useRef(new Set<string>());
   const activeRef = useRef(active);
+  const turnListRef = useRef<HTMLOListElement>(null);
+  const seenTurns = useRef(0);
 
   useEffect(() => {
     let stopped = false;
@@ -182,12 +207,27 @@ export default function Assistant({
   }, [active, stopRecording]);
 
   useEffect(() => {
+    const grew = turns.length > seenTurns.current;
+    seenTurns.current = turns.length;
+    if (!grew || !active) return;
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    turnListRef.current?.lastElementChild?.scrollIntoView({
+      block: "start",
+      behavior: reduced ? "auto" : "smooth",
+    });
+  }, [turns.length, active]);
+
+  useEffect(() => {
     if (transcriptReady && !busy && active) questionRef.current?.focus();
   }, [transcriptReady, busy, active]);
 
   async function transcribeAudio(audio: Blob) {
     await act(async () => {
-      setWorking("Transcribing… / কথা লেখা হচ্ছে…");
+      setWorking(
+        "Muse Voice Transcribe is writing down your words… / কথা লেখা হচ্ছে…",
+      );
       try {
         const form = new FormData();
         form.set("audio", audio, "question");
@@ -310,7 +350,9 @@ export default function Assistant({
     event.preventDefault();
     if (busy || !question.trim() || recording || starting) return;
     await act(async () => {
-      setWorking("Checking your records… / রেকর্ড দেখা হচ্ছে…");
+      setWorking(
+        "Muse Spark is looking through your shop records… / রেকর্ড দেখা হচ্ছে…",
+      );
       try {
         const turn = await api<Turn>(
           `${base}/assistant/turns`,
@@ -410,21 +452,20 @@ export default function Assistant({
     }
   }
 
+  const micState = recording ? "recording" : starting ? "starting" : "idle";
   return (
-    <section className="assistant stack" aria-labelledby="assistant-heading">
-      <div className="assistant-welcome">
-        <span className="assistant-mark">
-          <Icon name="assistant" />
-        </span>
-        <div>
-          <p className="eyebrow">BANGLA VOICE &amp; CHAT</p>
-          <h2 id="assistant-heading">Ask your shop</h2>
-        </div>
+    <section
+      className="assistant"
+      aria-labelledby="assistant-heading"
+      data-has-turns={turns.length > 0}
+    >
+      <header className="assistant-head">
+        <h2 id="assistant-heading">Ask your shop</h2>
         <p>
           <span lang="bn">বাংলায় বলুন বা লিখুন।</span> Answers link back to
           your shop records. You approve every change.
         </p>
-      </div>
+      </header>
       {modelsEnabled === false && (
         <p className="message" role="status">
           Live assistant and voice transcription are unavailable because models
@@ -433,12 +474,13 @@ export default function Assistant({
         </p>
       )}
       {capabilityError && <p className="message">{capabilityError}</p>}
-      <form className="stack assistant-compose" onSubmit={ask}>
-        <div className="assistant-voice">
-          <div className="mic-controls">
+      <div className="assistant-layout">
+        <form className="assistant-compose" onSubmit={ask}>
+          <div className="assistant-voice">
             <button
               type="button"
               className="mic-button"
+              data-state={micState}
               disabled={
                 busy ||
                 modelsEnabled === false ||
@@ -451,12 +493,14 @@ export default function Assistant({
                 else void startRecording();
               }}
             >
-              {recording ? (
-                <span aria-hidden="true">■</span>
-              ) : (
-                <Icon name="assistant" />
-              )}
-              <span>
+              <span className="mic-disc" aria-hidden="true">
+                {recording ? (
+                  <span className="mic-stop" />
+                ) : (
+                  <Icon name="assistant" />
+                )}
+              </span>
+              <span className="mic-label">
                 {recording
                   ? "Stop & review · থামুন"
                   : starting
@@ -464,336 +508,431 @@ export default function Assistant({
                     : "Talk in Bangla · কথা বলুন"}
               </span>
             </button>
-            {recording && (
-              <span role="status">Recording… Tap Stop when done.</span>
-            )}
-            {starting && (
-              <span role="status">Allow microphone access to begin.</span>
-            )}
-            {permissionPending && !starting && (
-              <span role="status">
-                Type below while you dismiss the browser’s microphone prompt.
-              </span>
-            )}
-          </div>
-          <p id="mic-help" className="muted">
-            Record up to two minutes, then stop and review. Or type below.
-          </p>
-        </div>
-        {voiceError && (
-          <p role="alert" className="error message">
-            {voiceError}
-          </p>
-        )}
-        {audioToRetry && !working && (
-          <div className="message">
-            <p>
-              Your recording is kept in this tab. Retry transcription or type
-              your question below.
+            <div className="mic-status">
+              {recording && (
+                <span role="status">Recording… Tap Stop when done.</span>
+              )}
+              {starting && (
+                <span role="status">Allow microphone access to begin.</span>
+              )}
+              {permissionPending && !starting && (
+                <span role="status">
+                  Type below while you dismiss the browser’s microphone prompt.
+                </span>
+              )}
+            </div>
+            <p id="mic-help" className="muted">
+              Record up to two minutes, then stop and review. Or type below.
             </p>
+          </div>
+          {voiceError && (
+            <p role="alert" className="error message">
+              {voiceError}
+            </p>
+          )}
+          {audioToRetry && !working && (
+            <div className="message">
+              <p>
+                Your recording is kept in this tab. Retry transcription or type
+                your question below.
+              </p>
+              <button
+                type="button"
+                disabled={
+                  busy || recording || starting || modelsEnabled === false
+                }
+                onClick={() => void transcribeAudio(audioToRetry)}
+              >
+                Retry voice transcription
+              </button>
+            </div>
+          )}
+          <div className="assistant-field" data-transcribed={transcriptReady}>
+            <label>
+              Your question · আপনার প্রশ্ন
+              <textarea
+                ref={questionRef}
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+                maxLength={4000}
+                required
+                disabled={busy || recording || starting}
+                placeholder="Ask in Bangla, Banglish or English…"
+                aria-describedby="question-help"
+              />
+            </label>
+            <p id="question-help" className="fine-print">
+              {transcriptReady
+                ? "Transcript ready. Check names and amounts, then send when you’re ready."
+                : "Review before sending. Tapping a suggestion fills this box."}
+            </p>
+          </div>
+          {transcriptReady && (
+            <p role="status" className="transcript-ready">
+              <span className="ai-mark">
+                Transcribed by Muse Voice Transcribe
+              </span>{" "}
+              Review your question above.
+            </p>
+          )}
+          <div className="assistant-options">
+            <div className="assistant-field assistant-language">
+              <label>
+                Answer language
+                <select
+                  value={answerLanguage}
+                  onChange={(event) =>
+                    setAnswerLanguage(event.target.value as AnswerLanguage)
+                  }
+                  disabled={busy}
+                  aria-describedby="answer-language-help"
+                >
+                  <option value="en">English</option>
+                  <option value="bn" lang="bn">
+                    বাংলা
+                  </option>
+                  <option value="auto">Automatic</option>
+                </select>
+              </label>
+            </div>
             <button
-              type="button"
+              className="primary assistant-submit"
               disabled={
-                busy || recording || starting || modelsEnabled === false
+                busy ||
+                modelsEnabled === false ||
+                recording ||
+                starting ||
+                !question.trim()
               }
-              onClick={() => void transcribeAudio(audioToRetry)}
             >
-              Retry voice transcription
+              <span>
+                {working ? "Working…" : "Ask assistant · জিজ্ঞেস করুন"}
+              </span>
+              <Icon name="arrow" />
             </button>
           </div>
-        )}
-        <div className="assistant-field">
-          <label>
-            Your question · আপনার প্রশ্ন
-            <textarea
-              ref={questionRef}
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              maxLength={4000}
-              required
-              disabled={busy || recording || starting}
-              placeholder="Ask in Bangla, Banglish or English…"
-              aria-describedby="question-help"
-            />
-          </label>
-          <p id="question-help" className="fine-print">
-            {transcriptReady
-              ? "Transcript ready. Check names and amounts, then send when you’re ready."
-              : "Review before sending. Starter questions fill this box."}
+          <p id="answer-language-help" className="fine-print">
+            Speak or type in any language. Automatic uses Bangla when the
+            question contains Bangla script and English otherwise. Source quotes
+            stay in their original language.
           </p>
-        </div>
-        {transcriptReady && (
-          <p role="status" className="transcript-ready success">
-            Voice transcribed. Review your question above.
-          </p>
-        )}
-        <div className="assistant-options">
-          <div className="assistant-field assistant-language">
-            <label>
-              Answer language
-              <select
-                value={answerLanguage}
-                onChange={(event) =>
-                  setAnswerLanguage(event.target.value as AnswerLanguage)
-                }
-                disabled={busy}
-                aria-describedby="answer-language-help"
-              >
-                <option value="en">English</option>
-                <option value="bn" lang="bn">
-                  বাংলা
-                </option>
-                <option value="auto">Automatic</option>
-              </select>
-            </label>
-            <p id="answer-language-help" className="fine-print">
-              Speak or type in any language. Automatic uses Bangla when the
-              question contains Bangla script and English otherwise. Source
-              quotes stay in their original language.
+          {working && (
+            <p role="status" className="assistant-waiting">
+              {working} Live processing can take several minutes. Your question
+              stays here if it cannot finish.
             </p>
-          </div>
-          <button
-            className="primary assistant-submit"
-            disabled={
-              busy ||
-              modelsEnabled === false ||
-              recording ||
-              starting ||
-              !question.trim()
-            }
-          >
-            <span>{working ? "Working…" : "Ask assistant · জিজ্ঞেস করুন"}</span>
-            <Icon name="arrow" />
-          </button>
-        </div>
-        {working && (
-          <p role="status">
-            {working} Live processing can take several minutes. Your question
-            stays here if it cannot finish.
-          </p>
-        )}
-      </form>
-      <section className="assistant-prompts" aria-labelledby="starter-heading">
-        <div className="assistant-prompts-heading">
-          <h3 id="starter-heading">Starter questions</h3>
-          <p className="muted">Pick a prompt to fill the question box.</p>
-        </div>
-        <div className="assistant-starters">
-          {starterQuestions.map((starter, index) => (
-            <div
-              className="starter-card stack"
-              key={starter.label}
-              role="group"
-              aria-label={starter.label}
-            >
-              <h4>
-                <span aria-hidden="true">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                {starter.label}
-              </h4>
-              {(["english", "bangla"] as const).map((language) => (
-                <button
-                  type="button"
-                  className="starter-question"
-                  key={language}
-                  lang={language === "bangla" ? "bn" : "en"}
-                  disabled={busy || recording || starting}
-                  onClick={() => {
-                    setQuestion(starter[language]);
-                    setTranscriptReady(false);
-                    questionRef.current?.focus();
-                  }}
+          )}
+          <details className="assistant-prompts" open={!turns.length}>
+            <summary>Try asking</summary>
+            <div className="assistant-starters">
+              {starterQuestions.map((starter) => (
+                <div
+                  className="starter-group"
+                  key={starter.label}
+                  role="group"
+                  aria-label={starter.label}
                 >
-                  <strong>
-                    {language === "bangla" ? "বাংলা" : "English"}
-                    <Icon name="arrow" />
-                  </strong>
-                  <span>{starter[language]}</span>
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-      </section>
-      {!turns.length && !working && (
-        <p className="assistant-empty muted">
-          Your answers and links to the source records will appear here. Courier
-          fees and payout due are not available from the records.
-        </p>
-      )}
-      <ol className="assistant-turns" aria-live="polite">
-        {turns.map((turn) => (
-          <li className="stack assistant-turn" key={turn.id}>
-            <header className="assistant-question">
-              <p className="eyebrow">YOUR QUESTION</p>
-              <h3>{turn.question}</h3>
-            </header>
-            <div className="assistant-reply">
-              <p className="eyebrow">ANSWER</p>
-              <p className="assistant-answer" lang={turn.answer_language}>
-                {turn.answer}
-              </p>
-            </div>
-            {turn.incomplete && (
-              <p className="muted">
-                The request stopped early. Only completed record lookups are
-                shown; you can ask again.
-              </p>
-            )}
-            {turn.facts.map((fact) => (
-              <div className="assistant-fact stack" key={fact.id}>
-                <p className="eyebrow">SHOP RECORDS</p>
-                {fact.period && (
-                  <p className="muted">
-                    Period: {fact.period.replaceAll("_", " ")}
-                  </p>
-                )}
-                {fact.note && <p className="muted">{fact.note}</p>}
-                <dl className="record-amounts">
-                  {Object.entries(fact.metrics).map(([key, value]) => (
-                    <div key={key}>
-                      <dt>{metricLabels[key] || key}</dt>
-                      <dd>{key.endsWith("_bdt") ? money(value) : value}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <div className="button-row">
-                  {fact.records.map((record) => (
+                  {(["bangla", "english"] as const).map((language) => (
                     <button
                       type="button"
-                      key={`${record.kind}-${record.key}`}
-                      onClick={() => onRecord(record)}
+                      className="starter-question"
+                      key={language}
+                      lang={language === "bangla" ? "bn" : "en"}
+                      disabled={busy || recording || starting}
+                      onClick={() => {
+                        setQuestion(starter[language]);
+                        setTranscriptReady(false);
+                        questionRef.current?.focus();
+                      }}
                     >
-                      {record.label} ↗
+                      {starter[language]}
                     </button>
                   ))}
                 </div>
-              </div>
-            ))}
-            {turn.proposals.map((proposal, index) => {
-              const key = `${turn.id}-${index}`;
-              return (
-                <article className="proposal-card stack" key={key}>
-                  <p className="eyebrow">REVIEW PROPOSAL</p>
-                  <h3>{proposal.label}</h3>
-                  {proposal.kind === "status" && (
-                    <>
-                      <StatusChangeWarning
-                        previousStatus={proposal.expected_status}
-                        nextStatus={proposal.status}
-                      />
-                      <button
-                        disabled={busy}
-                        onClick={() =>
-                          onRecord({
-                            key: proposal.order_id,
-                            kind: "order",
-                            section: "orders",
-                            label: proposal.reference,
-                          })
-                        }
-                      >
-                        Open current order ↗
-                      </button>
-                    </>
-                  )}
-                  {proposal.kind === "order_draft" && (
-                    <>
-                      <p>
-                        {proposal.values.customer_name || "Name not specified"}{" "}
-                        · {proposal.values.phone || "Phone not specified"}
+              ))}
+            </div>
+          </details>
+        </form>
+        <div className="assistant-thread">
+          {!turns.length && !working && (
+            <p className="assistant-empty muted">
+              Your answers and links to the source records will appear here.
+              Courier fees and payout due are not available from the records.
+            </p>
+          )}
+          <ol className="assistant-turns" aria-live="polite" ref={turnListRef}>
+            {turns.map((turn) => (
+              <li className="assistant-turn" key={turn.id}>
+                <header className="assistant-question">
+                  <p className="muted">Your question</p>
+                  <h3>{turn.question}</h3>
+                </header>
+                <div className="assistant-reply">
+                  <p className="assistant-answer" lang={turn.answer_language}>
+                    {turn.answer}
+                  </p>
+                </div>
+                {turn.incomplete && (
+                  <p className="muted">
+                    The request stopped early. Only completed record lookups are
+                    shown; you can ask again.
+                  </p>
+                )}
+                {turn.facts.map((fact) => (
+                  <div className="assistant-fact" key={fact.id}>
+                    <h4>
+                      Shop records{" "}
+                      <span className="muted">
+                        · read from stored records, not written by the model
+                      </span>
+                    </h4>
+                    {fact.period && (
+                      <p className="muted">
+                        Period: {fact.period.replaceAll("_", " ")}
                       </p>
-                      <p>
-                        {proposal.values.address || "Address not specified"}
-                      </p>
-                      <ul>
-                        {proposal.values.lines.map((line, i) => (
-                          <li key={i}>
-                            {line.sku || "SKU to review"} · Qty{" "}
-                            {line.quantity ?? "?"} · {money(line.unit_price)} ·
-                            Discount {money(line.line_discount)}
-                          </li>
+                    )}
+                    {fact.note && <p className="muted">{fact.note}</p>}
+                    <dl className="ledger assistant-ledger">
+                      {Object.entries(fact.metrics).map(([key, value]) => (
+                        <div className="ledger-row" key={key}>
+                          <dt>{metricLabels[key] || key}</dt>
+                          <dd>{key.endsWith("_bdt") ? money(value) : value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    {fact.records.length > 0 && (
+                      <div className="ledger-tabs">
+                        {fact.records.map((record) => (
+                          <button
+                            type="button"
+                            key={`${record.kind}-${record.key}`}
+                            onClick={() => onRecord(record)}
+                          >
+                            {record.label} ↗
+                          </button>
                         ))}
-                      </ul>
-                      <p>
-                        Delivery ·{" "}
-                        {money(proposal.values.customer_delivery_charge)}.
-                        Creates a draft; review prices and recipient details
-                        before confirming the order.
-                      </p>
-                    </>
-                  )}
-                  {proposal.kind === "booking" && (
-                    <>
-                      <p className="pill">
-                        {proposal.courier_mode === "fake"
-                          ? "Fake · no parcel is sent"
-                          : "Live · books a real Steadfast parcel"}
-                      </p>
-                      <p>
-                        {proposal.reference} ·{" "}
-                        {proposal.customer_name || "Name not recorded"} ·{" "}
-                        {proposal.phone || "Phone not recorded"}
-                      </p>
-                      <p>{proposal.address || "Address not recorded"}</p>
-                      <p>
-                        COD · {money(proposal.cod_amount)}. Books from the
-                        packed order using {proposal.reference} as the courier
-                        invoice.
-                      </p>
-                      <button
-                        disabled={busy}
-                        onClick={() =>
-                          onRecord({
-                            key: proposal.order_id,
-                            kind: "order",
-                            section: "orders",
-                            label: proposal.reference,
-                          })
-                        }
-                      >
-                        Open order and booking ↗
-                      </button>
-                    </>
-                  )}
-                  {decisions[key] ? (
-                    <p role="status">{decisions[key]}</p>
-                  ) : (
-                    <div className="button-row">
-                      <button
-                        className="primary"
-                        disabled={busy}
-                        onClick={() => confirm(proposal, key)}
-                      >
-                        {proposal.kind === "order_draft"
-                          ? "Confirm draft creation"
-                          : proposal.kind === "booking"
-                            ? proposal.courier_mode === "fake"
-                              ? "Confirm fake booking"
-                              : "Confirm Steadfast booking"
-                            : "Confirm / নিশ্চিত করুন"}
-                      </button>
-                      <button
-                        disabled={busy}
-                        onClick={() =>
-                          setDecisions((items) => ({
-                            ...items,
-                            [key]:
-                              "Cancelled; nothing changed / কোনো পরিবর্তন হয়নি",
-                          }))
-                        }
-                      >
-                        Cancel / বাতিল
-                      </button>
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </li>
-        ))}
-      </ol>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {turn.proposals.map((proposal, index) => {
+                  const key = `${turn.id}-${index}`;
+                  return (
+                    <article className="proposal-card tag" key={key}>
+                      <h3>{proposal.label}</h3>
+                      {proposal.kind === "status" && (
+                        <>
+                          <StatusChangeWarning
+                            previousStatus={proposal.expected_status}
+                            nextStatus={proposal.status}
+                          />
+                          <dl className="ledger">
+                            <div className="ledger-row">
+                              <dt>Order</dt>
+                              <dd>{proposal.reference}</dd>
+                            </div>
+                            <div className="ledger-row">
+                              <dt>Status</dt>
+                              <dd>
+                                {proposal.expected_status} → {proposal.status}
+                              </dd>
+                            </div>
+                          </dl>
+                          <button
+                            disabled={busy}
+                            onClick={() =>
+                              onRecord({
+                                key: proposal.order_id,
+                                kind: "order",
+                                section: "orders",
+                                label: proposal.reference,
+                              })
+                            }
+                          >
+                            Open current order ↗
+                          </button>
+                        </>
+                      )}
+                      {proposal.kind === "order_draft" && (
+                        <>
+                          <dl className="ledger">
+                            <div className="ledger-row">
+                              <dt>Customer</dt>
+                              <dd>
+                                <AiValue
+                                  value={proposal.values.customer_name}
+                                  fallback="Name not specified"
+                                />
+                              </dd>
+                            </div>
+                            <div className="ledger-row">
+                              <dt>Phone</dt>
+                              <dd>
+                                <AiValue
+                                  value={proposal.values.phone}
+                                  fallback="Phone not specified"
+                                />
+                              </dd>
+                            </div>
+                            <div className="ledger-row">
+                              <dt>Address</dt>
+                              <dd>
+                                <AiValue
+                                  value={proposal.values.address}
+                                  fallback="Address not specified"
+                                />
+                              </dd>
+                            </div>
+                            {proposal.values.lines.map((line, i) => (
+                              <div className="ledger-row" key={i}>
+                                <dt>{line.sku || "SKU to review"}</dt>
+                                <dd className="line-values">
+                                  <AiValue
+                                    value={
+                                      line.quantity == null
+                                        ? null
+                                        : `Qty ${line.quantity}`
+                                    }
+                                    fallback="Qty ?"
+                                  />
+                                  <AiValue
+                                    value={money(line.unit_price)}
+                                    fallback="Price not recorded"
+                                  />
+                                  <AiValue
+                                    value={
+                                      money(line.line_discount) ===
+                                      "Not recorded"
+                                        ? null
+                                        : `Discount ${money(line.line_discount)}`
+                                    }
+                                    fallback="Discount not recorded"
+                                  />
+                                </dd>
+                              </div>
+                            ))}
+                            <div className="ledger-row">
+                              <dt>Delivery</dt>
+                              <dd>
+                                <AiValue
+                                  value={money(
+                                    proposal.values.customer_delivery_charge,
+                                  )}
+                                  fallback="Not recorded"
+                                />
+                              </dd>
+                            </div>
+                          </dl>
+                          <p className="fine-print">
+                            Creates a draft; review prices and recipient details
+                            before confirming the order.
+                          </p>
+                        </>
+                      )}
+                      {proposal.kind === "booking" && (
+                        <>
+                          <p className="pill">
+                            {proposal.courier_mode === "fake"
+                              ? "Fake · no parcel is sent"
+                              : "Live · books a real Steadfast parcel"}
+                          </p>
+                          <dl className="ledger">
+                            <div className="ledger-row">
+                              <dt>Order</dt>
+                              <dd>{proposal.reference}</dd>
+                            </div>
+                            <div className="ledger-row">
+                              <dt>Customer</dt>
+                              <dd>
+                                {proposal.customer_name || "Name not recorded"}
+                              </dd>
+                            </div>
+                            <div className="ledger-row">
+                              <dt>Phone</dt>
+                              <dd>{proposal.phone || "Phone not recorded"}</dd>
+                            </div>
+                            <div className="ledger-row">
+                              <dt>Address</dt>
+                              <dd>
+                                {proposal.address || "Address not recorded"}
+                              </dd>
+                            </div>
+                            <div className="ledger-total">
+                              <dt>COD</dt>
+                              <dd>{money(proposal.cod_amount)}</dd>
+                            </div>
+                          </dl>
+                          <p className="fine-print">
+                            Books from the packed order using{" "}
+                            {proposal.reference} as the courier invoice.
+                          </p>
+                          <button
+                            disabled={busy}
+                            onClick={() =>
+                              onRecord({
+                                key: proposal.order_id,
+                                kind: "order",
+                                section: "orders",
+                                label: proposal.reference,
+                              })
+                            }
+                          >
+                            Open order and booking ↗
+                          </button>
+                        </>
+                      )}
+                      <hr className="tag-tear" />
+                      {decisions[key] ? (
+                        <div role="status" className="decision">
+                          {isConfirmed(decisions[key]) ? (
+                            <Stamp tone="pass">{decisions[key]}</Stamp>
+                          ) : (
+                            <p>{decisions[key]}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="decision">
+                          <p className="decision-note">
+                            Nothing changes until you confirm.
+                          </p>
+                          <div className="button-row">
+                            <button
+                              className="primary"
+                              disabled={busy}
+                              onClick={() => confirm(proposal, key)}
+                            >
+                              {proposal.kind === "order_draft"
+                                ? "Confirm draft creation"
+                                : proposal.kind === "booking"
+                                  ? proposal.courier_mode === "fake"
+                                    ? "Confirm fake booking"
+                                    : "Confirm Steadfast booking"
+                                  : "Confirm / নিশ্চিত করুন"}
+                            </button>
+                            <button
+                              className="quiet"
+                              disabled={busy}
+                              onClick={() =>
+                                setDecisions((items) => ({
+                                  ...items,
+                                  [key]:
+                                    "Cancelled; nothing changed / কোনো পরিবর্তন হয়নি",
+                                }))
+                              }
+                            >
+                              Cancel / বাতিল
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
     </section>
   );
 }

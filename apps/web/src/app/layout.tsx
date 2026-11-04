@@ -1,7 +1,32 @@
 import type { Metadata, Viewport } from "next";
-import "@/app/globals.css";
-import "@/app/app-shell.css";
+import { Anek_Bangla, Hind_Siliguri, IBM_Plex_Mono } from "next/font/google";
+import "@/styles/tokens.css";
+import "@/styles/base.css";
+import "@/styles/landing.css";
+import "@/styles/shell.css";
+import "@/styles/orders.css";
+import "@/styles/draft.css";
+import "@/styles/pack.css";
+import "@/styles/assistant.css";
 import { themeStorageKey } from "@/lib/theme";
+
+const display = Anek_Bangla({
+  subsets: ["bengali", "latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+const body = Hind_Siliguri({
+  subsets: ["bengali", "latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-body",
+  display: "swap",
+});
+const ledger = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-ledger",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "PocketDokani · Your shop, from chat to courier",
@@ -12,20 +37,27 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#193d32",
-  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f2e7" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a1510" },
+  ],
+  colorScheme: "light",
 };
 
 const restoreTheme = `try {
   const theme = localStorage.getItem("${themeStorageKey}");
-  if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+  document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
 } catch {}`;
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${display.variable} ${body.variable} ${ledger.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: restoreTheme }} />
       </head>

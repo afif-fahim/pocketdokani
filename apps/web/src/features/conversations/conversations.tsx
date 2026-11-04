@@ -169,25 +169,24 @@ export default function Conversations({
   return (
     <>
       <div className="workspace-layout">
-        <section className="panel workspace-main">
+        <section className="workspace-main">
           {active ? (
             <>
-              <div className="section-heading conversation-heading">
-                <div>
-                  <p className="eyebrow">
-                    {active.layout === "seller-draft-v1"
-                      ? "ORDER DRAFT"
-                      : "SAVED CONVERSATION"}
-                  </p>
-                  <h2 className="reference">{active.reference}</h2>
-                </div>
-                <span className="pill">{active.sources.length} originals</span>
+              <div className="conversation-heading">
+                <h2 className="reference">{active.reference}</h2>
+                <span className="pill">
+                  {active.layout === "seller-draft-v1"
+                    ? "Order draft"
+                    : "Saved conversation"}{" "}
+                  · {active.sources.length} originals
+                </span>
               </div>
               <DraftEditor
                 key={active.id}
                 base={base}
                 workspaceId={active.id}
                 stock={stock}
+                sources={active.sources}
                 busy={busy}
                 act={act}
                 onSource={(sequence) => {
@@ -246,11 +245,12 @@ export default function Conversations({
                             />
                           </button>
                           <div className="source-details">
-                            <p className="eyebrow">
-                              SCREENSHOT{" "}
-                              {String(source.sequence).padStart(2, "0")}
-                            </p>
-                            <h3>{source.filename}</h3>
+                            <h3>
+                              <span className="source-no">
+                                {String(source.sequence).padStart(2, "0")}
+                              </span>{" "}
+                              {source.filename}
+                            </h3>
                             <p>
                               {source.width} × {source.height} ·{" "}
                               {bytes(source.size)}
@@ -275,10 +275,6 @@ export default function Conversations({
             </>
           ) : judge ? (
             <div className="empty-state conversation-example">
-              <span className="step-number" aria-hidden="true">
-                01
-              </span>
-              <p className="eyebrow">SAMPLE CONVERSATION</p>
               <h2>A safe place to try it.</h2>
               <p>
                 Open two synthetic sales-chat screenshots. The seller speaks on
@@ -294,21 +290,15 @@ export default function Conversations({
             </div>
           ) : (
             <form className="import-form" onSubmit={importBatch}>
-              <div className="section-heading conversation-heading">
-                <div>
-                  <p className="eyebrow">SCREENSHOT IMPORT</p>
-                  <h2>Start an order from a chat.</h2>
-                </div>
-                <span className="step-number" aria-hidden="true">
-                  01
-                </span>
+              <div className="conversation-heading">
+                <h2>Start an order from a chat.</h2>
               </div>
               <p>
                 Choose screenshots from one conversation, then put them in
                 reading order.
               </p>
-              <label className="upload-box">
-                <span className="upload-icon" aria-hidden="true">
+              <label className="drop-zone">
+                <span className="drop-icon" aria-hidden="true">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -321,10 +311,9 @@ export default function Conversations({
                   </svg>
                 </span>
                 <strong>Choose screenshots</strong>
-                <span>
-                  PNG, JPEG or WebP · 8 MiB each
-                  <br />
-                  Up to 12 files, 32 MiB per batch
+                <span className="drop-limit">
+                  PNG, JPEG or WebP · 8 MiB each · up to 12 files, 32 MiB per
+                  batch
                 </span>
                 <input
                   ref={fileRef}
@@ -457,15 +446,9 @@ export default function Conversations({
           )}
         </section>
         <aside className="workspace-aside stack">
-          <section className="panel compact">
+          <section className="workspace-history">
             <header className="conversation-list-heading">
-              <div>
-                <p className="eyebrow">YOUR TRAIL</p>
-                <h2>Saved conversations</h2>
-              </div>
-              <span className="conversation-list-icon">
-                <Icon name="conversations" />
-              </span>
+              <h2>Saved conversations</h2>
             </header>
             {workspaces.length ? (
               <ul className="workspace-list">
@@ -477,7 +460,7 @@ export default function Conversations({
                       onClick={() => onChoose(item)}
                     >
                       <strong>{item.reference}</strong>
-                      <span>
+                      <span className="workspace-meta">
                         {item.sources.length} screenshots ·{" "}
                         {new Date(item.created_at).toLocaleDateString("en-BD", {
                           timeZone: "Asia/Dhaka",

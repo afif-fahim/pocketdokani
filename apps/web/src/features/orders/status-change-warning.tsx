@@ -13,7 +13,7 @@ export default function StatusChangeWarning({
   }
 
   return (
-    <p className="message">
+    <p className="message warning">
       Confirm only after the parcel is back with you. Its items will return to
       available stock. This does not cancel a courier parcel.
     </p>

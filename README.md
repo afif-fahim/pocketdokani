@@ -30,7 +30,7 @@ These are captures of the working app after live Meta calls on **constructed loc
 
 | Inspect the agreed price | Catch a wrong COD before shipping | Ask in Bangla and inspect records |
 | --- | --- | --- |
-| ![Tote unit price BDT 450 linked to the original Bangla final-price quote](apps/web/public/product/order-quote.jpg) | ![Actual pack check: fail, with COD 1180 written against 1080 confirmed and the visible bag matched](apps/web/public/product/parcel-check.jpg) | ![Typed Bangla question returns three orders awaiting dispatch with three supporting order chips](apps/web/public/product/bangla-answer.jpg) |
+| ![Tote unit price BDT 450 linked to the original Bangla final-price quote](apps/web/public/product/order-quote.jpg) | ![Actual pack check: fail, with COD 1180 written against 1080 confirmed](apps/web/public/product/parcel-check.jpg) | ![Typed Bangla question returns three orders awaiting dispatch with three supporting order chips](apps/web/public/product/bangla-answer.jpg) |
 | The price retains its original screenshot quote. | Server code compares the blind reading with the order. | The count comes from the three cited orders. |
 
 ```mermaid

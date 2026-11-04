@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import BusinessLists from "@/features/orders/business-lists";
 import Assistant from "@/features/assistant/assistant";
-import AppShell, { Icon, WorkspaceIcon } from "@/components/app-shell";
+import AppShell, { Icon } from "@/components/app-shell";
 import { ImageViewerProvider } from "@/components/image-viewer";
 import Conversations from "@/features/conversations/conversations";
 import Welcome from "@/components/welcome";
@@ -109,27 +109,19 @@ function Workspace({ context }: { context: Context }) {
           {shop.notice}
         </div>
       )}
-      {shop.busy && (
-        <p className="working-status" role="status">
-          Working… Please wait for this step to finish.
-        </p>
-      )}
       {shop.judge && shop.section === "orders" && (
-        <section
-          className="judge-guide panel stack"
-          aria-labelledby="judge-guide-heading"
-        >
-          <div>
-            <p className="eyebrow">YOUR SAMPLE SHOP · SYNTHETIC DATA</p>
+        <section className="judge-guide" aria-labelledby="judge-guide-heading">
+          <div className="judge-guide-head">
             <h2 id="judge-guide-heading">
               Take one order from chat to courier.
             </h2>
-            <p>
-              Let AI read the example screenshots, review the draft and confirm
-              it. Then have AI check that parcel photo and book the fake
-              courier. Nothing is sent to a real customer.
-            </p>
+            <p className="judge-guide-note">Sample shop · synthetic data</p>
           </div>
+          <p className="judge-guide-copy">
+            Let AI read the example screenshots, review the draft and confirm
+            it. Then have AI check that parcel photo and book the fake courier.
+            Nothing is sent to a real customer.
+          </p>
           <ol className="judge-guide-steps" aria-label="Sample walkthrough">
             <li>
               <span aria-hidden="true">01</span> Review order
@@ -167,18 +159,12 @@ function Workspace({ context }: { context: Context }) {
       )}
       {!shop.judge && shop.section === "orders" && (
         <div className="assistant-shortcut">
-          <div>
-            <WorkspaceIcon name="assistant" />
-            <div>
-              <strong>Ask your shop</strong>
-              <p lang="bn">অর্ডার, স্টক বা বিক্রির খবর জানতে চান?</p>
-            </div>
-          </div>
+          <p lang="bn">অর্ডার, স্টক বা বিক্রির খবর জানতে চান?</p>
           <button
             disabled={shop.busy}
             onClick={() => moveToTask(() => shop.navigate("assistant"))}
           >
-            Open Assistant <span aria-hidden="true">↗</span>
+            Ask your shop · Open Assistant <span aria-hidden="true">↗</span>
           </button>
         </div>
       )}
@@ -318,7 +304,7 @@ function Workspace({ context }: { context: Context }) {
               })
             }
           >
-            <WorkspaceIcon name="conversations" />
+            <Icon name="conversations" />
             <span className="order-choice-copy">
               {shop.judge ? "Sample screenshots" : "Screenshot import"}
               <small>
@@ -333,7 +319,7 @@ function Workspace({ context }: { context: Context }) {
             disabled={shop.busy}
             onClick={() => startOrder(() => void shop.createDraft())}
           >
-            <WorkspaceIcon name="orders" />
+            <Icon name="orders" />
             <span className="order-choice-copy">
               Manual draft
               <small>Add the customer, items and agreed prices.</small>

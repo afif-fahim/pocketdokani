@@ -9,6 +9,8 @@ import { api, ApiOutcomeUnknownError, json } from "@/lib/api";
 import type { StockItem } from "@/features/orders/business-lists";
 import { money } from "@/lib/format";
 import { StatusBadge } from "@/components/ui";
+import { Scan, Stamp } from "@/components/khata";
+import type { Source } from "@/features/workspace/workspace-types";
 import OrderProgress from "@/features/orders/order-progress";
 import {
   pendingActionKey,
@@ -102,6 +104,7 @@ export default function DraftEditor({
   base,
   workspaceId,
   stock,
+  sources = [],
   busy,
   act,
   onSource,
@@ -112,6 +115,7 @@ export default function DraftEditor({
   base: string;
   workspaceId: string;
   stock: StockItem[];
+  sources?: Source[];
   busy: boolean;
   act: (action: () => Promise<void>) => Promise<void>;
   onSource: (sequence: number) => void;
@@ -227,32 +231,39 @@ export default function DraftEditor({
   function source(field?: Evidence): ReactNode {
     if (!field) return <small>Seller entry</small>;
     const note = notes.find((item) => item.id === field.voice_note_id);
+    const link = field.screenshot_index ? (
+      <button
+        type="button"
+        className="source-link"
+        onClick={() => onSource(field.screenshot_index!)}
+      >
+        Screenshot {field.screenshot_index} ↗
+      </button>
+    ) : note ? (
+      <button
+        type="button"
+        className="source-link"
+        onClick={() => {
+          setVoiceSource(note);
+          voiceDialog.current?.showModal();
+        }}
+      >
+        Voice note ↗
+      </button>
+    ) : (
+      <small>Source needs review</small>
+    );
     return (
       <div className="field-source">
-        {field.edited && <small>Seller edited · </small>}
-        {field.screenshot_index ? (
-          <button
-            type="button"
-            className="source-chip"
-            onClick={() => onSource(field.screenshot_index!)}
-          >
-            Screenshot {field.screenshot_index} ↗
-          </button>
-        ) : note ? (
-          <button
-            type="button"
-            className="source-chip"
-            onClick={() => {
-              setVoiceSource(note);
-              voiceDialog.current?.showModal();
-            }}
-          >
-            Voice note ↗
-          </button>
+        {field.edited && <small>Seller edited</small>}
+        {field.quote ? (
+          <p className="quote">
+            <q>{field.quote}</q>
+            {link}
+          </p>
         ) : (
-          <small>Source needs review</small>
+          link
         )}
-        {field.quote && <q>{field.quote}</q>}
         {field.issue && (
           <small className="unresolved-field">
             Needs review: {field.issue}
@@ -262,8 +273,20 @@ export default function DraftEditor({
     );
   }
 
+  function fieldState(field: Evidence | undefined, current: string) {
+    const original = field?.value || "";
+    const readByAi = Boolean(
+      original && !field?.edited && current === original,
+    );
+    return {
+      "data-voice": readByAi ? "ai" : undefined,
+      "data-flag": field?.issue ? "issue" : undefined,
+    };
+  }
+
   const used = new Map<string, number>();
   let total: number | null = 0;
+  let subtotal: number | null = 0;
   const validPhone = Boolean(
     values &&
     (/^01[3-9]\d{8}$/.test(normalize(values.phone)) ||
@@ -293,8 +316,12 @@ export default function DraftEditor({
       discount > quantity * price
     ) {
       total = null;
+      subtotal = null;
       valid = false;
-    } else if (total !== null) total += quantity * price - discount;
+    } else if (total !== null) {
+      total += quantity * price - discount;
+      if (subtotal !== null) subtotal += quantity * price - discount;
+    }
     if (!item?.lot_received || (used.get(line.sku) || 0) > item.available_qty)
       valid = false;
   }
@@ -310,6 +337,7 @@ export default function DraftEditor({
       total = null;
     }
   }
+  const reading = busy && !draft;
   const currentStatus = dirty ? "draft" : draft?.status || "draft";
   const isConfirmed = ["confirmed", "packed", "booked", "delivered"].includes(
     currentStatus,
@@ -416,30 +444,63 @@ export default function DraftEditor({
       </div>
     );
   if (!loaded) return <p role="status">Opening order draft…</p>;
-  return (
-    <section className="draft-editor stack" aria-labelledby="draft-heading">
-      <div className="section-heading">
-        <h2 id="draft-heading">{draft?.order_reference || "Order draft"}</h2>
-        <StatusBadge status={dirty ? "Unsaved edits" : currentStatus} />
-      </div>
-      <OrderProgress
-        order={{
-          status: currentStatus,
-          booking: null,
-          consignment_id: null,
-        }}
-      />
-      <p>
-        Review every field against its source. You approve the order and every
-        amount.
-      </p>
-      {judge && (
-        <p className="message">
-          Synthetic judge data only. Keep the non-contactable phone marker{" "}
-          <code>01X-EXAMPLE</code>; it cannot be used for a real courier
-          booking.
+  const rail = sources.length > 0 && (
+    <aside className="draft-sources" aria-label="Source screenshots">
+      <ol className="draft-prints">
+        {sources.map((item) => (
+          <li key={item.id}>
+            <button
+              type="button"
+              className="print"
+              aria-haspopup="dialog"
+              aria-label={`Open original screenshot ${item.sequence}`}
+              onClick={() => onSource(item.sequence)}
+            >
+              <img src={item.url} alt="" loading="lazy" />
+              <span className="print-no">
+                {String(item.sequence).padStart(2, "0")}
+              </span>
+            </button>
+            {reading && <Scan label="Reading" />}
+          </li>
+        ))}
+      </ol>
+      {reading && (
+        <p className="reading-note" role="status">
+          Muse Spark reads these screenshots and prepares a draft for you to
+          review.
         </p>
       )}
+    </aside>
+  );
+  return (
+    <section className="draft-editor" aria-labelledby="draft-heading">
+      <div className="draft-top">
+        <div className="draft-head">
+          <h2 id="draft-heading">{draft?.order_reference || "Order draft"}</h2>
+          <StatusBadge status={dirty ? "Unsaved edits" : currentStatus} />
+          {isConfirmed && !dirty && <Stamp tone="pass">Confirmed</Stamp>}
+        </div>
+        <OrderProgress
+          order={{
+            status: currentStatus,
+            booking: null,
+            consignment_id: null,
+          }}
+        />
+      </div>
+      <p className="draft-note">
+        Review every field against its source. You approve the order and every
+        amount.
+        {judge && (
+          <>
+            {" "}
+            Synthetic judge data only. Keep the non-contactable phone marker{" "}
+            <code>01X-EXAMPLE</code>; it cannot be used for a real courier
+            booking.
+          </>
+        )}
+      </p>
       {uncertain && (
         <div className="message error" role="alert">
           <p>
@@ -451,362 +512,444 @@ export default function DraftEditor({
           </button>
         </div>
       )}
-      {!draft ? (
-        <>
-          {!enabled && (
-            <p className="message">
-              Screenshot extraction is unavailable right now. Choose New order,
-              then Manual draft to enter the details yourself.
-            </p>
-          )}
-          <label>
-            Optional voice note · up to 2 minutes, 8 MiB
-            <input
-              type="file"
-              accept="audio/*,.ogg,.m4a,.webm"
-              disabled={busy || !enabled}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (file)
-                  void act(async () => {
-                    if (file.size > 8 * 1024 * 1024)
-                      throw new Error("Voice notes must be at most 8 MiB.");
-                    const form = new FormData();
-                    form.set("audio", file);
-                    const note = await api<Note>(`${path}/voice-notes`, {
-                      method: "POST",
-                      body: form,
-                    });
-                    setNotes((items) => [...items, note]);
-                  });
-              }}
-            />
-          </label>
-          {notes.map((note) => (
-            <p className="voice-transcript" key={note.id}>
-              <strong>Voice note:</strong> {note.transcript}
-            </p>
-          ))}
-          <button
-            className="primary"
-            disabled={busy || !enabled || Boolean(uncertain)}
-            onClick={() => void prepareDraft()}
-          >
-            {busy ? "Preparing draft…" : "Extract draft with live AI ↗"}
-          </button>
-        </>
-      ) : (
-        values && (
-          <form className="stack" onSubmit={submit}>
-            <fieldset className="stack" disabled={busy || Boolean(uncertain)}>
-              <legend>1. Recipient details</legend>
-              {(
-                [
-                  ["customer_name", "Customer name"],
-                  ["phone", "Mobile number"],
-                  ["address", "Delivery address"],
-                ] as const
-              ).map(([key, label]) => (
-                <div className="draft-field" key={key}>
-                  <label>
-                    {label}
-                    <input
-                      required
-                      maxLength={
-                        key === "address"
-                          ? 2000
-                          : key === "customer_name"
-                            ? 160
-                            : 40
-                      }
-                      inputMode={key === "phone" ? "tel" : "text"}
-                      value={values[key]}
-                      aria-invalid={
-                        !values[key].trim() || (key === "phone" && !validPhone)
-                      }
-                      onChange={(event) => change(key, event.target.value)}
-                    />
-                  </label>
-                  {source(draft.content[key])}
-                  {key === "phone" && !validPhone && (
-                    <small className="unresolved-field">
-                      Enter an 11-digit Bangladesh mobile number
-                      {judge ? " or keep 01X-EXAMPLE for this sample" : ""}.
-                    </small>
-                  )}
-                </div>
-              ))}
-              <div className="draft-field">
-                <label>
-                  Customer agreed in conversation
-                  <select
-                    value={values.order_confirmed}
-                    onChange={(event) =>
-                      change("order_confirmed", event.target.value)
-                    }
-                  >
-                    <option value="">Unclear / not stated</option>
-                    <option value="true">Yes</option>
-                    <option value="false">No</option>
-                  </select>
-                </label>
-                {source(draft.content.order_confirmed)}
-              </div>
-            </fieldset>
-            {values.lines.map((line, index) => {
-              const item = stock.find((sku) => sku.sku === line.sku);
-              return (
-                <fieldset
-                  className="draft-line stack"
-                  disabled={busy || Boolean(uncertain)}
-                  key={index}
-                >
-                  <legend>2. Order line {index + 1} · prices</legend>
-                  {item?.photo_url && (
-                    <img
-                      className="draft-product"
-                      src={item.photo_url}
-                      alt={`${item.product_name}, ${item.variant}`}
-                    />
-                  )}
-                  <div className="draft-field">
-                    <label>
-                      SKU
-                      <select
-                        required
-                        value={line.sku}
-                        aria-invalid={
-                          !item?.lot_received ||
-                          (used.get(line.sku) || 0) > (item?.available_qty || 0)
-                        }
-                        onChange={(event) =>
-                          changeLine(index, "sku", event.target.value)
-                        }
-                      >
-                        <option value="">Choose an available product</option>
-                        {stock.map((sku) => (
-                          <option
-                            key={sku.sku}
-                            value={sku.sku}
-                            disabled={
-                              !sku.lot_received || sku.available_qty < 1
-                            }
-                          >
-                            {sku.product_name} · {sku.variant} ·{" "}
-                            {sku.available_qty} available · {sku.sku}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {source(draft.content.lines[line.source_line ?? -1]?.sku)}
-                    <details>
-                      <summary>Browse product photos</summary>
-                      <div className="sku-choices">
-                        {stock
-                          .filter(
-                            (sku) => sku.lot_received && sku.available_qty > 0,
-                          )
-                          .map((sku) => (
-                            <button
-                              type="button"
-                              key={sku.sku}
-                              onClick={() => changeLine(index, "sku", sku.sku)}
-                            >
-                              {sku.photo_url && (
-                                <img
-                                  className="draft-product"
-                                  src={sku.photo_url}
-                                  alt=""
-                                  loading="lazy"
-                                />
-                              )}
-                              <span>
-                                {sku.product_name} · {sku.variant}
-                              </span>
-                              <small>
-                                {sku.available_qty} available · {sku.sku}
-                              </small>
-                            </button>
-                          ))}
-                      </div>
-                    </details>
-                  </div>
-                  <div className="draft-amounts">
-                    {(
-                      [
-                        ["quantity", "Quantity"],
-                        ["unit_price", "Unit price (BDT)"],
-                        ["line_discount", "Line discount (BDT)"],
-                      ] as const
-                    ).map(([key, label]) => (
-                      <div className="draft-field" key={key}>
-                        <label>
-                          {label}
-                          <input
-                            required
-                            inputMode={
-                              key === "quantity" ? "numeric" : "decimal"
-                            }
-                            maxLength={20}
-                            value={line[key]}
-                            aria-invalid={
-                              !line[key] ||
-                              cents(line[key]) === null ||
-                              (key === "quantity" &&
-                                (!/^\d+$/.test(normalize(line.quantity)) ||
-                                  Number(normalize(line.quantity)) < 1))
-                            }
-                            onChange={(event) =>
-                              changeLine(index, key, event.target.value)
-                            }
-                          />
-                        </label>
-                        {source(
-                          draft.content.lines[line.source_line ?? -1]?.[key],
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <p className="fine-print">
-                    Changing the SKU or quantity clears its prices and discount
-                    for review. Enter 0 for no line discount.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValues({
-                        ...values,
-                        lines: values.lines.filter((_, i) => i !== index),
-                      });
-                      markEdited();
-                    }}
-                  >
-                    Remove item {index + 1}
-                  </button>
-                </fieldset>
-              );
-            })}
-            <button
-              type="button"
-              disabled={busy || Boolean(uncertain) || values.lines.length >= 30}
-              onClick={() => {
-                setValues({ ...values, lines: [...values.lines, emptyLine()] });
-                markEdited();
-              }}
-            >
-              Add item +
-            </button>
-            <fieldset className="stack" disabled={busy || Boolean(uncertain)}>
-              <legend>3. Payment and COD review</legend>
-              <div className="draft-field">
-                <label>
-                  Customer delivery charge (BDT)
-                  <input
-                    required
-                    inputMode="decimal"
-                    maxLength={40}
-                    value={values.customer_delivery_charge}
-                    aria-invalid={delivery === null}
-                    onChange={(event) =>
-                      change("customer_delivery_charge", event.target.value)
-                    }
-                  />
-                </label>
-                {source(draft.content.customer_delivery_charge)}
-              </div>
-              <label className="checkbox-row">
+      <div className="draft-layout">
+        {rail}
+        <div className="draft-body">
+          {!draft ? (
+            <div className="draft-extract">
+              {!enabled && (
+                <p className="message">
+                  Screenshot extraction is unavailable right now. Choose New
+                  order, then Manual draft to enter the details yourself.
+                </p>
+              )}
+              <label>
+                Optional voice note · up to 2 minutes, 8 MiB
                 <input
-                  type="checkbox"
-                  checked={verified}
+                  type="file"
+                  accept="audio/*,.ogg,.m4a,.webm"
+                  disabled={busy || !enabled}
                   onChange={(event) => {
-                    setVerified(event.target.checked);
-                    markEdited();
+                    const file = event.target.files?.[0];
+                    event.target.value = "";
+                    if (file)
+                      void act(async () => {
+                        if (file.size > 8 * 1024 * 1024)
+                          throw new Error("Voice notes must be at most 8 MiB.");
+                        const form = new FormData();
+                        form.set("audio", file);
+                        const note = await api<Note>(`${path}/voice-notes`, {
+                          method: "POST",
+                          body: form,
+                        });
+                        setNotes((items) => [...items, note]);
+                      });
                   }}
                 />
-                I verified an advance or direct payment
               </label>
-              {verified && (
-                <label>
-                  Verified payment (BDT)
-                  <input
-                    required
-                    inputMode="decimal"
-                    value={payment}
-                    maxLength={30}
-                    aria-invalid={cents(payment) === null}
-                    onChange={(event) => {
-                      setPayment(event.target.value);
-                      markEdited();
-                    }}
-                  />
-                </label>
-              )}
-              <p className="fine-print">
-                A customer’s “already paid” message does not verify a payment.
-              </p>
-            </fieldset>
-            <div className="draft-total" aria-live="polite">
-              <span>COD to collect</span>
-              <strong>
-                {total !== null && total >= 0
-                  ? money(total / 100)
-                  : "Review amounts"}
-              </strong>
-            </div>
-            <p className="fine-print">
-              Line totals + customer delivery charge − seller-verified payment.
-              Negative COD is blocked.
-            </p>
-            {!valid && (
-              <p className="message error">
-                Fill highlighted fields, review line prices and choose SKUs with
-                enough stock before confirming.
-              </p>
-            )}
-            {dirty && ["confirmed", "packed"].includes(draft.status) && (
-              <p className="message">
-                Saving these edits returns this order to a draft and requires a
-                new confirmation and pack check.
-              </p>
-            )}
-            {success && (
-              <p className="message success" role="status">
-                {success}
-              </p>
-            )}
-            <div className="button-row">
-              <button
-                type="button"
-                disabled={busy || Boolean(uncertain) || !dirty}
-                onClick={() => save(false)}
-              >
-                Save draft
-              </button>
+              {notes.map((note) => (
+                <p className="voice-transcript" key={note.id}>
+                  <strong>Voice note:</strong> {note.transcript}
+                </p>
+              ))}
               <button
                 className="primary"
-                disabled={busy || Boolean(uncertain) || !valid || isConfirmed}
+                disabled={busy || !enabled || Boolean(uncertain)}
+                onClick={() => void prepareDraft()}
               >
-                {busy ? "Saving…" : "Confirm order ↗"}
+                {busy ? "Preparing draft…" : "Extract draft with live AI ↗"}
               </button>
-              {isConfirmed && draft.order_reference && (
+            </div>
+          ) : (
+            values && (
+              <form className="draft-form" onSubmit={submit}>
+                <fieldset disabled={busy || Boolean(uncertain)}>
+                  <legend>1. Recipient details</legend>
+                  {(
+                    [
+                      ["customer_name", "Customer name"],
+                      ["phone", "Mobile number"],
+                      ["address", "Delivery address"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <div
+                      className="draft-field"
+                      key={key}
+                      {...fieldState(draft.content[key], values[key])}
+                    >
+                      <label>
+                        {label}
+                        <input
+                          required
+                          maxLength={
+                            key === "address"
+                              ? 2000
+                              : key === "customer_name"
+                                ? 160
+                                : 40
+                          }
+                          inputMode={key === "phone" ? "tel" : "text"}
+                          value={values[key]}
+                          aria-invalid={
+                            !values[key].trim() ||
+                            (key === "phone" && !validPhone)
+                          }
+                          onChange={(event) => change(key, event.target.value)}
+                        />
+                      </label>
+                      {source(draft.content[key])}
+                      {key === "phone" && !validPhone && (
+                        <small className="unresolved-field">
+                          Enter an 11-digit Bangladesh mobile number
+                          {judge ? " or keep 01X-EXAMPLE for this sample" : ""}.
+                        </small>
+                      )}
+                    </div>
+                  ))}
+                  <div
+                    className="draft-field"
+                    {...fieldState(
+                      draft.content.order_confirmed,
+                      values.order_confirmed,
+                    )}
+                  >
+                    <label>
+                      Customer agreed in conversation
+                      <select
+                        value={values.order_confirmed}
+                        onChange={(event) =>
+                          change("order_confirmed", event.target.value)
+                        }
+                      >
+                        <option value="">Unclear / not stated</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select>
+                    </label>
+                    {source(draft.content.order_confirmed)}
+                  </div>
+                </fieldset>
+                {values.lines.map((line, index) => {
+                  const item = stock.find((sku) => sku.sku === line.sku);
+                  const evidence = draft.content.lines[line.source_line ?? -1];
+                  return (
+                    <fieldset
+                      className="draft-line"
+                      disabled={busy || Boolean(uncertain)}
+                      key={index}
+                    >
+                      <legend>2. Order line {index + 1} · prices</legend>
+                      <div className="draft-line-sku">
+                        {item?.photo_url && (
+                          <img
+                            className="draft-product"
+                            src={item.photo_url}
+                            alt={`${item.product_name}, ${item.variant}`}
+                          />
+                        )}
+                        <div
+                          className="draft-field"
+                          {...fieldState(evidence?.sku, line.sku)}
+                        >
+                          <label>
+                            SKU
+                            <select
+                              required
+                              value={line.sku}
+                              aria-invalid={
+                                !item?.lot_received ||
+                                (used.get(line.sku) || 0) >
+                                  (item?.available_qty || 0)
+                              }
+                              onChange={(event) =>
+                                changeLine(index, "sku", event.target.value)
+                              }
+                            >
+                              <option value="">
+                                Choose an available product
+                              </option>
+                              {stock.map((sku) => (
+                                <option
+                                  key={sku.sku}
+                                  value={sku.sku}
+                                  disabled={
+                                    !sku.lot_received || sku.available_qty < 1
+                                  }
+                                >
+                                  {sku.product_name} · {sku.variant} ·{" "}
+                                  {sku.available_qty} available · {sku.sku}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          {source(evidence?.sku)}
+                          <details>
+                            <summary>Browse product photos</summary>
+                            <div className="sku-choices">
+                              {stock
+                                .filter(
+                                  (sku) =>
+                                    sku.lot_received && sku.available_qty > 0,
+                                )
+                                .map((sku) => (
+                                  <button
+                                    type="button"
+                                    key={sku.sku}
+                                    onClick={() =>
+                                      changeLine(index, "sku", sku.sku)
+                                    }
+                                  >
+                                    {sku.photo_url && (
+                                      <img
+                                        className="draft-product"
+                                        src={sku.photo_url}
+                                        alt=""
+                                        loading="lazy"
+                                      />
+                                    )}
+                                    <span>
+                                      {sku.product_name} · {sku.variant}
+                                    </span>
+                                    <small>
+                                      {sku.available_qty} available · {sku.sku}
+                                    </small>
+                                  </button>
+                                ))}
+                            </div>
+                          </details>
+                        </div>
+                      </div>
+                      <div className="draft-amounts">
+                        {(
+                          [
+                            ["quantity", "Quantity"],
+                            ["unit_price", "Unit price (BDT)"],
+                            ["line_discount", "Line discount (BDT)"],
+                          ] as const
+                        ).map(([key, label]) => (
+                          <div
+                            className="draft-field"
+                            key={key}
+                            {...fieldState(evidence?.[key], line[key])}
+                          >
+                            <label>
+                              {label}
+                              <input
+                                required
+                                inputMode={
+                                  key === "quantity" ? "numeric" : "decimal"
+                                }
+                                maxLength={20}
+                                value={line[key]}
+                                aria-invalid={
+                                  !line[key] ||
+                                  cents(line[key]) === null ||
+                                  (key === "quantity" &&
+                                    (!/^\d+$/.test(normalize(line.quantity)) ||
+                                      Number(normalize(line.quantity)) < 1))
+                                }
+                                onChange={(event) =>
+                                  changeLine(index, key, event.target.value)
+                                }
+                              />
+                            </label>
+                            {source(evidence?.[key])}
+                          </div>
+                        ))}
+                      </div>
+                      <p className="fine-print">
+                        Changing the SKU or quantity clears its prices and
+                        discount for review. Enter 0 for no line discount.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setValues({
+                            ...values,
+                            lines: values.lines.filter((_, i) => i !== index),
+                          });
+                          markEdited();
+                        }}
+                      >
+                        Remove item {index + 1}
+                      </button>
+                    </fieldset>
+                  );
+                })}
                 <button
                   type="button"
-                  disabled={busy}
-                  onClick={() => onConfirmed(draft.order_reference!)}
+                  className="draft-add"
+                  disabled={
+                    busy || Boolean(uncertain) || values.lines.length >= 30
+                  }
+                  onClick={() => {
+                    setValues({
+                      ...values,
+                      lines: [...values.lines, emptyLine()],
+                    });
+                    markEdited();
+                  }}
                 >
-                  {currentStatus === "confirmed"
-                    ? "Continue to Check parcel"
-                    : currentStatus === "packed"
-                      ? "Continue to Book courier"
-                      : "Open order"}{" "}
-                  ↗
+                  Add item +
                 </button>
-              )}
-            </div>
-          </form>
-        )
-      )}
+                <fieldset disabled={busy || Boolean(uncertain)}>
+                  <legend>3. Payment and COD review</legend>
+                  <div
+                    className="draft-field"
+                    {...fieldState(
+                      draft.content.customer_delivery_charge,
+                      values.customer_delivery_charge,
+                    )}
+                  >
+                    <label>
+                      Customer delivery charge (BDT)
+                      <input
+                        required
+                        inputMode="decimal"
+                        maxLength={40}
+                        value={values.customer_delivery_charge}
+                        aria-invalid={delivery === null}
+                        onChange={(event) =>
+                          change("customer_delivery_charge", event.target.value)
+                        }
+                      />
+                    </label>
+                    {source(draft.content.customer_delivery_charge)}
+                  </div>
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={verified}
+                      onChange={(event) => {
+                        setVerified(event.target.checked);
+                        markEdited();
+                      }}
+                    />
+                    I verified an advance or direct payment
+                  </label>
+                  {verified && (
+                    <label>
+                      Verified payment (BDT)
+                      <input
+                        required
+                        inputMode="decimal"
+                        value={payment}
+                        maxLength={30}
+                        aria-invalid={cents(payment) === null}
+                        onChange={(event) => {
+                          setPayment(event.target.value);
+                          markEdited();
+                        }}
+                      />
+                    </label>
+                  )}
+                  <p className="fine-print">
+                    A customer’s “already paid” message does not verify a
+                    payment.
+                  </p>
+                </fieldset>
+                <div className="draft-cod" aria-live="polite">
+                  <dl className="ledger">
+                    <div className="ledger-row">
+                      <dt>Line totals</dt>
+                      <dd>
+                        {subtotal !== null ? money(subtotal / 100) : "Review"}
+                      </dd>
+                    </div>
+                    <div className="ledger-row">
+                      <dt>Customer delivery charge</dt>
+                      <dd>
+                        {delivery !== null ? money(delivery / 100) : "Review"}
+                      </dd>
+                    </div>
+                    <div className="ledger-row">
+                      <dt>Seller-verified payment</dt>
+                      <dd>
+                        {prepaid !== null
+                          ? `− ${money(prepaid / 100)}`
+                          : "Review"}
+                      </dd>
+                    </div>
+                    <div className="ledger-total">
+                      <dt>COD to collect</dt>
+                      <dd>
+                        {total !== null && total >= 0
+                          ? money(total / 100)
+                          : "Review amounts"}
+                      </dd>
+                    </div>
+                  </dl>
+                  <p className="fine-print">
+                    Line totals + customer delivery charge − seller-verified
+                    payment. Negative COD is blocked.
+                  </p>
+                </div>
+                {!valid && (
+                  <p className="message error">
+                    Fill highlighted fields, review line prices and choose SKUs
+                    with enough stock before confirming.
+                  </p>
+                )}
+                {dirty && ["confirmed", "packed"].includes(draft.status) && (
+                  <p className="message">
+                    Saving these edits returns this order to a draft and
+                    requires a new confirmation and pack check.
+                  </p>
+                )}
+                {success && (
+                  <p className="message success" role="status">
+                    {success}
+                  </p>
+                )}
+                <div
+                  className="draft-actions"
+                  data-confirmed={isConfirmed || undefined}
+                >
+                  <p className="draft-actions-cod" aria-hidden="true">
+                    <span>COD</span>
+                    <strong>
+                      {total !== null && total >= 0
+                        ? money(total / 100)
+                        : "Review"}
+                    </strong>
+                  </p>
+                  <div className="button-row">
+                    <button
+                      type="button"
+                      disabled={busy || Boolean(uncertain) || !dirty}
+                      onClick={() => save(false)}
+                    >
+                      Save draft
+                    </button>
+                    <button
+                      className="primary"
+                      disabled={
+                        busy || Boolean(uncertain) || !valid || isConfirmed
+                      }
+                    >
+                      {busy ? "Saving…" : "Confirm order ↗"}
+                    </button>
+                    {isConfirmed && draft.order_reference && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => onConfirmed(draft.order_reference!)}
+                      >
+                        {currentStatus === "confirmed"
+                          ? "Continue to Check parcel"
+                          : currentStatus === "packed"
+                            ? "Continue to Book courier"
+                            : "Open order"}{" "}
+                        ↗
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </form>
+            )
+          )}
+        </div>
+      </div>
       <dialog
         ref={voiceDialog}
         className="task-dialog"

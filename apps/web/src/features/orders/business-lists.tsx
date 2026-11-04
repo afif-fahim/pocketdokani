@@ -260,14 +260,12 @@ function OrderActions({
   const locked = bookingLocksOrder(current);
   return (
     <>
-      {order.status === "draft" && !order.source_workspace_id ? (
+      {order.status === "draft" && !order.source_workspace_id && (
         <p className="message">
           This draft has no editable conversation. View its recorded details
           below, or choose New order to create a draft you can review and
           confirm.
         </p>
-      ) : (
-        <OrderProgress order={current} />
       )}
       {statusPending && !locked ? (
         <p className="message">
@@ -275,10 +273,12 @@ function OrderActions({
           order.
         </p>
       ) : packPending ? (
-        <p className="message">
-          Resolve the pending pack action below before booking or editing this
-          order.
-        </p>
+        !busy && (
+          <p className="message">
+            Resolve the pending pack action below before booking or editing this
+            order.
+          </p>
+        )
       ) : (
         <CourierBookingPanel
           order={current}
@@ -394,13 +394,13 @@ export default function BusinessLists({
     return (
       <li key={order.id}>
         <article
-          className="order-card"
+          className="order-card tag"
           id={`order-${order.id}`}
           data-open={expanded || undefined}
         >
           <div className="order-overview">
             <div className="order-identity">
-              <div className="button-row">
+              <div className="order-reference-row">
                 <strong className="order-reference">{order.reference}</strong>
                 <StatusBadge status={order.status} />
               </div>
@@ -414,41 +414,37 @@ export default function BusinessLists({
                   .join("; ") || "Items need review"}
               </p>
             </div>
-            <div className="order-card-actions">
-              <div className="order-card-meta">
-                <div className="order-cod">
-                  <span className="eyebrow">
-                    {order.status === "draft" && order.source_workspace_id
-                      ? "Last confirmed COD"
-                      : "COD amount"}
-                  </span>
-                  <strong>{money(order.cod_amount)}</strong>
-                </div>
-                <small className="muted">{date(order.created_at)}</small>
-              </div>
-              <div className="order-next-action button-row">
-                <button
-                  className="primary"
-                  disabled={busy}
-                  aria-expanded={expanded}
-                  aria-controls={
-                    expanded ? `task-${order.reference}` : undefined
-                  }
-                  onClick={() => openOrder(order)}
-                >
-                  {next} <span aria-hidden="true">→</span>
-                </button>
-                {order.pack_check && (
-                  <span
-                    className={`pack-verdict pack-${order.pack_check.verdict}`}
-                  >
-                    {order.pack_check.override_by
-                      ? "Seller override · unsure"
-                      : `Pack ${order.pack_check.verdict}`}
-                  </span>
-                )}
-              </div>
+            <div className="order-cod">
+              <span className="order-cod-label">
+                {order.status === "draft" && order.source_workspace_id
+                  ? "Last confirmed COD"
+                  : "COD amount"}
+              </span>
+              <strong>{money(order.cod_amount)}</strong>
+              <small className="muted">{date(order.created_at)}</small>
             </div>
+          </div>
+          {!(order.status === "draft" && !order.source_workspace_id) && (
+            <OrderProgress order={order} />
+          )}
+          <hr className="tag-tear" />
+          <div className="order-next-action">
+            <button
+              className="primary"
+              disabled={busy}
+              aria-expanded={expanded}
+              aria-controls={expanded ? `task-${order.reference}` : undefined}
+              onClick={() => openOrder(order)}
+            >
+              {next} <span aria-hidden="true">→</span>
+            </button>
+            {order.pack_check && (
+              <span className={`pack-verdict pack-${order.pack_check.verdict}`}>
+                {order.pack_check.override_by
+                  ? "Seller override · unsure"
+                  : `Pack ${order.pack_check.verdict}`}
+              </span>
+            )}
           </div>
           {expanded && (
             <div
@@ -495,32 +491,34 @@ export default function BusinessLists({
               <ul className="order-lines">
                 {order.lines.map((line) => (
                   <li key={line.line_number}>
-                    <h3>
-                      {line.product_name} · {line.variant}
-                    </h3>
-                    <small className="muted">SKU · {line.sku}</small>
-                    <p>
-                      {line.quantity} × {money(line.unit_price)} −{" "}
-                      {money(line.line_discount)} line discount
-                    </p>
+                    <div>
+                      <h3>
+                        {line.product_name} · {line.variant}
+                      </h3>
+                      <small className="muted">
+                        SKU · <code>{line.sku}</code>
+                      </small>
+                      <p className="muted">
+                        {line.quantity} × {money(line.unit_price)} −{" "}
+                        {money(line.line_discount)} line discount
+                      </p>
+                    </div>
                     <strong>{money(line.line_total)}</strong>
                   </li>
                 ))}
               </ul>
-              <dl className="record-amounts">
-                <div>
+              <dl className="ledger">
+                <div className="ledger-row">
                   <dt>Customer delivery charge</dt>
                   <dd>{money(order.customer_delivery_charge)}</dd>
                 </div>
-                <div>
+                <div className="ledger-row">
                   <dt>Verified prior payment</dt>
                   <dd>{money(order.verified_prior_payment)}</dd>
                 </div>
-                <div>
+                <div className="ledger-total">
                   <dt>COD amount</dt>
-                  <dd>
-                    <strong>{money(order.cod_amount)}</strong>
-                  </dd>
+                  <dd>{money(order.cod_amount)}</dd>
                 </div>
               </dl>
               {order.note && (
@@ -544,10 +542,7 @@ export default function BusinessLists({
 
   if (view === "stock") {
     return (
-      <section
-        className="panel business-section"
-        aria-labelledby="stock-heading"
-      >
+      <section className="business-section" aria-labelledby="stock-heading">
         <div className="section-heading">
           <div>
             <h2 id="stock-heading">Products &amp; variants</h2>
@@ -558,59 +553,70 @@ export default function BusinessLists({
           <span className="pill">{stock.length} variants</span>
         </div>
         {stock.length ? (
-          <ul className="stock-grid">
-            {stock.map((sku) => (
-              <li className="stock-card" key={sku.sku} id={`sku-${sku.sku}`}>
-                {sku.photo_url ? (
-                  <img
-                    className="product-photo"
-                    src={sku.photo_url}
-                    alt={`${sku.product_name}, ${sku.variant}`}
-                    loading="lazy"
-                  />
-                ) : (
-                  <p className="product-photo stock-photo-placeholder">
-                    Photo not recorded
-                  </p>
-                )}
-                <div className="stock-card-heading">
-                  <div>
-                    <h3>{sku.product_name}</h3>
-                    <p className="muted">{sku.variant}</p>
-                  </div>
-                  <span
-                    className={`pill ${sku.available_qty > 0 ? "eligible" : "ineligible"}`}
-                  >
-                    {!sku.lot_received
-                      ? "In transit · unavailable"
-                      : sku.stock_qty === 0
-                        ? "Out of stock"
-                        : `${sku.available_qty} available`}
-                  </span>
-                </div>
-                <dl className="record-amounts">
-                  <div>
-                    <dt>Remaining quantity</dt>
-                    <dd>{sku.stock_qty}</dd>
-                  </div>
-                  <div>
-                    <dt>Unit cost</dt>
-                    <dd>{money(sku.unit_cost)}</dd>
-                  </div>
-                  <div>
-                    <dt>List price</dt>
-                    <dd>{money(sku.list_price)}</dd>
-                  </div>
-                </dl>
-                <details>
-                  <summary>SKU and lot details</summary>
-                  <p>
-                    <code>{sku.sku}</code> · {sku.lot}
-                  </p>
-                </details>
-              </li>
-            ))}
-          </ul>
+          <table className="stock-ledger">
+            <thead>
+              <tr>
+                <th scope="col">Product · variant</th>
+                <th scope="col">Remaining quantity</th>
+                <th scope="col">Unit cost</th>
+                <th scope="col">List price</th>
+                <th scope="col">Availability</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stock.map((sku) => {
+                const state = !sku.lot_received
+                  ? "transit"
+                  : sku.stock_qty === 0 || sku.available_qty <= 0
+                    ? "out"
+                    : "available";
+                return (
+                  <tr key={sku.sku} id={`sku-${sku.sku}`} data-state={state}>
+                    <th scope="row" className="stock-product">
+                      <span className="stock-cell">
+                        {sku.photo_url ? (
+                          <img
+                            className="product-photo"
+                            src={sku.photo_url}
+                            alt={`${sku.product_name}, ${sku.variant}`}
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span className="product-photo stock-photo-placeholder">
+                            Photo not recorded
+                          </span>
+                        )}
+                        <span className="stock-name">
+                          <strong>{sku.product_name}</strong>
+                          <span className="muted">{sku.variant}</span>
+                          <details>
+                            <summary>SKU and lot details</summary>
+                            <p>
+                              <code>{sku.sku}</code> · {sku.lot}
+                            </p>
+                          </details>
+                        </span>
+                      </span>
+                    </th>
+                    <td data-label="Remaining quantity" className="stock-qty">
+                      {sku.stock_qty}
+                    </td>
+                    <td data-label="Unit cost">{money(sku.unit_cost)}</td>
+                    <td data-label="List price">{money(sku.list_price)}</td>
+                    <td className="stock-state">
+                      <span className="stock-status">
+                        {!sku.lot_received
+                          ? "In transit · unavailable"
+                          : sku.stock_qty === 0
+                            ? "Out of stock"
+                            : `${sku.available_qty} available`}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         ) : (
           <EmptyState title="Your stock will appear here">
             Review and import your product records to see photos, prices and
@@ -621,10 +627,7 @@ export default function BusinessLists({
     );
   }
   return (
-    <section
-      className="panel business-section"
-      aria-labelledby="orders-heading"
-    >
+    <section className="business-section" aria-labelledby="orders-heading">
       <div className="section-heading">
         <h2 id="orders-heading">All orders</h2>
         <span className="pill">{orders.length} orders</span>
@@ -654,17 +657,22 @@ export default function BusinessLists({
             No payouts recorded yet. Only recorded payments appear here.
           </p>
         )}
-        <ul className="order-lines">
+        <ul className="ledger payout-ledger">
           {payouts.map((payout) => (
-            <li key={payout.statement} id={`payout-${payout.statement}`}>
-              <strong>
-                {payout.statement} · {money(payout.amount)}
-              </strong>
-              <p>{date(payout.paid_at)}</p>
-              <p>
-                {payout.order_references.join(", ") ||
-                  "No linked orders recorded"}
-              </p>
+            <li
+              className="ledger-row"
+              key={payout.statement}
+              id={`payout-${payout.statement}`}
+            >
+              <div>
+                <strong>{payout.statement}</strong>
+                <small className="muted">
+                  {date(payout.paid_at)} ·{" "}
+                  {payout.order_references.join(", ") ||
+                    "No linked orders recorded"}
+                </small>
+              </div>
+              <strong>{money(payout.amount)}</strong>
             </li>
           ))}
         </ul>
