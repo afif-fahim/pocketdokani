@@ -2,6 +2,8 @@ import { useRef, useState } from "react";
 import { api, ApiError, json } from "@/lib/api";
 import type { Order } from "@/features/orders/business-lists";
 import { StatusBadge } from "@/components/ui";
+import { Stamp } from "@/components/khata";
+import { money } from "@/lib/format";
 import {
   pendingActionKey,
   readPendingAction,
@@ -158,51 +160,58 @@ export default function CourierBookingPanel({
   }
 
   return (
-    <section className="courier-panel stack" aria-label="Courier booking">
-      <div className="button-row">
-        <h3>কুরিয়ার · Courier</h3>
-        {(importedConsignment || mode !== "disabled") && (
-          <StatusBadge
-            status={importedConsignment ? "Imported consignment" : mode}
-          />
+    <section className="courier-panel waybill" aria-label="Courier booking">
+      <div className="waybill-head">
+        <h3>কুরিয়ার · Courier</h3>
+        {mode === "fake" && !importedConsignment && (
+          <Stamp tone="neutral">Simulated</Stamp>
         )}
       </div>
+      {(importedConsignment || mode !== "disabled") && (
+        <StatusBadge
+          status={importedConsignment ? "Imported consignment" : mode}
+        />
+      )}
       {order.consignment_id && (
-        <>
-          <p className="message success" role="status">
-            {mode === "fake"
-              ? "Fake booking complete · no real parcel is sent."
-              : "Courier booking complete."}{" "}
-            Invoice: {order.reference}.
-          </p>
-          <dl className="record-amounts">
-            <div>
+        <p className="message success" role="status">
+          {mode === "fake"
+            ? "Fake booking complete · no real parcel is sent."
+            : "Courier booking complete."}{" "}
+          Invoice: {order.reference}.
+        </p>
+      )}
+      <dl className="ledger waybill-ledger">
+        <div className="ledger-row">
+          <dt>Invoice</dt>
+          <dd>{order.reference}</dd>
+        </div>
+        {order.consignment_id && (
+          <>
+            <div className="ledger-row">
               <dt>Consignment ID</dt>
-              <dd>
-                <code>{order.consignment_id}</code>
-              </dd>
+              <dd>{order.consignment_id}</dd>
             </div>
-            <div>
+            <div className="ledger-row">
               <dt>Tracking code</dt>
               <dd>
-                {order.tracking_code ? (
-                  <code>{order.tracking_code}</code>
-                ) : (
-                  "Unavailable · check merchant panel"
-                )}
+                {order.tracking_code ?? "Unavailable · check merchant panel"}
               </dd>
             </div>
-          </dl>
-        </>
-      )}
+          </>
+        )}
+        <div className="ledger-total">
+          <dt>COD</dt>
+          <dd>{money(order.cod_amount)}</dd>
+        </div>
+      </dl>
       {booking?.message && <p role="status">{booking.message}</p>}
       {recoveryNotice && (
-        <p className="message" role="status">
+        <p className="message warning" role="status">
           {recoveryNotice}
         </p>
       )}
       {unresolved && (
-        <p className="message">
+        <p className="message warning">
           Check this booking before editing, packing again or changing status. A
           lost response can still mean the courier booked the parcel.
         </p>
@@ -249,7 +258,7 @@ export default function CourierBookingPanel({
           </p>
         </>
       )}
-      <div className="button-row">
+      <div className="button-row waybill-actions">
         {canBook && (
           <button
             className="primary"

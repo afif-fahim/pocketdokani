@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Image, { type StaticImageData } from "next/image";
 import { ImagePreviewButton } from "@/components/image-viewer";
+import { Stamp } from "@/components/khata";
 import parcelCleanDome from "../../public/product/parcel-clean-dome.jpg";
 import parcelSwappedError from "../../public/product/parcel-swapped-error.jpg";
 import parcelPrepaidBag from "../../public/product/parcel-prepaid-bag.jpg";
@@ -153,32 +154,34 @@ const SCENARIOS: Scenario[] = [
 
 export function ParcelGallery() {
   return (
-    <div className="parcel-gallery-grid">
+    <div className="packing-table">
       {SCENARIOS.map((scenario) => (
         <figure
-          className="parcel-scenario-card"
+          className="pinned-photo"
+          data-tone={scenario.badgeTone}
           key={scenario.order + scenario.badge}
         >
-          <div className="scenario-image-wrap">
-            <span className={`photo-badge ${scenario.badgeTone}`}>
-              {scenario.badge}
-            </span>
+          <div className="pinned-image">
             <ProductImage
               src={scenario.src}
               alt={scenario.alt}
               label={scenario.label}
-              sizes="(max-width: 760px) 100vw, 48vw"
+              sizes="(max-width: 760px) 90vw, 32vw"
             />
+            <span className="pinned-stamp">
+              <Stamp tone="neutral">Illustration</Stamp>
+            </span>
           </div>
           <figcaption>
-            <div className="scenario-meta">
+            <p className="pinned-badge">{scenario.badge}</p>
+            <p className="pinned-meta">
               <code>Order {scenario.order}</code>
               {scenario.meta.map(({ text, danger }) => (
                 <span className={danger ? "danger-text" : undefined} key={text}>
                   {text}
                 </span>
               ))}
-            </div>
+            </p>
             <h3>{scenario.heading}</h3>
             <p>{scenario.body}</p>
           </figcaption>

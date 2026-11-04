@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ThemeSwitch } from "@/components/theme-switch";
+import { Voices } from "@/components/khata";
 import type { Section } from "@/features/workspace/workspace-types";
 
 export function Icon({
@@ -55,47 +56,24 @@ export function Icon({
   );
 }
 
-export function WorkspaceIcon({ name }: { name: Section }) {
-  return (
-    <span className="workspace-icon">
-      <Icon name={name} />
-    </span>
-  );
-}
-
 export function Brand() {
   return (
     <span className="wordmark">
       <span className="brand-mark">
         <Icon name="bag" />
       </span>
-      PocketDokani<span className="brand-period">.</span>
+      <span>
+        PocketDokani<span className="brand-period">.</span>
+      </span>
     </span>
   );
 }
 
-const sections: { key: Section; label: string; description: string }[] = [
-  {
-    key: "orders",
-    label: "Orders",
-    description: "From draft to delivery, keep your next step in view.",
-  },
-  {
-    key: "assistant",
-    label: "Assistant",
-    description:
-      "Ask in Bangla or English. Answers come from your shop records.",
-  },
-  {
-    key: "stock",
-    label: "Stock",
-    description: "See what is available, sold out, or on the way.",
-  },
-  {
-    key: "conversations",
-    label: "Conversations",
-    description: "Review drafts and the screenshots behind your orders.",
-  },
+const sections: { key: Section; label: string }[] = [
+  { key: "orders", label: "Orders" },
+  { key: "conversations", label: "Conversations" },
+  { key: "assistant", label: "Assistant" },
+  { key: "stock", label: "Stock" },
 ];
 
 export default function AppShell({
@@ -126,34 +104,49 @@ export default function AppShell({
       <header className="app-header">
         <div className="app-brand">
           <Brand />
-          <span className="shop-label">
+          <span className="shop-label" data-sample={judge || undefined}>
             <span className="status-dot" aria-hidden="true" />
-            {judge ? "Sample shop" : "Your shop"}
+            {judge ? (
+              <span>
+                Sample<span className="narrow-cut"> shop</span>
+              </span>
+            ) : (
+              "Your shop"
+            )}
           </span>
         </div>
         <div className="session-actions">
           <ThemeSwitch />
           {judge && (
             <button className="text-button" disabled={busy} onClick={onReset}>
-              Reset sample
+              Reset<span className="narrow-cut"> sample</span>
             </button>
           )}
           <button className="text-button" disabled={busy} onClick={onSignOut}>
             Sign out
           </button>
         </div>
+        {busy && (
+          <p className="working-status" role="status">
+            <span aria-hidden="true">Working…</span>
+            <span className="visually-hidden">
+              Working… Please wait for this step to finish.
+            </span>
+          </p>
+        )}
       </header>
       <div className="app-body">
         <nav className="app-nav" aria-label="Shop sections">
-          <p className="nav-caption eyebrow">YOUR WORKSPACE</p>
           {sections.map(({ key, label }) => (
             <button
               key={key}
+              className="nav-tab"
+              data-section={key}
               aria-current={section === key ? "page" : undefined}
               disabled={busy}
               onClick={() => onNavigate(key)}
             >
-              <WorkspaceIcon name={key} />
+              <Icon name={key} />
               <span>{label}</span>
               {key === "assistant" && (
                 <span className="nav-hint" lang="bn">
@@ -162,31 +155,21 @@ export default function AppShell({
               )}
             </button>
           ))}
-          <div className="nav-note">
-            <strong>
-              {judge
-                ? "Practice with sample data"
-                : "Your decisions, your shop"}
-            </strong>
-            <p>
-              {judge
-                ? "Sample records and a simulated courier."
-                : "Review and confirm every change."}
-            </p>
+          <button
+            className="nav-tab nav-new"
+            disabled={busy}
+            onClick={onNewOrder}
+          >
+            <Icon name="plus" />
+            <span>New order</span>
+          </button>
+          <div className="nav-voices">
+            <Voices />
           </div>
         </nav>
         <main id="main-content" className="app-main" tabIndex={-1}>
           <header className="page-heading">
-            <div className="page-heading-copy">
-              <p className="eyebrow">
-                {judge ? "EXPLORE POCKETDOKANI" : "LET’S GET TO WORK"}
-              </p>
-              <div className="page-title">
-                <WorkspaceIcon name={section} />
-                <h1>{current.label}</h1>
-              </div>
-              <p className="muted">{current.description}</p>
-            </div>
+            <h1>{current.label}</h1>
             <button
               className="primary new-order-button"
               disabled={busy}
@@ -197,9 +180,6 @@ export default function AppShell({
             </button>
           </header>
           {children}
-          <p className="app-footnote">
-            AI helps prepare the work. You confirm the details.
-          </p>
         </main>
       </div>
     </div>
