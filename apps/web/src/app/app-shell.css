@@ -942,7 +942,7 @@
   line-height: 1.55;
 }
 
-.Grounded-list {
+.grounded-list {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
@@ -950,7 +950,7 @@
   color: var(--ink);
 }
 
-.Grounded-list li {
+.grounded-list li {
   padding-inline-start: 0.75rem;
   border-inline-start: 2px solid var(--green);
 }

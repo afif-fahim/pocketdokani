@@ -26,12 +26,12 @@ Each judge gets isolated synthetic records. Reset restores only that shop and pr
 
 ## What the app actually showed
 
-These are crops of the working app after live Meta calls on **constructed local inputs**. The parcel result is unsure; the Bangla question was typed. This separate landing walkthrough is not the evaluation run summarized below. [Input provenance, exact captions and observations](apps/web/public/product/README.md).
+These are captures of the working app after live Meta calls on **constructed local inputs**. The wrong-COD label failed and the matching label passed, one example of each; the Bangla question was typed. This separate landing walkthrough is not the evaluation run summarized below. [Input provenance, exact captions and observations](apps/web/public/product/README.md).
 
-| Inspect the agreed price | See uncertainty before shipping | Ask in Bangla and inspect records |
+| Inspect the agreed price | Catch a wrong COD before shipping | Ask in Bangla and inspect records |
 | --- | --- | --- |
-| ![Tote unit price BDT 450 linked to the original Bangla final-price quote](apps/web/public/product/order-quote.jpg) | ![Actual parcel check: unsure label, matching visible bags, and reshoot guidance](apps/web/public/product/parcel-check.jpg) | ![Typed Bangla question returns three orders awaiting dispatch with three supporting order chips](apps/web/public/product/bangla-answer.jpg) |
-| The price retains its original screenshot quote. | Unreadable label fields remain unsure. | The count comes from the three cited orders. |
+| ![Tote unit price BDT 450 linked to the original Bangla final-price quote](apps/web/public/product/order-quote.jpg) | ![Actual pack check: fail, with COD 1180 written against 1080 confirmed and the visible bag matched](apps/web/public/product/parcel-check.jpg) | ![Typed Bangla question returns three orders awaiting dispatch with three supporting order chips](apps/web/public/product/bangla-answer.jpg) |
+| The price retains its original screenshot quote. | Server code compares the blind reading with the order. | The count comes from the three cited orders. |
 
 ```mermaid
 flowchart LR
@@ -80,7 +80,7 @@ flowchart TB
 | Order extraction | 11/11 checked values; 2/2 SKU suggestions correct | One two-line conversation; values and suggestions scored separately |
 | Business questions | 5/5 correct; 0/5 confidently wrong | Four record-backed answers and one correct unknown response |
 | Parcel labels | Clean: 1/1 pass; obscured phone: 1/1 unsure | Illustrative synthetic parcels |
-| Deliberately wrong COD | **0/1 detected as fail; returned unsure** | The blind reader could not read the label fields |
+| Deliberately wrong COD | **0/1 detected as fail; returned unsure** | The blind reader could not read the label fields. A later walkthrough on a redrawn label did return fail (1/1); see below |
 | SAM localization | **0/6 usable regions** | All six attempts used full-photo fallback; no crop/full comparison |
 | Transcription | 1/1 English sentence correct | Synthetic speech; Bangla ASR and physical microphone untested |
 

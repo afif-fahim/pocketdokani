@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
-import Image, { type StaticImageData } from "next/image";
 import { Brand, Icon } from "@/components/app-shell";
 import { ImagePreviewButton } from "@/components/image-viewer";
+import { ParcelGallery, ProductImage } from "@/components/parcel-gallery";
 import { ThemeSwitch } from "@/components/theme-switch";
 import orderQuote from "../../public/product/order-quote.jpg";
 import orderReview from "../../public/product/order-review.jpg";
@@ -10,43 +10,36 @@ import parcelCheck from "../../public/product/parcel-check.jpg";
 import banglaAnswer from "../../public/product/bangla-answer.jpg";
 import parcelCleanDome from "../../public/product/parcel-clean-dome.jpg";
 import parcelSwappedError from "../../public/product/parcel-swapped-error.jpg";
-import parcelPrepaidBag from "../../public/product/parcel-prepaid-bag.jpg";
-import parcelBlackDome from "../../public/product/parcel-black-dome.jpg";
-import parcelWrongBag from "../../public/product/parcel-wrong-bag.jpg";
 import workspaceOverview from "../../public/product/workspace-overview.jpg";
 
 type ShowcaseTab = "parcel" | "workspace" | "bangla";
 
-function ProductImage({
-  src,
-  alt,
-  label,
-  sizes,
+function JudgeStartButton({
   className,
-  preload,
+  ready,
+  busy,
+  labels,
+  onStart,
 }: {
-  src: StaticImageData;
-  alt: string;
-  label: string;
-  sizes: string;
-  className?: string;
-  preload?: boolean;
+  className: string;
+  ready: boolean;
+  busy: boolean;
+  labels: { checking: string; starting: string; idle: string };
+  onStart: () => void;
 }) {
   return (
-    <ImagePreviewButton
-      src={src.src}
-      alt={alt}
-      aria-label={label}
-      className={
-        className
-          ? `product-image-trigger ${className}`
-          : "product-image-trigger"
-      }
-    >
-      <Image src={src} alt={alt} sizes={sizes} preload={preload} />
-    </ImagePreviewButton>
+    <button className={className} disabled={!ready || busy} onClick={onStart}>
+      {!ready ? labels.checking : busy ? labels.starting : labels.idle}
+      <Icon name="arrow" />
+    </button>
   );
 }
+
+const SHOWCASE_TABS: { id: ShowcaseTab; label: string }[] = [
+  { id: "workspace", label: "1. Order & quote" },
+  { id: "parcel", label: "2. Pack check" },
+  { id: "bangla", label: "3. Bangla assistant" },
+];
 
 export default function Welcome({
   judge,
@@ -65,12 +58,17 @@ export default function Welcome({
 }) {
   const [passcode, setPasscode] = useState("");
   const [signInFrom, setSignInFrom] = useState<"hero" | "form">("hero");
-  const [activeTab, setActiveTab] = useState<ShowcaseTab>("parcel");
+  const [activeTab, setActiveTab] = useState<ShowcaseTab>("workspace");
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setSignInFrom("form");
     await onSignIn(passcode);
+  }
+
+  function startSampleShop() {
+    setSignInFrom("hero");
+    void onSignIn("");
   }
 
   const signInError = error && (
@@ -108,17 +106,17 @@ export default function Welcome({
             {judge ? "Seller entry" : "Seller sign-in"}
           </a>
           {judge ? (
-            <button
+            <JudgeStartButton
               className="primary header-cta"
-              disabled={!ready || busy}
-              onClick={() => {
-                setSignInFrom("hero");
-                void onSignIn("");
+              ready={ready}
+              busy={busy}
+              labels={{
+                checking: "Checking…",
+                starting: "Starting…",
+                idle: "Start sample shop",
               }}
-            >
-              {!ready ? "Checking…" : busy ? "Starting…" : "Start sample shop"}
-              <Icon name="arrow" />
-            </button>
+              onStart={startSampleShop}
+            />
           ) : (
             <a className="button-link primary header-cta" href="/judge">
               Judge demo
@@ -163,21 +161,17 @@ export default function Welcome({
 
             <div className="welcome-actions">
               {judge ? (
-                <button
+                <JudgeStartButton
                   className="primary hero-primary-cta"
-                  disabled={!ready || busy}
-                  onClick={() => {
-                    setSignInFrom("hero");
-                    void onSignIn("");
+                  ready={ready}
+                  busy={busy}
+                  labels={{
+                    checking: "Checking session…",
+                    starting: "Starting demo…",
+                    idle: "Start sample shop",
                   }}
-                >
-                  {!ready
-                    ? "Checking session…"
-                    : busy
-                      ? "Starting demo…"
-                      : "Start sample shop"}
-                  <Icon name="arrow" />
-                </button>
+                  onStart={startSampleShop}
+                />
               ) : (
                 <a
                   className="button-link primary hero-primary-cta"
@@ -191,6 +185,10 @@ export default function Welcome({
                 See packing table photos ↓
               </a>
             </div>
+
+            <p className="fine-print">
+              Synthetic data only. Live Meta AI calls. Simulated courier.
+            </p>
 
             {signInFrom === "hero" && signInError}
             {!ready && (
@@ -214,69 +212,58 @@ export default function Welcome({
                   role="tablist"
                   aria-label="Product preview modes"
                 >
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === "parcel"}
-                    onClick={() => setActiveTab("parcel")}
-                  >
-                    1. Parcel check
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === "workspace"}
-                    onClick={() => setActiveTab("workspace")}
-                  >
-                    2. Order &amp; quote
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === "bangla"}
-                    onClick={() => setActiveTab("bangla")}
-                  >
-                    3. Bangla assistant
-                  </button>
+                  {SHOWCASE_TABS.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === id}
+                      onClick={() => setActiveTab(id)}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {activeTab === "parcel" && (
                 <div className="showcase-stage" role="tabpanel">
+                  <p className="fine-print">
+                    These two photos are AI-generated illustrations, not app
+                    results.
+                  </p>
                   <div className="showcase-compare-grid">
                     <figure className="showcase-photo-card">
                       <span className="photo-badge pass">
-                        Clean handwritten label · 980/-
+                        Illustration · Clean label · 980/-
                       </span>
                       <ProductImage
                         src={parcelCleanDome}
-                        alt="Generated packing-table parcel for order #PD-SAMPLE-01 with Name Demo recipient, phone 01X-EXAMPLE redacted, price 980/-, and brown monogram dome bag."
-                        label="Open clean parcel photo at full size"
+                        alt="Illustrated packing-table parcel for order PD-SAMPLE-01 with recipient Demo recipient, phone marker 01X-EXAMPLE, price 980/-, and plain brown dome bag."
+                        label="Open clean parcel illustration at full size"
                         sizes="(max-width: 900px) 100vw, 28vw"
-                        preload
                       />
                       <figcaption>
-                        <strong>Order #PD-SAMPLE-01:</strong> Name &amp; phone
-                        in correct rows, <code>980/-</code> matches COD, brown
-                        monogram dome bag beside parcel.
+                        <strong>Order PD-SAMPLE-01:</strong> Name &amp; phone
+                        marker in correct rows, <code>980/-</code> matches COD,
+                        plain brown dome bag beside parcel.
                       </figcaption>
                     </figure>
 
                     <figure className="showcase-photo-card">
                       <span className="photo-badge danger">
-                        Swapped rows &amp; wrong COD · 890/-
+                        Illustration · Swapped rows · 890/-
                       </span>
                       <ProductImage
                         src={parcelSwappedError}
-                        alt="Generated packing-table parcel for order #PD-SAMPLE-01 where phone is written in the Name row, Name in the Number row, and price is 890/- instead of 980/-."
-                        label="Open swapped-field parcel photo at full size"
+                        alt="Illustrated parcel for order PD-SAMPLE-01 where the phone marker is written in the Name row, the name in the Number row, and the price is 890/- instead of 980/-."
+                        label="Open swapped-field parcel illustration at full size"
                         sizes="(max-width: 900px) 100vw, 28vw"
                       />
                       <figcaption>
-                        <strong>Packing mistake:</strong> Phone written in{" "}
-                        <code>NAME</code>, customer name in <code>NUMBER</code>,
-                        and <code>890/-</code> written instead of{" "}
-                        <code>980/-</code>.
+                        <strong>Illustrated failure type:</strong> Phone marker
+                        in <code>NAME</code>, name in <code>NUMBER</code>, and{" "}
+                        <code>890/-</code> instead of <code>980/-</code>.
                       </figcaption>
                     </figure>
                   </div>
@@ -284,7 +271,7 @@ export default function Welcome({
                   <div className="showcase-callout">
                     <div className="callout-header">
                       <span className="eyebrow">
-                        HOW PACK CHECK EVALUATE PARCELS
+                        HOW PACK CHECK EVALUATES PARCELS
                       </span>
                       <span className="callout-chip">
                         SAM 3.1 + Blind Muse Spark 1.3
@@ -293,9 +280,9 @@ export default function Welcome({
                     <p>
                       Spark reads the label{" "}
                       <strong>without seeing the order</strong> so it cannot
-                      guess expected digits. Server code compares order ref,
-                      phone, COD, name, and address. Unreadable fields return{" "}
-                      <strong>unsure</strong> (never an automatic pass).
+                      guess expected digits. Server code compares label order
+                      number, phone, COD, name, and address. Unreadable fields
+                      return <strong>unsure</strong> (never an automatic pass).
                     </p>
                   </div>
                 </div>
@@ -310,6 +297,7 @@ export default function Welcome({
                       label="Open full sample shop workspace capture"
                       sizes="(max-width: 900px) 100vw, 45vw"
                       className="workspace-main-shot"
+                      preload
                     />
                     <div className="workspace-quote-overlay">
                       <span className="eyebrow">
@@ -346,15 +334,15 @@ export default function Welcome({
                       </span>
                       <h3 lang="bn">“কয়টা অর্ডার পাঠানো বাকি আছে?”</h3>
                       <p>
-                        Spark selects shop-scoped tools (up to 6 steps) and
-                        cites record IDs. FastAPI validates every reference and
-                        renders the exact count (<code>অর্ডার: 3</code>)
-                        directly from PostgreSQL.
+                        Spark selects shop-scoped tools (up to six tool calls)
+                        and cites record IDs. FastAPI validates every reference
+                        and renders the exact count (<code>অর্ডার: 3</code>)
+                        from stored records.
                       </p>
-                      <ul className="Grounded-list">
+                      <ul className="grounded-list">
                         <li>
                           <strong>Clickable record chips:</strong> Jump straight
-                          to <code>PD-0DEF112AC1994D96</code>,{" "}
+                          to <code>PD-1A17780B2B5A4518</code>,{" "}
                           <code>PD-DEMO-0003</code>, or{" "}
                           <code>PD-DEMO-0002</code>.
                         </li>
@@ -382,7 +370,7 @@ export default function Welcome({
                   </dt>
                   <dd>
                     Isolated sample shop with live calls to{" "}
-                    <code>api.meta.ai</code>.
+                    <code>api.meta.ai</code> and a simulated courier.
                   </dd>
                 </div>
                 <div>
@@ -484,7 +472,8 @@ export default function Welcome({
               <div className="workflow-rule">
                 <strong>Formula:</strong>{" "}
                 <code>
-                  COD = Σ(qty × price − discount) + delivery − verified_prepaid
+                  COD = Σ(qty × price − discount) + customer delivery charge −
+                  verified prior payment
                 </code>
                 . Editing a confirmed order returns it to draft.
               </div>
@@ -495,7 +484,7 @@ export default function Welcome({
                 <span className="step-badge">STEP 03</span>
                 <span className="role-tag model">SAM 3.1 + Blind Spark</span>
               </div>
-              <h3>Parcel photo → Blind label &amp; bag check</h3>
+              <h3>Pack check → Blind label &amp; bag read</h3>
               <p>
                 SAM 3.1 segments the shipping label and handbag (with full-photo
                 fallback). Spark reads the label blind—without the expected
@@ -555,152 +544,7 @@ export default function Welcome({
             </div>
           </div>
 
-          <div className="parcel-gallery-grid">
-            <figure className="parcel-scenario-card">
-              <div className="scenario-image-wrap">
-                <span className="photo-badge pass">
-                  01 · Clean label &amp; matching SKU
-                </span>
-                <ProductImage
-                  src={parcelCleanDome}
-                  alt="Packed parcel #PD-SAMPLE-01 with clean handwritten label (Demo recipient, 01X-EXAMPLE redacted, Example Road, Dhaka, 980/-) beside the brown monogram dome bag."
-                  label="Open full-size photo of clean parcel #PD-SAMPLE-01"
-                  sizes="(max-width: 760px) 100vw, 48vw"
-                />
-              </div>
-              <figcaption>
-                <div className="scenario-meta">
-                  <code>Order #PD-SAMPLE-01</code>
-                  <span>COD: BDT 980/-</span>
-                  <span>SKU: Brown Monogram Dome</span>
-                </div>
-                <h3>Every field in its row, bag beside the parcel.</h3>
-                <p>
-                  Order reference, recipient name, 11-digit phone, address, and{" "}
-                  <code>980/-</code> COD are written in their designated rows
-                  with the unsealed handbag visible beside the box for SKU
-                  comparison.
-                </p>
-              </figcaption>
-            </figure>
-
-            <figure className="parcel-scenario-card">
-              <div className="scenario-image-wrap">
-                <span className="photo-badge danger">
-                  02 · Swapped rows &amp; wrong COD (890/- vs 980/-)
-                </span>
-                <ProductImage
-                  src={parcelSwappedError}
-                  alt="Packed parcel #PD-SAMPLE-01 where the phone number is written in the Name row, customer name in the Number row, and price is 890/- instead of 980/-."
-                  label="Open full-size photo of swapped-row parcel #PD-SAMPLE-01"
-                  sizes="(max-width: 760px) 100vw, 48vw"
-                />
-              </div>
-              <figcaption>
-                <div className="scenario-meta">
-                  <code>Order #PD-SAMPLE-01</code>
-                  <span className="danger-text">
-                    Written: 890/- (Expected 980/-)
-                  </span>
-                  <span>Row swap error</span>
-                </div>
-                <h3>The packing mistake that inspired blind label checks.</h3>
-                <p>
-                  When rushing through parcels, the packer wrote the phone
-                  number in the <code>NAME:</code> field, the customer name in{" "}
-                  <code>NUMBER:</code>, and transposed the COD to{" "}
-                  <code>890/-</code>. A blind read + deterministic field
-                  comparison is designed to catch swapped or mismatched values.
-                </p>
-              </figcaption>
-            </figure>
-
-            <figure className="parcel-scenario-card">
-              <div className="scenario-image-wrap">
-                <span className="photo-badge warning">
-                  03 · Scratched-out phone &amp; prepaid 0/- COD
-                </span>
-                <ProductImage
-                  src={parcelPrepaidBag}
-                  alt="Packed parcel #PD-SAMPLE-03 with a scratched-out phone number, rewritten phone, and 0/- price next to a brown leather shoulder bag with silver buckle and chain."
-                  label="Open full-size photo of prepaid parcel #PD-SAMPLE-03 with scratched phone"
-                  sizes="(max-width: 760px) 100vw, 48vw"
-                />
-              </div>
-              <figcaption>
-                <div className="scenario-meta">
-                  <code>Order #PD-SAMPLE-03</code>
-                  <span>Written COD: 0/-</span>
-                  <span>SKU: Brown Chain Shoulder Bag</span>
-                </div>
-                <h3>Handwritten corrections and advance payments.</h3>
-                <p>
-                  A crossed-out number on the label makes optical reading
-                  ambiguous—returning <code>unsure</code> prompts a clearer
-                  photo or explicit seller review. And a <code>0/-</code> COD is
-                  accepted only when the seller has confirmed a verified prior
-                  payment.
-                </p>
-              </figcaption>
-            </figure>
-
-            <figure className="parcel-scenario-card">
-              <div className="scenario-image-wrap">
-                <span className="photo-badge neutral">
-                  04 · Colour variant verification
-                </span>
-                <ProductImage
-                  src={parcelBlackDome}
-                  alt="Packed parcel #PD-SAMPLE-04 for Example Road, Dhaka with price 970/- beside the black monogram dome bag variant."
-                  label="Open full-size photo of black dome bag parcel #PD-SAMPLE-04"
-                  sizes="(max-width: 760px) 100vw, 48vw"
-                />
-              </div>
-              <figcaption>
-                <div className="scenario-meta">
-                  <code>Order #PD-SAMPLE-04</code>
-                  <span>COD: BDT 970/-</span>
-                  <span>SKU: Black Monogram Dome</span>
-                </div>
-                <h3>
-                  Distinguishing Black vs. Brown SKU variants before sealing.
-                </h3>
-                <p>
-                  The same dome bag ships in multiple colourways. Placing the
-                  unsealed bag beside the parcel lets Spark compare the visible
-                  product against the confirmed SKU photo before the bag goes
-                  into the flyer.
-                </p>
-              </figcaption>
-            </figure>
-
-            <figure className="parcel-scenario-card">
-              <div className="scenario-image-wrap">
-                <span className="photo-badge danger">
-                  05 · Bag style mismatch
-                </span>
-                <ProductImage
-                  src={parcelWrongBag}
-                  alt="White parcel labeled PD-SAMPLE-05 with COD 1,080 beside a blue canvas tote."
-                  label="Open full-size photo of the blue tote beside parcel PD-SAMPLE-05"
-                  sizes="(max-width: 760px) 100vw, 48vw"
-                />
-              </div>
-              <figcaption>
-                <div className="scenario-meta">
-                  <code>Order PD-SAMPLE-05</code>
-                  <span>COD: BDT 1,080</span>
-                  <span>Expected SKU: Black Shoulder Bag</span>
-                </div>
-                <h3>Catch a bag mix-up before sealing.</h3>
-                <p>
-                  The label shows the expected order reference and COD. The
-                  visible blue canvas tote differs from the compact black
-                  shoulder bag on the confirmed order.
-                </p>
-              </figcaption>
-            </figure>
-          </div>
+          <ParcelGallery />
 
           <p className="proof-note">
             <strong>Provenance note.</strong> All five photos are AI-generated
@@ -725,8 +569,8 @@ export default function Welcome({
                 What the app actually returned on live Meta API calls.
               </h2>
               <p className="section-subtext">
-                Unedited browser captures from the November 4 local walkthrough
-                on constructed synthetic inputs, using live{" "}
+                Cropped browser captures, values unchanged, from the November 4
+                local walkthrough on constructed synthetic inputs, using live{" "}
                 <code>muse-spark-1.3</code> and <code>sam-3.1</code> calls at{" "}
                 <code>api.meta.ai</code>. Select any image to inspect it at full
                 resolution.
@@ -737,15 +581,17 @@ export default function Welcome({
           <div className="proof-moments">
             <article className="evidence-card">
               <div className="evidence-card-header">
-                <span className="eyebrow">01 · SCREENSHOTS → ORDER DRAFT</span>
-                <span className="audit-time">muse-spark-1.3 · 15:34:19</span>
+                <span className="eyebrow">01 · SCREENSHOTS → DRAFT ORDER</span>
+                <span className="audit-time">muse-spark-1.3 · 23:47:12</span>
               </div>
               <h3>Keep the final negotiated price and quote in view.</h3>
               <p>
                 From the synthetic two-item chat, Spark extracted the tote at{" "}
                 <strong>BDT 450</strong> and shoulder bag at{" "}
                 <strong>BDT 550</strong>, linking each field to its original
-                Bangla message and screenshot index.
+                Bangla message and screenshot index. It left both line discounts
+                blank for review, so the seller entered 0 and confirmed COD BDT
+                1,080.
               </p>
 
               <div className="evidence-pair">
@@ -786,27 +632,28 @@ export default function Welcome({
 
             <article className="evidence-card">
               <div className="evidence-card-header">
-                <span className="eyebrow">02 · PARCEL PHOTO → LABEL CHECK</span>
+                <span className="eyebrow">02 · PARCEL PHOTO → PACK CHECK</span>
                 <span className="audit-time">
-                  sam-3.1 + spark-1.3 · 15:36:13
+                  sam-3.1 + spark-1.3 · 23:51:20
                 </span>
               </div>
-              <h3>Unclear is a reason to pause—never an automatic pass.</h3>
+              <h3>A wrong COD on the label blocks the parcel.</h3>
               <p>
-                Tested on a synthetic parcel image with the phone field
-                deliberately obscured. SAM fell back to the full photo; the
-                blind label reader marked the label <strong>unsure</strong>{" "}
-                while matching the visible bags, prompting a reshoot.
+                This synthetic label says <code>1180/-</code> for an order
+                confirmed at BDT 1,080. SAM fell back to the full photo; the
+                blind label reader returned the written amount, and server code
+                marked the check <strong>fail</strong>. The matching-label image
+                then passed. One example of each, not an accuracy rate.
               </p>
 
               <div className="evidence-pair">
                 <div className="evidence-specimen">
                   <span className="specimen-label">
-                    Synthetic parcel input (phone obscured)
+                    Synthetic parcel input (wrong COD)
                   </span>
                   <ProductImage
                     src={parcelInput}
-                    alt="Synthetic parcel input for the confirmed order, with its phone field deliberately obscured and two illustrated bags."
+                    alt="Synthetic parcel input for the confirmed order, with a label showing price 1180/- beside illustrated blue and black bags."
                     label="Open the full synthetic parcel photo used for this check"
                     sizes="(max-width: 760px) 100vw, 280px"
                   />
@@ -814,12 +661,12 @@ export default function Welcome({
 
                 <div className="evidence-specimen">
                   <span className="specimen-label">
-                    Observed app verdict: Unsure
+                    Observed app verdict: Fail
                   </span>
                   <ProductImage
                     src={parcelCheck}
-                    alt="Actual result: Pack check unsure, label unsure, visible bag match. The app asks for a reshoot with readable label fields."
-                    label="Open the parcel check capture at full size"
+                    alt="Actual result: Pack check fail, label fail, visible bag match. The COD row shows 1180/- written against 1080.00 confirmed, and the app asks for a fix and a new photo."
+                    label="Open the pack check capture at full size"
                     sizes="(max-width: 760px) 100vw, 280px"
                   />
                 </div>
@@ -828,7 +675,7 @@ export default function Welcome({
               <div className="evidence-footer-link">
                 <ImagePreviewButton
                   src="/product/parcel-input.png"
-                  alt="Full synthetic parcel fixture with the phone field obscured"
+                  alt="Full synthetic parcel fixture with the wrong COD on its label"
                 >
                   Inspect full synthetic parcel fixture (1000 × 820)
                 </ImagePreviewButton>
@@ -838,14 +685,14 @@ export default function Welcome({
             <article className="evidence-card">
               <div className="evidence-card-header">
                 <span className="eyebrow">03 · BANGLA QUESTION → RECORDS</span>
-                <span className="audit-time">muse-spark-1.3 · 15:45:55</span>
+                <span className="audit-time">muse-spark-1.3 · 23:56:46</span>
               </div>
               <h3 lang="bn">“কয়টা অর্ডার পাঠানো বাকি আছে?”</h3>
               <p>
                 Asked in Bangla, the assistant selected the order-lookup tool
                 and returned <code>অর্ডার: 3</code> from stored records—citing
-                the newly confirmed order alongside <code>PD-DEMO-0003</code>{" "}
-                and <code>PD-DEMO-0002</code>.
+                the newly packed order alongside <code>PD-DEMO-0003</code> and{" "}
+                <code>PD-DEMO-0002</code>.
               </p>
 
               <div className="evidence-single">
@@ -867,7 +714,7 @@ export default function Welcome({
                   src="/product/bangla-answer.jpg"
                   alt="Full Bangla assistant answer capture"
                 >
-                  Inspect full assistant capture (305 × 335)
+                  Inspect full assistant capture (814 × 956)
                 </ImagePreviewButton>
               </div>
             </article>
@@ -907,7 +754,8 @@ export default function Welcome({
               <p>
                 Reads multi-screenshot sales conversations with catalog SKU
                 photos, performs blind label OCR without expected order values,
-                compares visible bags, and drives the 6-step grounded tool loop.
+                compares visible bags, and drives the grounded tool loop (max
+                six tool calls).
               </p>
             </article>
 
@@ -1006,7 +854,7 @@ export default function Welcome({
                     </td>
                   </tr>
                   <tr>
-                    <th scope="row">Synthetic parcel checks</th>
+                    <th scope="row">Synthetic pack checks</th>
                     <td>
                       <span className="metric-badge neutral">
                         1 pass · 2 unsure
@@ -1025,8 +873,8 @@ export default function Welcome({
                       </span>
                     </td>
                     <td>
-                      Blind reader marked fields illegible on synthetic 1,180 vs
-                      1,080 fixture
+                      Blind reader marked fields illegible on the earlier 1,180
+                      vs 1,080 image; the redrawn label above returned fail
                     </td>
                   </tr>
                   <tr>
@@ -1060,7 +908,7 @@ export default function Welcome({
               <h3 id="limits-heading">Boundaries we keep explicit</h3>
               <ul className="limits-list">
                 <li>
-                  <strong>Visible details only:</strong> A parcel photo checks
+                  <strong>Visible details only:</strong> A pack check compares
                   the visible label and unsealed bag beside it; it reveals
                   nothing about sealed contents inside a flyer.
                 </li>
@@ -1111,7 +959,8 @@ export default function Welcome({
                 </span>
                 <div>
                   <strong>Extract a sample chat</strong>
-                  Review source quotes and confirm COD BDT 1,080.
+                  Review source quotes, fill any blank fields and confirm COD
+                  BDT 1,080.
                 </div>
               </li>
               <li>

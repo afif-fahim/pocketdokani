@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import BusinessLists from "@/features/orders/business-lists";
 import Assistant from "@/features/assistant/assistant";
-import AppShell, { Icon } from "@/components/app-shell";
+import AppShell, { Icon, WorkspaceIcon } from "@/components/app-shell";
 import { ImageViewerProvider } from "@/components/image-viewer";
 import Conversations from "@/features/conversations/conversations";
 import Welcome from "@/components/welcome";
@@ -168,9 +168,7 @@ function Workspace({ context }: { context: Context }) {
       {!shop.judge && shop.section === "orders" && (
         <div className="assistant-shortcut">
           <div>
-            <span className="workspace-icon">
-              <Icon name="assistant" />
-            </span>
+            <WorkspaceIcon name="assistant" />
             <div>
               <strong>Ask your shop</strong>
               <p lang="bn">অর্ডার, স্টক বা বিক্রির খবর জানতে চান?</p>
@@ -320,9 +318,7 @@ function Workspace({ context }: { context: Context }) {
               })
             }
           >
-            <span className="workspace-icon">
-              <Icon name="conversations" />
-            </span>
+            <WorkspaceIcon name="conversations" />
             <span className="order-choice-copy">
               {shop.judge ? "Sample screenshots" : "Screenshot import"}
               <small>
@@ -337,9 +333,7 @@ function Workspace({ context }: { context: Context }) {
             disabled={shop.busy}
             onClick={() => startOrder(() => void shop.createDraft())}
           >
-            <span className="workspace-icon">
-              <Icon name="orders" />
-            </span>
+            <WorkspaceIcon name="orders" />
             <span className="order-choice-copy">
               Manual draft
               <small>Add the customer, items and agreed prices.</small>

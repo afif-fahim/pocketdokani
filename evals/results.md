@@ -4,7 +4,7 @@
 
 ## Provenance and evidence
 
-The corrected run used isolated SQLite records/private local objects, with real `muse-spark-1.3`, `sam-3.1` and `muse-voice-transcribe-1.0` calls. It ran **15:13:10–15:15:30 Asia/Dhaka** on November 4. Source base: `2d802c582f7be30d1c8d0523ec83256cbf8df3d0`, plus the RGBA fixture correction included with this report. The exact fixture hash, run timestamps, field outputs and timings are in the [reviewed synthetic evidence](evidence/synthetic-smoke-2026-11-04.json).
+The corrected run used isolated SQLite records/private local objects, with real `muse-spark-1.3`, `sam-3.1` and `muse-voice-transcribe-1.0` calls. It ran **15:13:10–15:15:30 Asia/Dhaka** on November 4. Source base: `2d802c582f7be30d1c8d0523ec83256cbf8df3d0`, plus the RGBA fixture correction included with this report. The exact fixture hash, run timestamps, field outputs and most timings are in the [reviewed synthetic evidence](evidence/synthetic-smoke-2026-11-04.json). Six client timings (extraction, proposal, whole runner, and the three hosted request times) are not recorded there; no public source for them was retained, so they are reported here as unverified.
 
 Manifest SHA-256 at both runs: `3de4dfa7b12fdc4229cd8d928fa416c620f2c554cb1213c6cf2c1734ca3d0e36`. Sources were registered before calls: `constructed-conversation-001` (two screenshots), `constructed-parcel-illustration` (correct/wrong-COD/unreadable variants) and `constructed-assistant-voice-001` (synthetic English speech). All remain **constructed/development**. No prompt tuning or retries were used to improve the reported outcomes.
 
@@ -56,12 +56,12 @@ The corrected local run used **28 provider attempts**: Spark 21, SAM 6, Voice 1,
 
 | Operation | Client HTTP elapsed | Provider HTTP latency, summed |
 | --- | --- | --- |
-| Extraction, n=1 | 19.116 s | 18.985 s |
+| Extraction, n=1 | 19.116 s (not in JSON) | 18.985 s |
 | Parcel checks, n=3 | 20.493 / 25.169 / 20.318 s (wrong/unclear/clean) | 65.577 s across 12 attempts |
 | Voice, n=1 | 2.163 s | 2.094 s |
 | Five questions | 4.451 / 17.353 / 5.302 / 5.576 / 7.593 s | Included in assistant total below |
-| Proposal | 10.795 s | Assistant total: 50.718 s across 14 attempts |
-| Whole corrected runner | 139.601 s | 137.374 s across 28 attempts |
+| Proposal | 10.795 s (not in JSON) | Assistant total: 50.718 s across 14 attempts |
+| Whole corrected runner | 139.601 s (not in JSON) | 137.374 s across 28 attempts |
 
 Client elapsed uses `perf_counter` around HTTP requests. Provider latency is the application's `ModelRun.latency_ms` around each external HTTP exchange, excluding `assistant_turn` orchestration audits. Neither includes human review/capture or browser rendering; this is not an end-to-end user-time estimate.
 
@@ -69,13 +69,17 @@ A normal shorter walkthrough costs roughly **14 attempts**: extraction 1 + two p
 
 ## Hosted outcome and #7 handoff
 
-At **15:13:25–15:13:33 Dhaka**, `https://pocketdokani.vercel.app` returned health 200 and enabled-model sessions, but `POST /api/judge/example` returned **503 in 0.467 s**, and reset returned **503 in 0.169 s**. Hosted transcription succeeded in 4.394 s with the expected English transcript. Independent-session records and sign-out checks passed. Extraction, parcel analysis, booking, the Bangla answer and proposal could not be rehearsed there. The local rendering failure is consistent with this blocker; hosted exception logs were inaccessible, so its exact cause is not independently proven.
+At **15:13:25–15:13:33 Dhaka**, `https://pocketdokani.vercel.app` returned health 200 and enabled-model sessions, but `POST /api/judge/example` returned **503 in 0.467 s**, and reset returned **503 in 0.169 s** (hosted timings are not recorded in the JSON). Hosted transcription succeeded in 4.394 s (also not recorded there) with the expected English transcript. Independent-session records and sign-out checks passed. Extraction, parcel analysis, booking, the Bangla answer and proposal could not be rehearsed there. The local rendering failure is consistent with this blocker; hosted exception logs were inaccessible, so its exact cause is not independently proven.
 
-The separate browser entry check opened eight synthetic orders after an initial saved-session timeout recovered through **Start sample shop**. [Reviewed hosted entry capture](evidence/judge-entry-2026-11-04.jpg) proves entry only. Hosted code revision, actual judge allowance, remaining credits, provider attempt count and provider latency were not exposed; **none is claimed verified**.
+The separate browser entry check opened eight synthetic orders after an initial saved-session timeout recovered through **Start sample shop**. [Reviewed entry capture](evidence/judge-entry-2026-11-04.jpg) shows the judge entry and eight-order sample shop only; the host it was captured on (hosted or local browser) is not established. Hosted code revision, actual judge allowance, remaining credits, provider attempt count and provider latency were not exposed; **none is claimed verified**.
 
 **Release blocker for #7:** deploy the RGBA correction, verify the running Render setting `JUDGE_MODEL_CALLS_PER_HOUR=60` and available provider credits, then record one complete fresh hosted walkthrough after the presentation deployment. The blueprint change alone does not prove the running service adopted it. Retain the wrong-COD miss as a quality limitation; do not promise a red result. Reusable evidence for #22/#23 is the linked synthetic JSON, entry capture and tables here; entry footage is not the seller video requested in #24.
 
 Physical-phone HTTPS microphone permission denial/recording/transcript review, camera upload, actual host upload-size ceilings, unsaved-edit warnings, interrupted-write recovery and authenticated seller isolation remain untested here. Genuine conversations, handwriting, real parcels, sealed contents, Bangla speech quality and genuine pilot outcomes were not evaluated. Larger evaluation targets remain unrun.
+
+## Later landing walkthrough
+
+After this report, the judge sample chat and parcel images were redrawn and registered before any call as `constructed-conversation-002` and `constructed-parcel-illustration-002` (manifest SHA-256 `5bf15c596943e9affac9f27db8602a737fce6cde22aeaeddca2aff5eef6f08ae` after formatting; same source groups as at the run). One walkthrough at **23:47–23:57 Dhaka** on November 4 used 11 provider attempts: extraction left both line discounts blank for seller review; the wrong-COD label returned **fail** and the matching label returned **pass**; all four SAM calls used full-photo fallback. These are single development examples and do not replace the denominators above. Details are in the [product evidence record](../apps/web/public/product/README.md). The results above were measured on the earlier images. Follow the steps below with the current sample, entering 0 for line discounts when they are blank.
 
 ## Reproduce
 

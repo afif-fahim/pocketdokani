@@ -30,6 +30,27 @@
       ]
     },
     {
+      "source_id": "constructed-conversation-002",
+      "kind": "conversation",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": [
+        "constructed-chat-screenshot-001",
+        "constructed-chat-screenshot-002"
+      ]
+    },
+    {
+      "source_id": "constructed-parcel-illustration-002",
+      "kind": "label",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": [
+        "constructed-parcel-scene-correct",
+        "constructed-parcel-scene-wrong-cod",
+        "constructed-parcel-scene-unreadable"
+      ]
+    },
+    {
       "source_id": "constructed-label-001",
       "kind": "label",
       "split": "development",

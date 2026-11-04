@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "@/app/globals.css";
 import "@/app/app-shell.css";
+import { themeStorageKey } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: "PocketDokani · Your shop, from chat to courier",
@@ -16,7 +17,7 @@ export const viewport: Viewport = {
 };
 
 const restoreTheme = `try {
-  const theme = localStorage.getItem("pocketdokani-theme");
+  const theme = localStorage.getItem("${themeStorageKey}");
   if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
 } catch {}`;
 

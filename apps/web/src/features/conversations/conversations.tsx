@@ -145,19 +145,25 @@ export default function Conversations({
   }
 
   function preview(source: Source | Pending) {
-    const pending = "file" in source;
-    openImage({
-      src: source.url,
-      alt: "Full original conversation screenshot",
-      title: pending
-        ? "Selected screenshot"
-        : `Original · screenshot ${source.sequence}`,
-      filename: pending ? source.file.name : source.filename,
-      checksum: pending ? undefined : source.sha256,
-      errorMessage: pending
-        ? undefined
-        : "This image could not be opened. Your session may have expired. Close this preview and sign in again.",
-    });
+    const alt = "Full original conversation screenshot";
+    openImage(
+      "file" in source
+        ? {
+            src: source.url,
+            alt,
+            title: "Selected screenshot",
+            filename: source.file.name,
+          }
+        : {
+            src: source.url,
+            alt,
+            title: `Original · screenshot ${source.sequence}`,
+            filename: source.filename,
+            checksum: source.sha256,
+            errorMessage:
+              "This image could not be opened. Your session may have expired. Close this preview and sign in again.",
+          },
+    );
   }
 
   return (

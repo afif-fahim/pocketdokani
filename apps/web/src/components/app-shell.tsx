@@ -55,6 +55,14 @@ export function Icon({
   );
 }
 
+export function WorkspaceIcon({ name }: { name: Section }) {
+  return (
+    <span className="workspace-icon">
+      <Icon name={name} />
+    </span>
+  );
+}
+
 export function Brand() {
   return (
     <span className="wordmark">
@@ -145,9 +153,7 @@ export default function AppShell({
               disabled={busy}
               onClick={() => onNavigate(key)}
             >
-              <span className="workspace-icon">
-                <Icon name={key} />
-              </span>
+              <WorkspaceIcon name={key} />
               <span>{label}</span>
               {key === "assistant" && (
                 <span className="nav-hint" lang="bn">
@@ -176,9 +182,7 @@ export default function AppShell({
                 {judge ? "EXPLORE POCKETDOKANI" : "LET’S GET TO WORK"}
               </p>
               <div className="page-title">
-                <span className="workspace-icon">
-                  <Icon name={section} />
-                </span>
+                <WorkspaceIcon name={section} />
                 <h1>{current.label}</h1>
               </div>
               <p className="muted">{current.description}</p>

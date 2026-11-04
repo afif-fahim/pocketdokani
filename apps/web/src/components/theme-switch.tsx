@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { themeStorageKey } from "@/lib/theme";
 
 const darkPreference = "(prefers-color-scheme: dark)";
 
@@ -31,7 +32,7 @@ export function ThemeSwitch() {
     const theme = isDark() ? "light" : "dark";
     document.documentElement.dataset.theme = theme;
     try {
-      localStorage.setItem("pocketdokani-theme", theme);
+      localStorage.setItem(themeStorageKey, theme);
     } catch {
       // The current page can still switch themes when storage is unavailable.
     }
