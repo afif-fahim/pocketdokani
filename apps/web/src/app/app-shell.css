@@ -565,9 +565,19 @@
   overflow: clip;
 }
 
-.showcase-photo-card a {
+.product-image-trigger {
   display: block;
+  inline-size: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   overflow: clip;
+  cursor: zoom-in;
+}
+
+.product-image-trigger:focus-visible {
+  outline-offset: -3px;
 }
 
 .showcase-photo-card img {
@@ -667,10 +677,8 @@
 }
 
 .workspace-main-shot {
-  display: block;
   border: 1px solid var(--line);
   border-radius: 0.75rem;
-  overflow: clip;
   background: var(--paper);
 }
 
@@ -684,11 +692,9 @@
   border-radius: 0.75rem;
 }
 
-.workspace-quote-overlay a {
-  display: block;
+.workspace-quote-overlay .product-image-trigger {
   border: 1px solid var(--line);
   border-radius: 0.55rem;
-  overflow: clip;
   background: var(--surface);
 }
 
@@ -706,10 +712,8 @@
 }
 
 .bangla-shot-card {
-  display: block;
   border: 1px solid var(--line);
   border-radius: 0.75rem;
-  overflow: clip;
   background: var(--surface);
   max-inline-size: 19rem;
   margin-inline: auto;
@@ -894,11 +898,6 @@
   background: var(--paper);
 }
 
-.scenario-image-wrap a {
-  display: block;
-  overflow: clip;
-}
-
 .scenario-image-wrap img {
   inline-size: 100%;
   block-size: auto;
@@ -1036,7 +1035,7 @@
   background: color-mix(in oklch, var(--paper) 60%, var(--surface));
 }
 
-.evidence-specimen a {
+.evidence-specimen .product-image-trigger {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1054,15 +1053,19 @@
 
 .evidence-footer-link {
   margin-block-start: auto;
-  padding-block-start: 0.65rem;
   border-block-start: 1px solid var(--line);
   font-size: 0.78rem;
   font-weight: 600;
 }
 
-.evidence-footer-link a {
+.evidence-footer-link button {
+  padding-block: 0.65rem;
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
   color: var(--green);
-  text-decoration: none;
+  text-align: start;
+  text-underline-offset: 0.25em;
 }
 
 .proof-note {
@@ -1369,11 +1372,14 @@
     background: var(--soft);
     color: var(--ink);
   }
-  .evidence-footer-link a:hover {
+  .evidence-footer-link button:hover {
     text-decoration: underline;
   }
-  .showcase-photo-card a:hover img,
-  .parcel-scenario-card a:hover img {
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .showcase-photo-card .product-image-trigger:hover img,
+  .parcel-scenario-card .product-image-trigger:hover img {
     transform: scale(1.02);
   }
 }

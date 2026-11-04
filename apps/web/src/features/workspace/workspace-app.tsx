@@ -4,12 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import BusinessLists from "@/features/orders/business-lists";
 import Assistant from "@/features/assistant/assistant";
 import AppShell, { Icon } from "@/components/app-shell";
+import { ImageViewerProvider } from "@/components/image-viewer";
 import Conversations from "@/features/conversations/conversations";
 import Welcome from "@/components/welcome";
 import useWorkspaceSession from "@/features/workspace/use-workspace-session";
 import type { Context } from "@/features/workspace/workspace-types";
 
 export default function WorkspaceApp({ context }: { context: Context }) {
+  return (
+    <ImageViewerProvider>
+      <Workspace context={context} />
+    </ImageViewerProvider>
+  );
+}
+
+function Workspace({ context }: { context: Context }) {
   const shop = useWorkspaceSession(context, requestLeave);
   const [dirty, setDirty] = useState(false);
   const [conversationVersion, setConversationVersion] = useState(0);

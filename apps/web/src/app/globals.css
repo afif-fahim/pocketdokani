@@ -729,24 +729,87 @@ summary {
 summary:active {
   opacity: 0.65;
 }
-.source-dialog {
-  inline-size: min(95%, 58rem);
-  max-block-size: 92svh;
-  padding: var(--space);
+.image-preview-thumbnail {
+  display: block;
+  min-inline-size: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  cursor: zoom-in;
+}
+.stack > .image-preview-thumbnail {
+  align-self: stretch;
+}
+.image-viewer {
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: none;
+  max-block-size: none;
+  margin: 0;
+  padding: clamp(0.75rem, 3vw, 1.5rem);
+  border: 0;
+  overflow: clip;
+  background: transparent;
+  color: var(--ink);
+}
+.image-viewer[open] {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+}
+.image-viewer::backdrop {
+  background: oklch(0.15 0.016 162 / 0.82);
+}
+.image-viewer-panel {
+  display: flex;
+  flex-direction: column;
+  inline-size: fit-content;
+  min-inline-size: min(100%, 18rem);
+  max-inline-size: min(100%, 64rem);
+  max-block-size: 100%;
   border: 1px solid var(--line);
   border-radius: 0.75rem;
-  color: var(--ink);
   background: var(--surface);
+  overflow: clip;
 }
-.source-dialog::backdrop {
-  background: color-mix(in oklch, var(--ink) 70%, transparent);
+.image-viewer-header {
+  display: flex;
+  flex: none;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
 }
-.source-dialog img {
-  inline-size: 100%;
-  block-size: auto;
-  object-fit: contain;
-  background: var(--paper);
-  margin-block: 1rem;
+.image-viewer-header h2 {
+  font-size: 1rem;
+}
+.image-viewer-header p {
+  color: var(--muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.image-viewer-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  padding: 0;
+}
+.image-viewer-body {
+  min-block-size: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0 0.75rem 0.75rem;
+}
+.image-viewer-body:focus-visible {
+  outline-offset: -3px;
+}
+.image-viewer-body img {
+  margin-inline: auto;
+}
+.image-viewer-body details {
+  margin-block-start: 0.75rem;
 }
 html:has(dialog:modal) {
   overflow: hidden;

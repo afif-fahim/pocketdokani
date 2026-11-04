@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useImageViewer } from "@/components/image-viewer";
 import { api } from "@/lib/api";
 import DraftEditor from "@/features/orders/draft-editor";
 import type { StockItem } from "@/features/orders/business-lists";
@@ -51,9 +52,7 @@ export default function Conversations({
   const [sellerSide, setSellerSide] = useState<"left" | "right">("right");
   const [confirmed, setConfirmed] = useState(false);
   const [editorDirty, setEditorDirty] = useState(false);
-  const [view, setView] = useState<Source | Pending | null>(null);
-  const [imageFailed, setImageFailed] = useState(false);
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const openImage = useImageViewer();
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -145,9 +144,19 @@ export default function Conversations({
   }
 
   function preview(source: Source | Pending) {
-    setView(source);
-    setImageFailed(false);
-    dialogRef.current?.showModal();
+    const pending = "file" in source;
+    openImage({
+      src: source.url,
+      alt: "Full original conversation screenshot",
+      title: pending
+        ? "Selected screenshot"
+        : `Original · screenshot ${source.sequence}`,
+      filename: pending ? source.file.name : source.filename,
+      checksum: pending ? undefined : source.sha256,
+      errorMessage: pending
+        ? undefined
+        : "This image could not be opened. Your session may have expired. Close this preview and sign in again.",
+    });
   }
 
   return (
@@ -219,6 +228,7 @@ export default function Conversations({
                         <li key={source.id} className="saved-source">
                           <button
                             className="image-button"
+                            aria-haspopup="dialog"
                             onClick={() => preview(source)}
                             aria-label={`Open original screenshot ${source.sequence}`}
                           >
@@ -238,7 +248,10 @@ export default function Conversations({
                               {source.width} × {source.height} ·{" "}
                               {bytes(source.size)}
                             </p>
-                            <button onClick={() => preview(source)}>
+                            <button
+                              aria-haspopup="dialog"
+                              onClick={() => preview(source)}
+                            >
                               Open original ↗
                             </button>
                             <details>
@@ -317,6 +330,7 @@ export default function Conversations({
                         <button
                           type="button"
                           className="image-button"
+                          aria-haspopup="dialog"
                           onClick={() => preview(item)}
                           aria-label={`Preview screenshot ${index + 1}`}
                         >
@@ -457,45 +471,6 @@ export default function Conversations({
           </p>
         </aside>
       </div>
-      <dialog
-        ref={dialogRef}
-        className="source-dialog"
-        onClose={() => setView(null)}
-      >
-        {view && (
-          <>
-            <div className="section-heading">
-              <h2>
-                {"file" in view
-                  ? "Selected screenshot"
-                  : `Original · screenshot ${view.sequence}`}
-              </h2>
-              <button onClick={() => dialogRef.current?.close()} autoFocus>
-                Close ×
-              </button>
-            </div>
-            <p>{"file" in view ? view.file.name : view.filename}</p>
-            {imageFailed ? (
-              <p role="alert">
-                This image could not be opened. Your session may have expired;
-                close this preview and sign in again.
-              </p>
-            ) : (
-              <img
-                src={view.url}
-                alt="Full original conversation screenshot"
-                onError={() => setImageFailed(true)}
-              />
-            )}
-            {!("file" in view) && (
-              <details>
-                <summary>SHA-256 of the unchanged original</summary>
-                <code>{view.sha256}</code>
-              </details>
-            )}
-          </>
-        )}
-      </dialog>
     </>
   );
 }

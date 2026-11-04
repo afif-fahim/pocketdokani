@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import { Brand, Icon } from "@/components/app-shell";
+import { ImagePreviewButton } from "@/components/image-viewer";
 import orderQuote from "../../public/product/order-quote.jpg";
 import orderReview from "../../public/product/order-review.jpg";
 import parcelInput from "../../public/product/parcel-input.png";
@@ -13,6 +14,37 @@ import parcelBlackDome from "../../public/product/parcel-black-dome.jpg";
 import workspaceOverview from "../../public/product/workspace-overview.jpg";
 
 type ShowcaseTab = "parcel" | "workspace" | "bangla";
+
+function ProductImage({
+  src,
+  alt,
+  label,
+  sizes,
+  className,
+  preload,
+}: {
+  src: StaticImageData;
+  alt: string;
+  label: string;
+  sizes: string;
+  className?: string;
+  preload?: boolean;
+}) {
+  return (
+    <ImagePreviewButton
+      src={src.src}
+      alt={alt}
+      aria-label={label}
+      className={
+        className
+          ? `product-image-trigger ${className}`
+          : "product-image-trigger"
+      }
+    >
+      <Image src={src} alt={alt} sizes={sizes} preload={preload} />
+    </ImagePreviewButton>
+  );
+}
 
 export default function Welcome({
   judge,
@@ -243,17 +275,13 @@ export default function Welcome({
                       <span className="photo-badge pass">
                         Clean handwritten label · 980/-
                       </span>
-                      <a
-                        href="/product/parcel-clean-dome.jpg"
-                        aria-label="Open clean parcel photo at full size"
-                      >
-                        <Image
-                          src={parcelCleanDome}
-                          alt="Generated packing-table parcel for order #PD-SAMPLE-01 with Name Demo recipient, phone 01X-EXAMPLE redacted, price 980/-, and brown monogram dome bag."
-                          sizes="(max-width: 900px) 100vw, 28vw"
-                          preload
-                        />
-                      </a>
+                      <ProductImage
+                        src={parcelCleanDome}
+                        alt="Generated packing-table parcel for order #PD-SAMPLE-01 with Name Demo recipient, phone 01X-EXAMPLE redacted, price 980/-, and brown monogram dome bag."
+                        label="Open clean parcel photo at full size"
+                        sizes="(max-width: 900px) 100vw, 28vw"
+                        preload
+                      />
                       <figcaption>
                         <strong>Order #PD-SAMPLE-01:</strong> Name &amp; phone in
                         correct rows, <code>980/-</code> matches COD, brown
@@ -265,16 +293,12 @@ export default function Welcome({
                       <span className="photo-badge danger">
                         Swapped rows &amp; wrong COD · 890/-
                       </span>
-                      <a
-                        href="/product/parcel-swapped-error.jpg"
-                        aria-label="Open swapped-field parcel photo at full size"
-                      >
-                        <Image
-                          src={parcelSwappedError}
-                          alt="Generated packing-table parcel for order #PD-SAMPLE-01 where phone is written in the Name row, Name in the Number row, and price is 890/- instead of 980/-."
-                          sizes="(max-width: 900px) 100vw, 28vw"
-                        />
-                      </a>
+                      <ProductImage
+                        src={parcelSwappedError}
+                        alt="Generated packing-table parcel for order #PD-SAMPLE-01 where phone is written in the Name row, Name in the Number row, and price is 890/- instead of 980/-."
+                        label="Open swapped-field parcel photo at full size"
+                        sizes="(max-width: 900px) 100vw, 28vw"
+                      />
                       <figcaption>
                         <strong>Packing mistake:</strong> Phone written in{" "}
                         <code>NAME</code>, customer name in <code>NUMBER</code>,
@@ -307,31 +331,23 @@ export default function Welcome({
               {activeTab === "workspace" && (
                 <div className="showcase-stage" role="tabpanel">
                   <div className="showcase-workspace-stack">
-                    <a
-                      href="/product/workspace-overview.jpg"
+                    <ProductImage
+                      src={workspaceOverview}
+                      alt="PocketDokani sample shop showing the 3-step judge walkthrough and 8 isolated synthetic orders."
+                      label="Open full sample shop workspace capture"
+                      sizes="(max-width: 900px) 100vw, 45vw"
                       className="workspace-main-shot"
-                      aria-label="Open full sample shop workspace capture"
-                    >
-                      <Image
-                        src={workspaceOverview}
-                        alt="PocketDokani sample shop showing the 3-step judge walkthrough and 8 isolated synthetic orders."
-                        sizes="(max-width: 900px) 100vw, 45vw"
-                      />
-                    </a>
+                    />
                     <div className="workspace-quote-overlay">
                       <span className="eyebrow">
                         SOURCE-LINKED DRAFT EXTRACTION
                       </span>
-                      <a
-                        href="/product/order-quote.jpg"
-                        aria-label="Open extracted unit price capture at full size"
-                      >
-                        <Image
-                          src={orderQuote}
-                          alt="Extracted unit price of BDT 450.00 linked to Screenshot 1 with the original Bangla final-price quote."
-                          sizes="280px"
-                        />
-                      </a>
+                      <ProductImage
+                        src={orderQuote}
+                        alt="Extracted unit price of BDT 450.00 linked to Screenshot 1 with the original Bangla final-price quote."
+                        label="Open extracted unit price capture at full size"
+                        sizes="280px"
+                      />
                       <p>
                         Every extracted price retains the original chat message
                         so the seller verifies before confirming COD.
@@ -344,17 +360,13 @@ export default function Welcome({
               {activeTab === "bangla" && (
                 <div className="showcase-stage" role="tabpanel">
                   <div className="showcase-bangla-layout">
-                    <a
-                      href="/product/bangla-answer.jpg"
+                    <ProductImage
+                      src={banglaAnswer}
+                      alt="Typed Bangla question asking how many orders remain to be sent, returning 3 orders with clickable order reference chips."
+                      label="Open Bangla assistant answer capture at full size"
+                      sizes="(max-width: 900px) 100vw, 24vw"
                       className="bangla-shot-card"
-                      aria-label="Open Bangla assistant answer capture at full size"
-                    >
-                      <Image
-                        src={banglaAnswer}
-                        alt="Typed Bangla question asking how many orders remain to be sent, returning 3 orders with clickable order reference chips."
-                        sizes="(max-width: 900px) 100vw, 24vw"
-                      />
-                    </a>
+                    />
                     <div className="bangla-explanation">
                       <span className="eyebrow">
                         GROUNDED TOOL CALLING · ZERO MODEL ARITHMETIC
@@ -528,16 +540,12 @@ export default function Welcome({
                 <span className="photo-badge pass">
                   01 · Clean label &amp; matching SKU
                 </span>
-                <a
-                  href="/product/parcel-clean-dome.jpg"
-                  aria-label="Open full-size photo of clean parcel #PD-SAMPLE-01"
-                >
-                  <Image
-                    src={parcelCleanDome}
-                    alt="Packed parcel #PD-SAMPLE-01 with clean handwritten label (Demo recipient, 01X-EXAMPLE redacted, Example Road, Dhaka, 980/-) beside the brown monogram dome bag."
-                    sizes="(max-width: 760px) 100vw, 48vw"
-                  />
-                </a>
+                <ProductImage
+                  src={parcelCleanDome}
+                  alt="Packed parcel #PD-SAMPLE-01 with clean handwritten label (Demo recipient, 01X-EXAMPLE redacted, Example Road, Dhaka, 980/-) beside the brown monogram dome bag."
+                  label="Open full-size photo of clean parcel #PD-SAMPLE-01"
+                  sizes="(max-width: 760px) 100vw, 48vw"
+                />
               </div>
               <figcaption>
                 <div className="scenario-meta">
@@ -560,16 +568,12 @@ export default function Welcome({
                 <span className="photo-badge danger">
                   02 · Swapped rows &amp; wrong COD (890/- vs 980/-)
                 </span>
-                <a
-                  href="/product/parcel-swapped-error.jpg"
-                  aria-label="Open full-size photo of swapped-row parcel #PD-SAMPLE-01"
-                >
-                  <Image
-                    src={parcelSwappedError}
-                    alt="Packed parcel #PD-SAMPLE-01 where the phone number is written in the Name row, customer name in the Number row, and price is 890/- instead of 980/-."
-                    sizes="(max-width: 760px) 100vw, 48vw"
-                  />
-                </a>
+                <ProductImage
+                  src={parcelSwappedError}
+                  alt="Packed parcel #PD-SAMPLE-01 where the phone number is written in the Name row, customer name in the Number row, and price is 890/- instead of 980/-."
+                  label="Open full-size photo of swapped-row parcel #PD-SAMPLE-01"
+                  sizes="(max-width: 760px) 100vw, 48vw"
+                />
               </div>
               <figcaption>
                 <div className="scenario-meta">
@@ -595,16 +599,12 @@ export default function Welcome({
                 <span className="photo-badge warning">
                   03 · Scratched-out phone &amp; prepaid 0/- COD
                 </span>
-                <a
-                  href="/product/parcel-prepaid-bag.jpg"
-                  aria-label="Open full-size photo of prepaid parcel #PD-SAMPLE-03 with scratched phone"
-                >
-                  <Image
-                    src={parcelPrepaidBag}
-                    alt="Packed parcel #PD-SAMPLE-03 with a scratched-out phone number, rewritten phone, and 0/- price next to a brown leather shoulder bag with silver buckle and chain."
-                    sizes="(max-width: 760px) 100vw, 48vw"
-                  />
-                </a>
+                <ProductImage
+                  src={parcelPrepaidBag}
+                  alt="Packed parcel #PD-SAMPLE-03 with a scratched-out phone number, rewritten phone, and 0/- price next to a brown leather shoulder bag with silver buckle and chain."
+                  label="Open full-size photo of prepaid parcel #PD-SAMPLE-03 with scratched phone"
+                  sizes="(max-width: 760px) 100vw, 48vw"
+                />
               </div>
               <figcaption>
                 <div className="scenario-meta">
@@ -628,16 +628,12 @@ export default function Welcome({
                 <span className="photo-badge neutral">
                   04 · Colour variant verification
                 </span>
-                <a
-                  href="/product/parcel-black-dome.jpg"
-                  aria-label="Open full-size photo of black dome bag parcel #PD-SAMPLE-04"
-                >
-                  <Image
-                    src={parcelBlackDome}
-                    alt="Packed parcel #PD-SAMPLE-04 for Example Road, Dhaka with price 970/- beside the black monogram dome bag variant."
-                    sizes="(max-width: 760px) 100vw, 48vw"
-                  />
-                </a>
+                <ProductImage
+                  src={parcelBlackDome}
+                  alt="Packed parcel #PD-SAMPLE-04 for Example Road, Dhaka with price 970/- beside the black monogram dome bag variant."
+                  label="Open full-size photo of black dome bag parcel #PD-SAMPLE-04"
+                  sizes="(max-width: 760px) 100vw, 48vw"
+                />
               </div>
               <figcaption>
                 <div className="scenario-meta">
@@ -710,39 +706,34 @@ export default function Welcome({
                   <span className="specimen-label">
                     Extracted price + Bangla quote
                   </span>
-                  <a
-                    href="/product/order-quote.jpg"
-                    aria-label="Open the extracted order quote capture at full size"
-                  >
-                    <Image
-                      src={orderQuote}
-                      alt="An extracted unit price of BDT 450 with the original Bangla message agreeing the tote and shoulder bag prices."
-                      sizes="(max-width: 760px) 100vw, 280px"
-                    />
-                  </a>
+                  <ProductImage
+                    src={orderQuote}
+                    alt="An extracted unit price of BDT 450 with the original Bangla message agreeing the tote and shoulder bag prices."
+                    label="Open the extracted order quote capture at full size"
+                    sizes="(max-width: 760px) 100vw, 280px"
+                  />
                 </div>
 
                 <div className="evidence-specimen">
                   <span className="specimen-label">
                     Recipient details + Screenshot 2 link
                   </span>
-                  <a
-                    href="/product/order-review.jpg"
-                    aria-label="Open the order draft recipient capture at full size"
-                  >
-                    <Image
-                      src={orderReview}
-                      alt="The extracted recipient name and synthetic phone marker, each linked to the source message in screenshot 2."
-                      sizes="(max-width: 760px) 100vw, 280px"
-                    />
-                  </a>
+                  <ProductImage
+                    src={orderReview}
+                    alt="The extracted recipient name and synthetic phone marker, each linked to the source message in screenshot 2."
+                    label="Open the order draft recipient capture at full size"
+                    sizes="(max-width: 760px) 100vw, 280px"
+                  />
                 </div>
               </div>
 
               <div className="evidence-footer-link">
-                <a href="/product/conversation-input.png">
-                  Inspect full synthetic conversation input (720 × 1400) ↗
-                </a>
+                <ImagePreviewButton
+                  src="/product/conversation-input.png"
+                  alt="Full synthetic conversation input"
+                >
+                  Inspect full synthetic conversation input (720 × 1400)
+                </ImagePreviewButton>
               </div>
             </article>
 
@@ -766,39 +757,34 @@ export default function Welcome({
                   <span className="specimen-label">
                     Synthetic parcel input (phone obscured)
                   </span>
-                  <a
-                    href="/product/parcel-input.png"
-                    aria-label="Open the full synthetic parcel photo used for this check"
-                  >
-                    <Image
-                      src={parcelInput}
-                      alt="Synthetic parcel input for the confirmed order, with its phone field deliberately obscured and two illustrated bags."
-                      sizes="(max-width: 760px) 100vw, 280px"
-                    />
-                  </a>
+                  <ProductImage
+                    src={parcelInput}
+                    alt="Synthetic parcel input for the confirmed order, with its phone field deliberately obscured and two illustrated bags."
+                    label="Open the full synthetic parcel photo used for this check"
+                    sizes="(max-width: 760px) 100vw, 280px"
+                  />
                 </div>
 
                 <div className="evidence-specimen">
                   <span className="specimen-label">
                     Observed app verdict: Unsure
                   </span>
-                  <a
-                    href="/product/parcel-check.jpg"
-                    aria-label="Open the parcel check capture at full size"
-                  >
-                    <Image
-                      src={parcelCheck}
-                      alt="Actual result: Pack check unsure, label unsure, visible bag match. The app asks for a reshoot with readable label fields."
-                      sizes="(max-width: 760px) 100vw, 280px"
-                    />
-                  </a>
+                  <ProductImage
+                    src={parcelCheck}
+                    alt="Actual result: Pack check unsure, label unsure, visible bag match. The app asks for a reshoot with readable label fields."
+                    label="Open the parcel check capture at full size"
+                    sizes="(max-width: 760px) 100vw, 280px"
+                  />
                 </div>
               </div>
 
               <div className="evidence-footer-link">
-                <a href="/product/parcel-input.png">
-                  Inspect full synthetic parcel fixture (1000 × 820) ↗
-                </a>
+                <ImagePreviewButton
+                  src="/product/parcel-input.png"
+                  alt="Full synthetic parcel fixture with the phone field obscured"
+                >
+                  Inspect full synthetic parcel fixture (1000 × 820)
+                </ImagePreviewButton>
               </div>
             </article>
 
@@ -820,23 +806,22 @@ export default function Welcome({
                   <span className="specimen-label">
                     Bangla answer + 3 clickable order chips
                   </span>
-                  <a
-                    href="/product/bangla-answer.jpg"
-                    aria-label="Open the Bangla assistant capture at full size"
-                  >
-                    <Image
-                      src={banglaAnswer}
-                      alt="Bangla question and actual assistant answer with clickable order records supporting the answer."
-                      sizes="(max-width: 760px) 100vw, 305px"
-                    />
-                  </a>
+                  <ProductImage
+                    src={banglaAnswer}
+                    alt="Bangla question and actual assistant answer with clickable order records supporting the answer."
+                    label="Open the Bangla assistant capture at full size"
+                    sizes="(max-width: 760px) 100vw, 305px"
+                  />
                 </div>
               </div>
 
               <div className="evidence-footer-link">
-                <a href="/product/bangla-answer.jpg">
-                  Inspect full assistant capture (305 × 335) ↗
-                </a>
+                <ImagePreviewButton
+                  src="/product/bangla-answer.jpg"
+                  alt="Full Bangla assistant answer capture"
+                >
+                  Inspect full assistant capture (305 × 335)
+                </ImagePreviewButton>
               </div>
             </article>
           </div>
