@@ -52,7 +52,15 @@ npm run test
 npm run build
 ```
 
-`check` runs formatting, lint, strict Python/TypeScript checks and source-partition validation. `test` exercises COD and courier/order workflows using isolated data and mocked providers. Provider substitutes exist only in tests, never as an app analysis mode. The installed pre-commit hook checks staged content for private paths and likely Bangladesh phone numbers before running `check`.
+`check` runs formatting, lint, strict Python/TypeScript checks and source-partition validation. `test` runs the pytest suite under `tests/`: COD unit tests in `tests/unit/` and courier/order HTTP integration tests in `tests/integration/`. Each integration test uses a temporary SQLite database and local storage, with synthetic records and mocked providers. Test configuration bypasses the root `.env` and disables live model and courier calls. Provider substitutes exist only in tests, never as an app analysis mode. The installed pre-commit hook checks staged content for private paths and likely Bangladesh phone numbers, then runs `check` and the full test suite. Any failure blocks the commit.
+
+New `test_*.py` files and `test_*` functions under `tests/` are discovered automatically. Run a subset, select a scenario, or list collected cases with:
+
+```sh
+npm test -- tests/unit
+npm test -- tests/integration/test_booking.py -k timeout
+npm test -- --collect-only -q
+```
 
 Before model experiments, register sources and all related variants in [the evaluation manifest](../evals/split_manifest.json), following [source grouping rules](../evals/README.md). Keep raw inputs, ground truth, mappings and detailed logs ignored. Public evaluation evidence may contain reviewed synthetic captures/outputs or redacted aggregates, clearly labeled with provenance and limitations; never publish private source mappings or real customer data. Product vocabulary and money/reference invariants live in [GLOSSARY.md](../GLOSSARY.md) and [the ADRs](adr/).
 
