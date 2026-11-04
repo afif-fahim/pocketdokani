@@ -33,13 +33,6 @@ These are captures of the working app after live Meta calls on **constructed loc
 | ![Tote unit price BDT 450 linked to the original Bangla final-price quote](apps/web/public/product/order-quote.jpg) | ![Actual pack check: fail, with COD 1180 written against 1080 confirmed](apps/web/public/product/parcel-check.jpg) | ![Typed Bangla question returns three orders awaiting dispatch with three supporting order chips](apps/web/public/product/bangla-answer.jpg) |
 | The price retains its original screenshot quote. | Server code compares the blind reading with the order. | The count comes from the three cited orders. |
 
-```mermaid
-flowchart LR
-    Chat["Sales screenshots"] --> Draft["Draft + seller confirmation"]
-    Draft --> Photo["Photo check + packing approval"]
-    Photo --> Courier["Approved courier booking"]
-```
-
 ## Meta models at runtime
 
 All three integrations call the **Meta Model API at [`https://api.meta.ai/v1`](https://api.meta.ai/v1)** through the [audited provider client](apps/api/pocketdokani/integrations/model_api.py). Spark's OpenAI-compatible chat format is a protocol choice; Meta supplies the runtime models.
@@ -50,21 +43,9 @@ All three integrations call the **Meta Model API at [`https://api.meta.ai/v1`](h
 | `muse-voice-transcribe-1.0` | Turns voice notes or assistant speech into text, with Bengali/English language bias and shop vocabulary. Assistant input is editable before sending; order voice notes are stored extraction evidence. | [Audio normalization and transcription](apps/api/pocketdokani/integrations/voice_notes.py) |
 | `sam-3.1` | Looks for shipping-label and handbag regions so Spark can inspect a crop. When no usable region exists, the pipeline records full-photo fallback. | [Segmentation and fallback](apps/api/pocketdokani/features/packing/pack_vision.py) |
 
-## How the pieces connect
+## Design decisions
 
-```mermaid
-flowchart TB
-    Web["Next.js UI + API proxy"] --> API["FastAPI: shop/session"]
-    API --> Pipelines["Draft · parcel · assistant"]
-    Pipelines --> Meta["Meta Model API"]
-    API --> Rules["Seller approval + money/state rules"]
-    Rules --> DB[("PostgreSQL records")]
-    API --> Storage["Private Supabase objects"]
-    Rules --> Booking["Courier invoice reconciliation"]
-    Booking --> Modes["Judge fake / seller gated live"]
-```
-
-[The architecture guide](docs/architecture.md) follows the actual request paths, local storage alternatives, isolation and failure handling. Four decisions make the model output reviewable:
+[Architecture](docs/architecture.md) has the request paths, isolation and failure handling. Four decisions keep model output reviewable:
 
 - **Keep evidence beside the draft.** Extracted fields retain original-script source quotes and screenshot references. The seller corrects values and confirms amounts; customer text cannot verify a payment. [Extraction and confirmation](apps/api/pocketdokani/features/orders/drafting.py).
 - **Read the label without the expected answer.** Spark reads the parcel label without seeing the order. Server code compares that reading with confirmed details. Unreadable fields remain unsure; only an unsure check permits a recorded override, and a fail cannot be overridden. This reduces confirmation bias but cannot recover an unreadable label. [Vision](apps/api/pocketdokani/features/packing/pack_vision.py), [comparison](apps/api/pocketdokani/features/packing/pack_comparison.py), [authorization](apps/api/pocketdokani/features/packing/pack_checks.py).
@@ -90,22 +71,14 @@ Courier fee records are absent, so **payout due cannot currently be derived**. A
 
 ## Run locally
 
-Requires Python 3.12+, uv, Node 20.x ≥20.19 / 22.x ≥22.13 / ≥24, and ffmpeg for voice. Run from the repository root:
+Needs Python 3.12+, uv, Node 20.19+/22.13+/24+, ffmpeg (voice) and your own Meta API key with credits. Without a key, browsing and manual drafts work; analysis returns an error.
 
 ```sh
-uv sync --frozen
-npm ci
-npm --prefix apps/web ci
-npm run hooks:install
-```
-
-Copy `.env.example` to a new `.env` without replacing existing secrets. Set a random shop passcode, `MODEL_API_KEY` and `MODEL_CALLS_ENABLED=true`; create `data/private/`. **Local AI requires your own Meta API key and available provider credits.** Record browsing/manual drafts work without models; analysis does not run offline or return substitute results.
-
-```sh
+uv sync --frozen && npm ci && npm --prefix apps/web ci
 uv run --frozen alembic upgrade head
-npm run dev:api
+npm run dev:api   # then, in another terminal: npm run dev:web
 ```
 
-In another terminal, run `npm run dev:web`, then open [localhost:3000/judge](http://localhost:3000/judge). Local development uses SQLite and private files. [Setup, deployment, model allowances and troubleshooting](docs/setup.md) remain canonical there.
+Open [localhost:3000/judge](http://localhost:3000/judge). Full env config, deployment and troubleshooting: [docs/setup.md](docs/setup.md).
 
 Screenshot import supports one-to-one mobile conversations with left/right bubbles. It does not connect directly to social-platform inboxes or record phone calls. The seller remains responsible for confirming orders, payments and changes.
