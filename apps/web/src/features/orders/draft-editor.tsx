@@ -134,6 +134,7 @@ export default function DraftEditor({
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [loadVersion, setLoadVersion] = useState(0);
+  const [operation, setOperation] = useState<"extract" | "voice" | null>(null);
   const pendingKey = pendingActionKey("draft", base, workspaceId);
   const [uncertain, setUncertain] = useState(() =>
     readPendingAction<PendingDraft>(pendingKey),
@@ -170,8 +171,10 @@ export default function DraftEditor({
             revision: record?.revision ?? null,
             status: record?.status ?? null,
           };
-    setUncertain(value);
+    // Persist reload recovery before the write; show uncertainty only on failure.
     writePendingAction(pendingKey, value);
+    if (value === null) setUncertain(null);
+    return value;
   }
 
   useEffect(() => {
@@ -337,7 +340,7 @@ export default function DraftEditor({
       total = null;
     }
   }
-  const reading = busy && !draft;
+  const reading = operation === "extract" && !draft;
   const currentStatus = dirty ? "draft" : draft?.status || "draft";
   const isConfirmed = ["confirmed", "packed", "booked", "delivered"].includes(
     currentStatus,
@@ -346,8 +349,8 @@ export default function DraftEditor({
   async function save(confirm: boolean) {
     if (!draft || !values) return;
     await act(async () => {
+      let pending = rememberPending(draft);
       try {
-        rememberPending(draft);
         const saved = await api<Draft>(
           `${path}/draft`,
           json("PUT", {
@@ -360,7 +363,7 @@ export default function DraftEditor({
         accept(saved);
         rememberPending(false);
         if (confirm) {
-          rememberPending(saved);
+          pending = rememberPending(saved);
           const confirmed = await api<Draft>(
             `${path}/draft/confirm`,
             json("POST", { revision: saved.revision }),
@@ -375,7 +378,8 @@ export default function DraftEditor({
           setSuccess("Draft saved. Review and confirm when ready.");
         }
       } catch (error) {
-        if (!(error instanceof ApiOutcomeUnknownError)) rememberPending(false);
+        if (error instanceof ApiOutcomeUnknownError) setUncertain(pending);
+        else rememberPending(false);
         throw error;
       }
     });
@@ -383,8 +387,9 @@ export default function DraftEditor({
 
   async function prepareDraft() {
     await act(async () => {
+      setOperation("extract");
+      const pending = rememberPending(draft);
       try {
-        rememberPending(draft);
         accept(
           await api<Draft>(`${path}/draft`, {
             method: "POST",
@@ -392,8 +397,11 @@ export default function DraftEditor({
         );
         rememberPending(false);
       } catch (error) {
-        if (!(error instanceof ApiOutcomeUnknownError)) rememberPending(false);
+        if (error instanceof ApiOutcomeUnknownError) setUncertain(pending);
+        else rememberPending(false);
         throw error;
+      } finally {
+        setOperation(null);
       }
     });
   }
@@ -528,7 +536,7 @@ export default function DraftEditor({
                 <input
                   type="file"
                   accept="audio/*,.ogg,.m4a,.webm"
-                  disabled={busy || !enabled}
+                  disabled={busy || !enabled || Boolean(uncertain)}
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     event.target.value = "";
@@ -536,17 +544,25 @@ export default function DraftEditor({
                       void act(async () => {
                         if (file.size > 8 * 1024 * 1024)
                           throw new Error("Voice notes must be at most 8 MiB.");
-                        const form = new FormData();
-                        form.set("audio", file);
-                        const note = await api<Note>(`${path}/voice-notes`, {
-                          method: "POST",
-                          body: form,
-                        });
-                        setNotes((items) => [...items, note]);
+                        setOperation("voice");
+                        try {
+                          const form = new FormData();
+                          form.set("audio", file);
+                          const note = await api<Note>(`${path}/voice-notes`, {
+                            method: "POST",
+                            body: form,
+                          });
+                          setNotes((items) => [...items, note]);
+                        } finally {
+                          setOperation(null);
+                        }
                       });
                   }}
                 />
               </label>
+              {operation === "voice" && (
+                <p role="status">Transcribing voice note…</p>
+              )}
               {notes.map((note) => (
                 <p className="voice-transcript" key={note.id}>
                   <strong>Voice note:</strong> {note.transcript}
@@ -557,7 +573,9 @@ export default function DraftEditor({
                 disabled={busy || !enabled || Boolean(uncertain)}
                 onClick={() => void prepareDraft()}
               >
-                {busy ? "Preparing draft…" : "Extract draft with live AI ↗"}
+                {operation === "extract"
+                  ? "Preparing draft…"
+                  : "Extract draft with live AI ↗"}
               </button>
             </div>
           ) : (
