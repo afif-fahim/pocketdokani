@@ -807,7 +807,11 @@ export default function DraftEditor({
           </form>
         )
       )}
-      <dialog ref={voiceDialog} aria-label="Voice note source">
+      <dialog
+        ref={voiceDialog}
+        className="task-dialog"
+        aria-label="Voice note source"
+      >
         <div className="stack">
           <h2>Voice note source</h2>
           <p>{voiceSource?.transcript}</p>

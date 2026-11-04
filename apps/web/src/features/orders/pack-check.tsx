@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import { api, ApiOutcomeUnknownError, json } from "@/lib/api";
 import type { Order } from "@/features/orders/business-lists";
+import { ImagePreviewButton } from "@/components/image-viewer";
 import { EmptyState } from "@/components/ui";
 import {
   hasPendingAction,
@@ -56,6 +57,30 @@ type PackCheck = PackCheckSummary & {
 
 function checkedAt(value: string) {
   return new Date(value).toLocaleString("en-BD", { timeZone: "Asia/Dhaka" });
+}
+
+function PackPhoto({
+  src,
+  alt,
+  label,
+  loading,
+}: {
+  src: string;
+  alt: string;
+  label?: string;
+  loading?: "lazy";
+}) {
+  return (
+    <ImagePreviewButton
+      className="image-preview-thumbnail"
+      src={src}
+      alt={alt}
+      aria-label={label}
+    >
+      {label && <span>{label}</span>}
+      <img className="pack-photo" src={src} alt={alt} loading={loading} />
+    </ImagePreviewButton>
+  );
 }
 
 function Result({ check }: { check: PackCheck }) {
@@ -149,40 +174,33 @@ function Result({ check }: { check: PackCheck }) {
       <details>
         <summary>Original photo and comparison crops</summary>
         <div className="stack">
-          <a href={check.photo_url} target="_blank" rel="noreferrer">
-            Open original photo ↗
-          </a>
-          <img
-            className="pack-photo"
+          <PackPhoto
             src={check.photo_url}
             alt="Original packed parcel and label"
+            label="Open original photo"
             loading="lazy"
           />
-          {(["label", "bag"] as const).map((region) => (
-            <div className="stack" key={region}>
-              <p>
-                <strong>{region === "label" ? "Label" : "Bag"} input:</strong>{" "}
-                {check.sam_path[region].path === "crop"
-                  ? "SAM crop"
-                  : "Full photo"}{" "}
-                · {check.sam_path[region].reason}
-              </p>
-              {check.crop_urls[region] && (
-                <a
-                  href={check.crop_urls[region]!}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <img
-                    className="pack-photo"
-                    src={check.crop_urls[region]!}
+          {(["label", "bag"] as const).map((region) => {
+            const cropUrl = check.crop_urls[region];
+            return (
+              <div className="stack" key={region}>
+                <p>
+                  <strong>{region === "label" ? "Label" : "Bag"} input:</strong>{" "}
+                  {check.sam_path[region].path === "crop"
+                    ? "SAM crop"
+                    : "Full photo"}{" "}
+                  · {check.sam_path[region].reason}
+                </p>
+                {cropUrl && (
+                  <PackPhoto
+                    src={cropUrl}
                     alt={`SAM ${region} crop used for comparison`}
                     loading="lazy"
                   />
-                </a>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            );
+          })}
         </div>
       </details>
     </article>
@@ -376,7 +394,10 @@ export default function PackCheckPanel({
           {canCheck ? (
             <>
               {base === "/api/judge" && (
-                <section className="stack" aria-label="Example parcel images">
+                <section
+                  className="pack-examples stack"
+                  aria-label="Example parcel images"
+                >
                   <h3>Need a parcel photo to try?</h3>
                   <p>
                     Download a generated label and bag image for this order,
@@ -455,8 +476,7 @@ export default function PackCheckPanel({
                 )}
                 {pending && (
                   <div className="stack">
-                    <img
-                      className="pack-photo"
+                    <PackPhoto
                       src={pending.url}
                       alt="Parcel photo selected for pack check"
                     />

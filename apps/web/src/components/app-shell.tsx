@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
+import { ThemeSwitch } from "@/components/theme-switch";
 import type { Section } from "@/features/workspace/workspace-types";
 
-export function Icon({ name }: { name: Section | "plus" | "bag" | "arrow" }) {
+export function Icon({
+  name,
+}: {
+  name: Section | "plus" | "bag" | "arrow" | "close";
+}) {
   const paths = {
     orders: (
       <>
@@ -31,6 +36,7 @@ export function Icon({ name }: { name: Section | "plus" | "bag" | "arrow" }) {
       </>
     ),
     arrow: <path d="M4 12h16m-6-6 6 6-6 6" />,
+    close: <path d="m6 6 12 12M18 6 6 18" />,
   };
   return (
     <svg
@@ -46,6 +52,14 @@ export function Icon({ name }: { name: Section | "plus" | "bag" | "arrow" }) {
     >
       {paths[name]}
     </svg>
+  );
+}
+
+export function WorkspaceIcon({ name }: { name: Section }) {
+  return (
+    <span className="workspace-icon">
+      <Icon name={name} />
+    </span>
   );
 }
 
@@ -110,11 +124,15 @@ export default function AppShell({
         Skip to content
       </a>
       <header className="app-header">
-        <Brand />
-        <span className="shop-label">
-          {judge ? "Sample shop" : "Your shop"}
-        </span>
+        <div className="app-brand">
+          <Brand />
+          <span className="shop-label">
+            <span className="status-dot" aria-hidden="true" />
+            {judge ? "Sample shop" : "Your shop"}
+          </span>
+        </div>
         <div className="session-actions">
+          <ThemeSwitch />
           {judge && (
             <button className="text-button" disabled={busy} onClick={onReset}>
               Reset sample
@@ -135,7 +153,7 @@ export default function AppShell({
               disabled={busy}
               onClick={() => onNavigate(key)}
             >
-              <Icon name={key} />
+              <WorkspaceIcon name={key} />
               <span>{label}</span>
               {key === "assistant" && (
                 <span className="nav-hint" lang="bn">
@@ -145,22 +163,28 @@ export default function AppShell({
             </button>
           ))}
           <div className="nav-note">
-            <span className="status-dot" />
-            {judge ? "Made for trying things out" : "Your decisions, your shop"}
+            <strong>
+              {judge
+                ? "Practice with sample data"
+                : "Your decisions, your shop"}
+            </strong>
             <p>
               {judge
-                ? "Sample records. Fake courier."
+                ? "Sample records and a simulated courier."
                 : "Review and confirm every change."}
             </p>
           </div>
         </nav>
         <main id="main-content" className="app-main" tabIndex={-1}>
-          <div className="page-heading">
-            <div>
+          <header className="page-heading">
+            <div className="page-heading-copy">
               <p className="eyebrow">
                 {judge ? "EXPLORE POCKETDOKANI" : "LET’S GET TO WORK"}
               </p>
-              <h1>{current.label}</h1>
+              <div className="page-title">
+                <WorkspaceIcon name={section} />
+                <h1>{current.label}</h1>
+              </div>
               <p className="muted">{current.description}</p>
             </div>
             <button
@@ -171,7 +195,7 @@ export default function AppShell({
               <Icon name="plus" />
               New order
             </button>
-          </div>
+          </header>
           {children}
           <p className="app-footnote">
             AI helps prepare the work. You confirm the details.

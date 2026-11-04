@@ -34,7 +34,7 @@ The API reads the root `.env`. Next.js uses `apps/web/.env.local`; copy its `.en
 | `WEB_ORIGIN` | Exact browser origin, default `http://localhost:3000`, no trailing slash |
 | `STORAGE_BACKEND`, `LOCAL_STORAGE_PATH` | Local defaults: `local`, `data/private/objects` |
 | `MODEL_CALLS_ENABLED`, `MODEL_API_KEY` | True flag plus a server key; all analysis uses the real providers |
-| `JUDGE_MODEL_CALLS_PER_HOUR`, `SELLER_MODEL_CALLS_PER_HOUR` | Default 12 / 60 provider attempts, including retries |
+| `JUDGE_MODEL_CALLS_PER_HOUR`, `SELLER_MODEL_CALLS_PER_HOUR` | Code defaults: 12 / 60 provider attempts, including retries. Root `.env.example`: 60 / 100; Render blueprint sets judge allowance to 60. Existing hosted overrides require verification. |
 | `STEADFAST_LIVE_ENABLED` | False by default: development sellers and all judges use the fake courier; production seller booking is disabled |
 | `STEADFAST_API_KEY`, `STEADFAST_SECRET_KEY` | Both required before enabling live seller booking |
 | `API_ORIGIN` (web server) | Default `http://127.0.0.1:8000`; same-origin API proxy target, set before production builds |
@@ -54,7 +54,7 @@ npm run build
 
 `check` runs formatting, lint, strict Python/TypeScript checks and source-partition validation. `test` exercises COD and courier/order workflows using isolated data and mocked providers. Provider substitutes exist only in tests, never as an app analysis mode. The installed pre-commit hook checks staged content for private paths and likely Bangladesh phone numbers before running `check`.
 
-Before model experiments, register sources and all related variants in [the evaluation manifest](../evals/split_manifest.json), following [source grouping rules](../evals/README.md). Keep inputs, ground truth, mappings and detailed outputs ignored. Product vocabulary and money/reference invariants live in [GLOSSARY.md](../GLOSSARY.md) and [the ADRs](adr/).
+Before model experiments, register sources and all related variants in [the evaluation manifest](../evals/split_manifest.json), following [source grouping rules](../evals/README.md). Keep raw inputs, ground truth, mappings and detailed logs ignored. Public evaluation evidence may contain reviewed synthetic captures/outputs or redacted aggregates, clearly labeled with provenance and limitations; never publish private source mappings or real customer data. Product vocabulary and money/reference invariants live in [GLOSSARY.md](../GLOSSARY.md) and [the ADRs](adr/).
 
 For reviewed historical business data, keep the recalculated workbook under ignored `data/private/`. Inspect the dry-run before intentionally importing:
 

@@ -3,13 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 import BusinessLists from "@/features/orders/business-lists";
 import Assistant from "@/features/assistant/assistant";
-import AppShell, { Icon } from "@/components/app-shell";
+import AppShell, { Icon, WorkspaceIcon } from "@/components/app-shell";
+import { ImageViewerProvider } from "@/components/image-viewer";
 import Conversations from "@/features/conversations/conversations";
 import Welcome from "@/components/welcome";
 import useWorkspaceSession from "@/features/workspace/use-workspace-session";
 import type { Context } from "@/features/workspace/workspace-types";
 
 export default function WorkspaceApp({ context }: { context: Context }) {
+  return (
+    <ImageViewerProvider>
+      <Workspace context={context} />
+    </ImageViewerProvider>
+  );
+}
+
+function Workspace({ context }: { context: Context }) {
   const shop = useWorkspaceSession(context, requestLeave);
   const [dirty, setDirty] = useState(false);
   const [conversationVersion, setConversationVersion] = useState(0);
@@ -121,10 +130,16 @@ export default function WorkspaceApp({ context }: { context: Context }) {
               courier. Nothing is sent to a real customer.
             </p>
           </div>
-          <ol className="order-progress" aria-label="Sample walkthrough">
-            <li>1. Review order</li>
-            <li>2. Check parcel</li>
-            <li>3. Book fake courier</li>
+          <ol className="judge-guide-steps" aria-label="Sample walkthrough">
+            <li>
+              <span aria-hidden="true">01</span> Review order
+            </li>
+            <li>
+              <span aria-hidden="true">02</span> Check parcel
+            </li>
+            <li>
+              <span aria-hidden="true">03</span> Book fake courier
+            </li>
           </ol>
           <div className="button-row">
             <button
@@ -134,7 +149,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
                 requestLeave(() => void shop.openSampleScreenshots())
               }
             >
-              Start sample order ↗
+              Start sample order <Icon name="arrow" />
             </button>
             <button
               disabled={shop.busy}
@@ -153,7 +168,7 @@ export default function WorkspaceApp({ context }: { context: Context }) {
       {!shop.judge && shop.section === "orders" && (
         <div className="assistant-shortcut">
           <div>
-            <Icon name="assistant" />
+            <WorkspaceIcon name="assistant" />
             <div>
               <strong>Ask your shop</strong>
               <p lang="bn">অর্ডার, স্টক বা বিক্রির খবর জানতে চান?</p>
@@ -283,8 +298,9 @@ export default function WorkspaceApp({ context }: { context: Context }) {
           <button
             onClick={() => newOrder.current?.close()}
             aria-label="Close new order choices"
+            className="task-dialog-close"
           >
-            ×
+            <Icon name="close" />
           </button>
         </div>
         <p>
@@ -302,8 +318,8 @@ export default function WorkspaceApp({ context }: { context: Context }) {
               })
             }
           >
-            <Icon name="conversations" />
-            <span>
+            <WorkspaceIcon name="conversations" />
+            <span className="order-choice-copy">
               {shop.judge ? "Sample screenshots" : "Screenshot import"}
               <small>
                 {shop.judge
@@ -317,8 +333,8 @@ export default function WorkspaceApp({ context }: { context: Context }) {
             disabled={shop.busy}
             onClick={() => startOrder(() => void shop.createDraft())}
           >
-            <Icon name="orders" />
-            <span>
+            <WorkspaceIcon name="orders" />
+            <span className="order-choice-copy">
               Manual draft
               <small>Add the customer, items and agreed prices.</small>
             </span>

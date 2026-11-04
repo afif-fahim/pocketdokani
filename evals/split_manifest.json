@@ -2,6 +2,13 @@
   "schema_version": 1,
   "source_groups": [
     {
+      "source_id": "constructed-assistant-voice-001",
+      "kind": "conversation",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": ["constructed-assistant-voice-en"]
+    },
+    {
       "source_id": "constructed-conversation-001",
       "kind": "conversation",
       "split": "development",
@@ -20,6 +27,27 @@
         "constructed-parcel-correct",
         "constructed-parcel-wrong-cod",
         "constructed-parcel-unreadable"
+      ]
+    },
+    {
+      "source_id": "constructed-conversation-002",
+      "kind": "conversation",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": [
+        "constructed-chat-screenshot-001",
+        "constructed-chat-screenshot-002"
+      ]
+    },
+    {
+      "source_id": "constructed-parcel-illustration-002",
+      "kind": "label",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": [
+        "constructed-parcel-scene-correct",
+        "constructed-parcel-scene-wrong-cod",
+        "constructed-parcel-scene-unreadable"
       ]
     },
     {

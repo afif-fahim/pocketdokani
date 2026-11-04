@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "@/app/globals.css";
 import "@/app/app-shell.css";
+import { themeStorageKey } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: "PocketDokani · Your shop, from chat to courier",
@@ -12,13 +13,22 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#193d32",
+  colorScheme: "light dark",
 };
+
+const restoreTheme = `try {
+  const theme = localStorage.getItem("${themeStorageKey}");
+  if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+} catch {}`;
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: restoreTheme }} />
+      </head>
       <body>{children}</body>
     </html>
   );

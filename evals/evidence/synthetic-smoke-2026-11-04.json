@@ -1,0 +1,470 @@
+{
+  "run_id": "issue-21-local-fixed-2026-11-04",
+  "provenance": "Constructed development smoke; live model calls, simulated courier; no held-out or pilot result.",
+  "source_revision": "2d802c582f7be30d1c8d0523ec83256cbf8df3d0",
+  "source_patch": "demo/fixtures.py converts the Bengali PNG to RGBA before using its alpha mask; included in the same commit as this evidence.",
+  "fixture_sha256": "e40fba69730c7a824bb132ffee36401b4917db93a23b917b7aee642020a4e037",
+  "manifest_sha256_at_run": "3de4dfa7b12fdc4229cd8d928fa416c620f2c554cb1213c6cf2c1734ca3d0e36",
+  "started_at": "2026-11-04T09:13:10.594426+00:00",
+  "completed_at": "2026-11-04T09:15:30.194940+00:00",
+  "source_groups": [
+    "constructed-conversation-001",
+    "constructed-parcel-illustration",
+    "constructed-assistant-voice-001"
+  ],
+  "configured_attempt_cap": 53,
+  "provider_attempts": 28,
+  "provider_attempts_by_model": {
+    "muse-spark-1.3": 21,
+    "muse-voice-transcribe-1.0": 1,
+    "sam-3.1": 6
+  },
+  "provider_failures": 0,
+  "extraction": {
+    "source_id": "constructed-conversation-001",
+    "artifacts": ["constructed-screenshot-001", "constructed-screenshot-002"],
+    "field_correct": 11,
+    "field_denominator": 11,
+    "sku_correct": 2,
+    "sku_denominator": 2,
+    "actual_line_count": 2,
+    "fields": [
+      {
+        "field": "customer_name",
+        "expected": "Demo recipient",
+        "actual": "Demo recipient",
+        "quote": "Name: Demo recipient",
+        "screenshot_index": 2,
+        "correct": true
+      },
+      {
+        "field": "phone",
+        "expected": "01X-EXAMPLE",
+        "actual": "01X-EXAMPLE",
+        "quote": "Phone: 01X-EXAMPLE (withheld in demo)",
+        "screenshot_index": 2,
+        "correct": true
+      },
+      {
+        "field": "address",
+        "expected": "Example Road, Dhaka",
+        "actual": "Example Road, Dhaka",
+        "quote": "Address: Example Road, Dhaka",
+        "screenshot_index": 2,
+        "correct": true
+      },
+      {
+        "field": "customer_delivery_charge",
+        "expected": "80",
+        "actual": "80.00",
+        "quote": "Customer delivery charge 80 BDT.",
+        "screenshot_index": 2,
+        "correct": true
+      },
+      {
+        "field": "order_confirmed",
+        "expected": "true",
+        "actual": "true",
+        "quote": "Ji, ei final price e order confirmed.",
+        "screenshot_index": 1,
+        "correct": true
+      },
+      {
+        "field": "line1.quantity",
+        "expected": "1",
+        "actual": "1",
+        "quote": "1 blue canvas tote, 1 black shoulder bag.",
+        "screenshot_index": 1,
+        "correct": true
+      },
+      {
+        "field": "line1.unit_price",
+        "expected": "450",
+        "actual": "450.00",
+        "quote": "চূড়ান্ত দাম: টোট ৪৫০ টাকা, শোল্ডার ব্যাগ ৫৫০ টাকা।",
+        "screenshot_index": 1,
+        "correct": true
+      },
+      {
+        "field": "line1.line_discount",
+        "expected": "0",
+        "actual": "0.00",
+        "quote": "Line discount 0 BDT for each item.",
+        "screenshot_index": 2,
+        "correct": true
+      },
+      {
+        "field": "line2.quantity",
+        "expected": "1",
+        "actual": "1",
+        "quote": "1 blue canvas tote, 1 black shoulder bag.",
+        "screenshot_index": 1,
+        "correct": true
+      },
+      {
+        "field": "line2.unit_price",
+        "expected": "550",
+        "actual": "550.00",
+        "quote": "চূড়ান্ত দাম: টোট ৪৫০ টাকা, শোল্ডার ব্যাগ ৫৫০ টাকা।",
+        "screenshot_index": 1,
+        "correct": true
+      },
+      {
+        "field": "line2.line_discount",
+        "expected": "0",
+        "actual": "0.00",
+        "quote": "Line discount 0 BDT for each item.",
+        "screenshot_index": 2,
+        "correct": true
+      }
+    ],
+    "skus": [
+      {
+        "line": 1,
+        "expected": "DEMO-TOTE-R1",
+        "actual": "DEMO-TOTE-R1",
+        "correct": true
+      },
+      {
+        "line": 2,
+        "expected": "DEMO-SHOULDER-R1",
+        "actual": "DEMO-SHOULDER-R1",
+        "correct": true
+      }
+    ]
+  },
+  "parcels": [
+    {
+      "artifact_id": "constructed-parcel-wrong-cod",
+      "expected_cod_bdt": "1080.00",
+      "written_cod_bdt": "1180.00",
+      "phone_obscured": false,
+      "expected_verdict": "fail",
+      "actual_verdict": "unsure",
+      "label_verdict": "unsure",
+      "bag_verdict": "match",
+      "sam_path": {
+        "label": {
+          "path": "full_photo",
+          "reason": "SAM found no usable region."
+        },
+        "bag": {
+          "path": "full_photo",
+          "reason": "SAM found no usable region."
+        }
+      },
+      "field_readings": [
+        {
+          "field": "order_reference",
+          "written": null,
+          "legible": false
+        },
+        {
+          "field": "phone",
+          "written": null,
+          "legible": false
+        },
+        {
+          "field": "cod_amount",
+          "written": null,
+          "legible": false
+        },
+        {
+          "field": "customer_name",
+          "written": null,
+          "legible": false
+        },
+        {
+          "field": "address",
+          "written": null,
+          "legible": false
+        }
+      ],
+      "http_elapsed_seconds": 20.493
+    },
+    {
+      "artifact_id": "constructed-parcel-unreadable",
+      "expected_cod_bdt": "1080.00",
+      "written_cod_bdt": "1080.00",
+      "phone_obscured": true,
+      "expected_verdict": "unsure",
+      "actual_verdict": "unsure",
+      "label_verdict": "unsure",
+      "bag_verdict": "match",
+      "sam_path": {
+        "label": {
+          "path": "full_photo",
+          "reason": "SAM found no usable region."
+        },
+        "bag": {
+          "path": "full_photo",
+          "reason": "SAM found no usable region."
+        }
+      },
+      "field_readings": [
+        {
+          "field": "order_reference",
+          "written": "matches-generated-order-reference",
+          "legible": true
+        },
+        {
+          "field": "phone",
+          "written": null,
+          "legible": false
+        },
+        {
+          "field": "cod_amount",
+          "written": "1080.00",
+          "legible": true
+        },
+        {
+          "field": "customer_name",
+          "written": "Demo recipient",
+          "legible": true
+        },
+        {
+          "field": "address",
+          "written": "Example Road, Dhaka",
+          "legible": true
+        }
+      ],
+      "http_elapsed_seconds": 25.169
+    },
+    {
+      "artifact_id": "constructed-parcel-correct",
+      "expected_cod_bdt": "1080.00",
+      "written_cod_bdt": "1080.00",
+      "phone_obscured": false,
+      "expected_verdict": "pass",
+      "actual_verdict": "pass",
+      "label_verdict": "pass",
+      "bag_verdict": "match",
+      "sam_path": {
+        "label": {
+          "path": "full_photo",
+          "reason": "SAM found no usable region."
+        },
+        "bag": {
+          "path": "full_photo",
+          "reason": "SAM found no usable region."
+        }
+      },
+      "field_readings": [
+        {
+          "field": "order_reference",
+          "written": "matches-generated-order-reference",
+          "legible": true
+        },
+        {
+          "field": "phone",
+          "written": "01X-EXAMPLE",
+          "legible": true
+        },
+        {
+          "field": "cod_amount",
+          "written": "1080.00",
+          "legible": true
+        },
+        {
+          "field": "customer_name",
+          "written": "Demo recipient",
+          "legible": true
+        },
+        {
+          "field": "address",
+          "written": "Example Road, Dhaka",
+          "legible": true
+        }
+      ],
+      "http_elapsed_seconds": 20.318
+    }
+  ],
+  "questions": [
+    {
+      "case_id": "q1-awaiting-bn",
+      "question": "এখন কয়টা পার্সেল পাঠানো বাকি?",
+      "expected": "2",
+      "actual_answer": "অর্ডার: 2",
+      "correct": true,
+      "confidently_wrong": false,
+      "record_chips": 2,
+      "http_elapsed_seconds": 4.451
+    },
+    {
+      "case_id": "q2-stock-en",
+      "question": "How many blue canvas totes are available to sell now?",
+      "expected": "0",
+      "actual_answer": "Available units: 0",
+      "correct": true,
+      "confidently_wrong": false,
+      "record_chips": 2,
+      "http_elapsed_seconds": 17.353
+    },
+    {
+      "case_id": "q3-delivered-banglish",
+      "question": "Mot koyta order delivered hoyeche?",
+      "expected": "2",
+      "actual_answer": "Orders: 2",
+      "correct": true,
+      "confidently_wrong": false,
+      "record_chips": 2,
+      "http_elapsed_seconds": 5.302
+    },
+    {
+      "case_id": "q4-payout-en",
+      "question": "What is the total recorded courier payout in BDT?",
+      "expected": "880",
+      "actual_answer": "Recorded payouts · BDT: 880.00",
+      "correct": true,
+      "confidently_wrong": false,
+      "record_chips": 4,
+      "http_elapsed_seconds": 5.576
+    },
+    {
+      "case_id": "q5-unavailable-bn",
+      "question": "কুরিয়ার ফি বাদ দিয়ে আর কত টাকা পেআউট পাওনা আছে?",
+      "expected": "unknown",
+      "actual_answer": "আমি জানি না। আপনার রেকর্ডে এই তথ্য পাওয়া যায়নি।",
+      "correct": true,
+      "confidently_wrong": false,
+      "record_chips": 0,
+      "http_elapsed_seconds": 7.593
+    }
+  ],
+  "voice": {
+    "artifact_id": "constructed-assistant-voice-en",
+    "expected": "How many parcels are left to send?",
+    "actual": "How many parcels are left to send?",
+    "http_elapsed_seconds": 2.163,
+    "physical_microphone": false,
+    "bangla_asr_tested": false
+  },
+  "workflow": {
+    "seller_saved_values": "Reviewed existing extracted values; no deliberately incorrect value was injected or corrected.",
+    "confirmed_cod_bdt": "1080.00",
+    "verified_prior_payment_bdt": "0.00",
+    "courier": "fake",
+    "stock_after_booking": {
+      "DEMO-TOTE-R1": 0,
+      "DEMO-SHOULDER-R1": 1
+    },
+    "seller_override_used": false,
+    "matching_status_proposals": 1,
+    "status_before_explicit_confirmation": "booked",
+    "status_after_confirmation_and_reload": "delivered",
+    "checks": {
+      "fresh-session-models-enabled": "pass",
+      "confirmed-cod": "pass",
+      "booked-reload": "pass",
+      "booked-stock": "pass",
+      "proposal-no-write-before-confirmation": "pass",
+      "proposal-confirmed-reload": "pass",
+      "independent-session-isolation": "pass",
+      "unauthenticated-seller-boundary": "pass",
+      "session-only-reset": "pass",
+      "reset-provider-history-preserved": "pass",
+      "reset-budget-preserved": "pass",
+      "sign-out-revocation": "pass"
+    },
+    "model_budget_used_before_and_after_reset": [28, 28]
+  },
+  "latency_method": "Client perf_counter around each HTTP request. Provider ModelRun.latency_ms around the HTTP exchange; assistant_turn orchestration audits excluded. Neither measures human review or browser rendering.",
+  "latency_by_kind": [
+    {
+      "kind": "assistant_step",
+      "attempts": 14,
+      "provider_seconds_sum": 50.718
+    },
+    {
+      "kind": "assistant_transcription",
+      "attempts": 1,
+      "provider_seconds_sum": 2.094
+    },
+    {
+      "kind": "order_extraction",
+      "attempts": 1,
+      "provider_seconds_sum": 18.985
+    },
+    {
+      "kind": "pack_bag_compare",
+      "attempts": 3,
+      "provider_seconds_sum": 17.234
+    },
+    {
+      "kind": "pack_label_read",
+      "attempts": 3,
+      "provider_seconds_sum": 34.218
+    },
+    {
+      "kind": "pack_segmentation",
+      "attempts": 6,
+      "provider_seconds_sum": 14.125
+    }
+  ],
+  "initial_failed_run": {
+    "provider_attempts": 7,
+    "answered_cases": 3,
+    "correct_answered_cases": 3,
+    "sample_workspace_http": 503,
+    "reset_http": 503,
+    "cause_reproduced": "ValueError: bad transparency mask before model extraction",
+    "included_in_quality_denominators_above": false
+  },
+  "hosted": {
+    "origin": "https://pocketdokani.vercel.app",
+    "started_at": "2026-11-04T09:13:25.559629+00:00",
+    "completed_at": "2026-11-04T09:13:33.955387+00:00",
+    "deployed_revision": "unverified; not exposed by public API",
+    "judge_allowance": "unverified; not exposed by public API",
+    "provider_attempt_count_and_latency": "unavailable without hosted audit access; successful transcription is live provider evidence",
+    "sample_workspace_http": 503,
+    "reset_http": 503,
+    "connected_walkthrough": "FAIL: blocked before extraction",
+    "voice_transcript": "How many parcels are left to send?",
+    "checks": {
+      "fresh-session-models-enabled": "pass",
+      "sample-workspace": "blocked",
+      "independent-session-isolation": "pass",
+      "unauthenticated-seller-boundary": "pass",
+      "first-session-only-reset": "blocked",
+      "session-only-reset": "fail",
+      "sign-out-revocation": "pass"
+    }
+  },
+  "untested": [
+    {
+      "step": "authenticated-seller-isolation",
+      "reason": "No seller credentials used; only unauthorized seller access checked"
+    },
+    {
+      "step": "physical-phone-microphone-camera",
+      "reason": "Owner physical device check required"
+    },
+    {
+      "step": "host-upload-size-ceilings",
+      "reason": "Only current synthetic fixtures exercised"
+    },
+    {
+      "step": "unsaved-edit-browser-warning",
+      "reason": "HTTP runner does not inspect frontend"
+    },
+    {
+      "step": "controlled-crop-versus-full-photo",
+      "reason": "All six SAM region attempts fell back to the full photo; no comparable second path run"
+    },
+    {
+      "step": "physical-label-and-real-conversation-quality",
+      "reason": "Only constructed development inputs used"
+    }
+  ],
+  "correction_followup": {
+    "provenance": "Separate manual synthetic draft; no model output substituted and excluded from AI denominators",
+    "provider_calls": 0,
+    "delivery_before_bdt": "80.00",
+    "delivery_after_bdt": "90.00",
+    "cod_before_bdt": "1080.00",
+    "cod_after_bdt": "1090.00",
+    "reloaded_statuses": ["confirmed", "draft", "confirmed"],
+    "changed_value_persisted_before_reconfirmation": true
+  }
+}

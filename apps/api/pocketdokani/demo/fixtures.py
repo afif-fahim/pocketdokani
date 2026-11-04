@@ -5,7 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -25,10 +25,9 @@ from pocketdokani.features.courier.courier import FakeConsignment
 from pocketdokani.features.orders.money import LinePrice, calculate_cod
 
 # Hand-authored constructed source; no real seller/customer identifiers or phones.
-DEMO_SOURCE_ID = "constructed-conversation-001"
+DEMO_SOURCE_ID = "constructed-conversation-002"
 DEMO_PHONE = "01X-EXAMPLE"
 DEMO_FINAL_PRICE_BN = "চূড়ান্ত দাম: টোট ৪৫০ টাকা, শোল্ডার ব্যাগ ৫৫০ টাকা।"
-DEMO_FINAL_PRICE_GLOSS = "Final price: tote 450 BDT, shoulder bag 550 BDT each."
 ParcelInput = Literal["correct", "wrong-cod", "unreadable"]
 
 
@@ -45,62 +44,97 @@ def constructed_order(db: Session, owner: str, order_id: str) -> bool:
     return owner != "shop" and bool(flags) and all(flags)
 
 
+def _draw_bag(
+    draw: ImageDraw.ImageDraw, left: int, top: int, colour: str, scale: float = 1
+) -> None:
+    def scaled(*box: int) -> tuple[int, int, int, int]:
+        x0, y0, x1, y1 = (round(value * scale) for value in box)
+        return left + x0, top + y0, left + x1, top + y1
+
+    draw.arc(scaled(55, 0, 165, 135), 180, 360, fill=colour, width=round(14 * scale))
+    draw.rounded_rectangle(
+        scaled(0, 60, 220, 215), radius=round(25 * scale), fill=colour
+    )
+
+
+def _soft_shadow(image: Image.Image, box: tuple[int, int, int, int]) -> None:
+    layer = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    ImageDraw.Draw(layer).rounded_rectangle(box, radius=18, fill=(60, 50, 35, 90))
+    blurred = layer.filter(ImageFilter.GaussianBlur(14))
+    image.paste(blurred, (0, 0), blurred)
+
+
 def parcel_input(
     order: Order, lines: list[dict[str, object]], scenario: ParcelInput
 ) -> Original:
     """Create an image for real model analysis, without a reading or verdict."""
     cod = order.cod_amount + (Decimal("100") if scenario == "wrong-cod" else Decimal(0))
-    phone = None if scenario == "unreadable" else order.phone
-    fields: dict[str, str | None] = {
-        "order_reference": order.label_reference,
-        "customer_name": order.customer_name,
-        "phone": phone,
-        "cod_amount": str(cod),
-        "address": order.address,
-    }
-    image = Image.new("RGB", (1000, 820), "#f3f1e9")
+    rows: list[tuple[str, str | None]] = [
+        ("ORDER NO", order.label_reference),
+        ("NAME", order.customer_name),
+        ("NUMBER", None if scenario == "unreadable" else order.phone),
+        ("ADDRESS", order.address),
+        ("PRICE", f"{cod:.0f}/-"),
+    ]
+    image = Image.new("RGB", (1000, 820), "#e7dfd0")
     draw = ImageDraw.Draw(image)
-    title = ImageFont.load_default(size=28)
-    body = ImageFont.load_default(size=23)
-    draw.text((25, 24), "CONSTRUCTED PARCEL INPUT", font=title, fill="#203831")
-    draw.text(
-        (25, 70),
-        "Synthetic input for AI parcel analysis",
-        font=body,
-        fill="#53645e",
+    for x in range(0, 1000, 290):
+        draw.line((x, 0, x, 820), fill="#d8cebb", width=2)
+    for y in range(120, 820, 290):
+        draw.line((0, y, 1000, y), fill="#d8cebb", width=2)
+
+    written_rows = [
+        (title, value, textwrap.wrap(value or "-", width=20)) for title, value in rows
+    ]
+    label_bottom = 210 + sum(
+        max(78, 26 + 38 * len(wrapped)) for _, _, wrapped in written_rows
     )
-    draw.rounded_rectangle((25, 125, 630, 735), radius=20, fill="#c8ab86")
-    draw.rectangle((55, 160, 600, 690), fill="white")
-    y = 185
-    for key, value in fields.items():
-        label = {
-            "order_reference": "Order number",
-            "customer_name": "Recipient",
-            "cod_amount": "COD BDT",
-        }.get(key, key.title())
-        text = f"{label}: {value or '[obscured]'}"
-        for row in textwrap.wrap(text, width=36):
-            draw.text((75, y), row, font=body, fill="#203831")
-            y += 35
-        y += 20
+    _soft_shadow(image, (44, 96, 626, label_bottom + 58))
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle((36, 84, 618, label_bottom + 46), radius=14, fill="#f7f5f0")
+
+    draw.rectangle(
+        (70, 130, 584, label_bottom), fill="white", outline="#2a2f33", width=3
+    )
+    heading = ImageFont.load_default(size=26)
+    caption = ImageFont.load_default(size=19)
+    written = ImageFont.load_default(size=30)
+    draw.text((327, 170), "SHIPPING LABEL", font=heading, fill="#1f2528", anchor="mm")
+    y = 210
+    draw.line((70, y, 584, y), fill="#2a2f33", width=2)
+    for title, value, wrapped in written_rows:
+        height = max(78, 26 + 38 * len(wrapped))
+        draw.text((86, y + 28), title, font=caption, fill="#4a5257")
+        draw.line((206, y, 206, y + height), fill="#2a2f33", width=2)
+        if value is None:
+            for stroke in range(0, 300, 9):
+                draw.line(
+                    (
+                        224 + stroke,
+                        y + 18 + stroke % 27,
+                        248 + stroke,
+                        y + 60 - stroke % 31,
+                    ),
+                    fill="#17204a",
+                    width=6,
+                )
+        else:
+            draw.multiline_text(
+                (222, y + 18), "\n".join(wrapped), font=written, fill="#17204a"
+            )
+        y += height
+        draw.line((70, y, 584, y), fill="#2a2f33", width=2)
+
     for index, line in enumerate(lines):
-        sku = str(line["sku"])
-        product_id = sku.rsplit("-", 1)[0]
-        photo = Image.open(io.BytesIO(product_photo(product_id))).convert("RGB")
-        photo.thumbnail((300, 220))
-        image.paste(photo, (665, 145 + index * 270))
-        draw.text(
-            (660, 370 + index * 270),
-            f"Quantity: {line.get('quantity', 1)}",
-            font=body,
-            fill="#203831",
-        )
-    draw.text(
-        (25, 770),
-        f"Input variant: {scenario}. Not a shipping label.",
-        font=body,
-        fill="#53645e",
-    )
+        colour = _product_colour(str(line["sku"]).rsplit("-", 1)[0])
+        top = 130 + index * 300
+        _soft_shadow(image, (676, top + 74, 936, top + 250))
+        draw = ImageDraw.Draw(image)
+        _draw_bag(draw, 680, top, colour, 1.16)
+        quantity = line.get("quantity", 1)
+        if quantity != 1:
+            draw.text((680, top + 262), f"x {quantity}", font=written, fill="#1f2528")
+
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return Original(
@@ -112,90 +146,100 @@ def parcel_input(
     )
 
 
+CHAT_BATCHES: list[list[tuple[Literal["left", "right"], str]]] = [
+    [
+        ("left", "Apu, 1ta blue canvas tote ar 1ta black shoulder bag nibo."),
+        ("right", "Tote 500, shoulder bag 600 taka."),
+        ("left", "Final price aro kom hobe?"),
+        ("right", DEMO_FINAL_PRICE_BN),
+        ("left", "Ji, ei dame order confirm."),
+    ],
+    [
+        ("left", "Nam: Demo recipient"),
+        ("left", "Address: Example Road, Dhaka"),
+        ("left", f"Phone: {DEMO_PHONE}"),
+        ("right", "Delivery charge 80 taka. Extra discount nai."),
+        ("left", "Ami 500 taka already pay korechi."),
+        ("right", "Thik ache, check kore janacchi."),
+    ],
+]
+
+
+def _chat_screenshot(
+    bubbles: list[tuple[Literal["left", "right"], str]], time: str
+) -> bytes:
+    font = ImageFont.load_default(size=25)
+    small = ImageFont.load_default(size=19)
+    image = Image.new("RGB", (720, 1400), "#ffffff")
+    draw = ImageDraw.Draw(image)
+
+    draw.rectangle((0, 0, 720, 112), fill="#f7f8f9")
+    draw.line((0, 112, 720, 112), fill="#e1e4e8", width=2)
+    draw.ellipse((28, 26, 88, 86), fill="#8fa8c8")
+    draw.text(
+        (58, 56), "D", font=ImageFont.load_default(size=30), fill="white", anchor="mm"
+    )
+    draw.text(
+        (106, 28),
+        "Demo customer",
+        font=ImageFont.load_default(size=28),
+        fill="#14181c",
+    )
+    draw.text((106, 66), "Active now", font=small, fill="#5f6b76")
+    draw.text((360, 150), time, font=small, fill="#7a858f", anchor="mm")
+
+    y = 190
+    for side, message in bubbles:
+        quote = None
+        wrapped = ""
+        if message == DEMO_FINAL_PRICE_BN:
+            # Pre-rendered with Bengali shaping; works without OS fonts/RAQM.
+            with Image.open(
+                Path(__file__).with_name("assets") / "constructed-final-price-bn.png"
+            ) as original:
+                quote = original.convert("RGBA")
+            width, height = quote.width + 44, quote.height + 30
+        else:
+            wrapped = "\n".join(textwrap.wrap(message, width=34))
+            left, top, right, bottom = draw.multiline_textbbox(
+                (0, 0), wrapped, font=font, spacing=8
+            )
+            width, height = int(right - left) + 44, int(bottom - top) + 38
+        x = 28 if side == "left" else 692 - width
+        draw.rounded_rectangle(
+            (x, y, x + width, y + height),
+            radius=26,
+            fill="#eceef1" if side == "left" else "#d3efe2",
+        )
+        if quote is not None:
+            image.paste(quote, (x + 22, y + 15), quote)
+        else:
+            draw.multiline_text(
+                (x + 22, y + 15), wrapped, font=font, fill="#14181c", spacing=8
+            )
+        y += height + 20
+
+    draw.line((0, 1296, 720, 1296), fill="#e1e4e8", width=2)
+    draw.rounded_rectangle((28, 1318, 692, 1376), radius=29, fill="#f1f2f4")
+    draw.text((56, 1335), "Message", font=small, fill="#7a858f")
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
 def screenshots() -> list[Original]:
-    font = ImageFont.load_default(size=22)
-    title = ImageFont.load_default(size=28)
-    batches = [
-        [
-            ("left", "1 blue canvas tote, 1 black shoulder bag."),
-            ("right", "Tote 500, shoulder bag 600 BDT each."),
-            ("left", "Final price aro kom hobe?"),
-            ("right", DEMO_FINAL_PRICE_BN),
-            ("left", "Ji, ei final price e order confirmed."),
-        ],
-        [
-            ("left", "Name: Demo recipient"),
-            ("left", "Address: Example Road, Dhaka"),
-            ("left", "Phone: 01X-EXAMPLE (withheld in demo)"),
-            ("right", "Customer delivery charge 80 BDT."),
-            ("right", "Line discount 0 BDT for each item."),
-            ("left", "I already paid 500 BDT."),
-        ],
+    return [
+        Original(
+            f"constructed-{sequence:02}.png",
+            _chat_screenshot(bubbles, time),
+            "image/png",
+            720,
+            1400,
+        )
+        for sequence, (bubbles, time) in enumerate(
+            zip(CHAT_BATCHES, ("Today 7:42 PM", "Today 7:46 PM"), strict=True), 1
+        )
     ]
-    result = []
-    for sequence, bubbles in enumerate(batches, 1):
-        image = Image.new("RGB", (720, 1400), "#f4f5f9")
-        draw = ImageDraw.Draw(image)
-        draw.rectangle((0, 0, 720, 120), fill="#ffffff")
-        draw.text((28, 26), "Demo customer | Sales chat", font=title, fill="#203831")
-        draw.text(
-            (28, 75), "CONSTRUCTED - no real conversation", font=font, fill="#53645e"
-        )
-        y = 190
-        for side, message in bubbles:
-            x = 28 if side == "left" else 160
-            draw.rounded_rectangle(
-                (x, y, x + 530, y + 110),
-                radius=24,
-                fill="#e2e5ed" if side == "left" else "#d4eee5",
-            )
-            if message == DEMO_FINAL_PRICE_BN:
-                # Pre-rendered with Bengali shaping; works without OS fonts/RAQM.
-                # Keep this original quote separate from its explanatory gloss.
-                with Image.open(
-                    Path(__file__).with_name("assets")
-                    / "constructed-final-price-bn.png"
-                ) as original:
-                    image.paste(original, (x + 20, y + 15), original)
-                draw.text(
-                    (x, y + 120),
-                    "English gloss (guide, not source):",
-                    font=ImageFont.load_default(size=18),
-                    fill="#53645e",
-                )
-                draw.multiline_text(
-                    (x, y + 147),
-                    "\n".join(textwrap.wrap(DEMO_FINAL_PRICE_GLOSS, width=44)),
-                    font=ImageFont.load_default(size=20),
-                    fill="#53645e",
-                )
-                y += 60
-            else:
-                draw.multiline_text(
-                    (x + 20, y + 25),
-                    "\n".join(textwrap.wrap(message, width=40)),
-                    font=font,
-                    fill="#203831",
-                )
-            y += 170
-        draw.text(
-            (28, 1330),
-            f"Development source | screenshot {sequence}/2",
-            font=font,
-            fill="#53645e",
-        )
-        buffer = io.BytesIO()
-        image.save(buffer, format="PNG")
-        result.append(
-            Original(
-                f"constructed-{sequence:02}.png",
-                buffer.getvalue(),
-                "image/png",
-                720,
-                1400,
-            )
-        )
-    return result
 
 
 DEMO_PRODUCTS = [
@@ -207,14 +251,14 @@ DEMO_PRODUCTS = [
 ]
 
 
+def _product_colour(product_id: str) -> str:
+    return next(colour.lower() for key, _, colour in DEMO_PRODUCTS if key == product_id)
+
+
 def product_photo(product_id: str) -> bytes:
-    colour = next(
-        colour.lower() for key, _, colour in DEMO_PRODUCTS if key == product_id
-    )
     photo = Image.new("RGB", (360, 300), "#f3f1e9")
     draw = ImageDraw.Draw(photo)
-    draw.arc((125, 35, 235, 170), 180, 360, fill=colour, width=14)
-    draw.rounded_rectangle((70, 95, 290, 250), radius=25, fill=colour)
+    _draw_bag(draw, 70, 35, _product_colour(product_id))
     draw.text((18, 275), "CONSTRUCTED PRODUCT", fill="#203831")
     result = io.BytesIO()
     photo.save(result, format="WEBP")
