@@ -2,42 +2,95 @@
 
 ### Your shop. One less thing to juggle.
 
-A Bangla AI copilot for small online sellers — from a customer's message to a ready-to-ship order.
+A small online bag shop in Bangladesh takes an order in chat, negotiates two prices, then copies the recipient and COD into a spreadsheet and a courier form. When someone else packs it, they have to ask again: which bag, which colour, what final price?
 
-Orders come from everywhere: WhatsApp, Instagram, TikTok, Messenger, even a phone call. PocketDokani brings the details, stock and delivery work together. AI prepares the work; the seller approves it.
+PocketDokani brings that work into a phone web app. It turns conversation screenshots into source-linked order drafts, checks visible parcel details, prepares courier bookings and answers business questions in Bangla. **AI prepares the work; the seller approves it.** In the constructed example below, the seller confirms two negotiated prices and BDT 80 delivery to produce COD BDT 1,080.
 
-**[Try the demo](https://pocketdokani.vercel.app/judge)** · [Seller sign-in](https://pocketdokani.vercel.app/) · [Setup guide](docs/setup.md)
+Built for the **Meta Global AI Developer Hackathon · Indie Developer · Build for Your World**. The application and model integrations were built during the event ([build history](https://github.com/afif-fahim/pocketdokani/commits)); the seller's pre-existing spreadsheet was a private data source.
 
-![PocketDokani sample shop, order workflow and actual parcel-analysis result](docs/images/product.png)
+**[Try the hosted sample shop](https://pocketdokani.vercel.app/judge)** · [Repository](https://github.com/afif-fahim/pocketdokani) · [Measured results](evals/results.md) · [Architecture](docs/architecture.md) · [Setup](docs/setup.md)
 
-## From conversation to courier
+> **Hosted status, November 4:** the last recorded hosted walkthrough stopped before extraction: sample creation/reset returned HTTP 503. A rendering correction passed locally; deployment, running model allowance/credits and a complete fresh hosted rehearsal remain release tasks in [#7](https://github.com/afif-fahim/pocketdokani/issues/7). The results below describe the corrected local run, not a completed hosted walkthrough.
 
-1. **Capture the order.** Upload conversation screenshots and an optional voice note, or enter a draft after a call. Muse Spark extracts the recipient, products and negotiated prices, with quotes linking back to the source.
-2. **Review and confirm.** Correct the draft, choose the right SKU and verify any advance payment. PocketDokani calculates COD from the confirmed amounts.
-3. **Check the parcel.** Photograph the label and visible bag. SAM locates regions; Spark reads the label without seeing the order. Code compares the reading with the confirmed details and shows mismatches or uncertainty.
-4. **Book the courier.** Send the approved parcel to Steadfast. Invoice reconciliation protects against duplicate bookings after interrupted requests.
+## Try one order
 
-Or ask your shop directly: **“আজ কয়টা পার্সেল পাঠানো বাকি?”** Speak in Bangla or type a question. The assistant looks up business records, shows the supporting orders and proposes changes for you to confirm.
+The hosted judge entry needs no seller login or visitor API key. Its AI still needs the operator's configured Meta service, available credits and a finite call allowance. Every analysis calls real models; unavailable service or exhausted allowance produces an error.
 
-## Try it
+1. Open the [demo](https://pocketdokani.vercel.app/judge), choose **Start sample shop**, then **Start sample order**.
+2. Extract the sample screenshots. Inspect the source quotes, review the two item lines and recipient details, then save and confirm. A customer's payment claim does not count as verified prior payment.
+3. Download a synthetic parcel image from **Check parcel**, upload it and analyze. Inspect the actual label/bag reasons. A fail requires correction and a new photo; an unsure result permits a separately recorded seller override after review.
+4. Once packed, choose **Simulate booking · Fake**. Reload to inspect the order reference, COD and fake courier identifiers. Judge bookings never dispatch a parcel.
+5. Open **Assistant**, select Bangla answers and type **“এখন কয়টা পার্সেল পাঠানো বাকি?”** Inspect the supporting order chips. Then ask to mark a booked sample order delivered using its actual reference; inspect the proposal before explicitly confirming it. Voice input offers an editable transcript before sending.
 
-Open the demo, choose **Start sample shop**, then **Start sample order**. The shop's products, orders and source images are synthetic; extraction, transcription, assistant answers and parcel analysis call the real Meta models. Results depend on the input and are never preloaded. Judge courier bookings are simulated, so exploring the demo never dispatches a parcel.
+Each judge gets isolated synthetic records. Reset restores only that shop and preserves its model-call budget. Seller access is at [the main entry](https://pocketdokani.vercel.app/).
 
-Review the extracted draft, confirm it, then upload a parcel photo for analysis. You can also download a synthetic parcel image to use as input. Missing model configuration or an exhausted call budget produces an error rather than a substitute answer.
+## What the app actually showed
 
-## Powered by Meta
+These are crops of the working app after live Meta calls on **constructed local inputs**. The parcel result is unsure; the Bangla question was typed. This separate landing walkthrough is not the evaluation run summarized below. [Input provenance, exact captions and observations](apps/web/public/product/README.md).
 
-| Model | Its job |
-| --- | --- |
-| **Muse Spark 1.3** | Extract source-linked order drafts, read labels, compare visible products and choose business-record tools for the assistant. |
-| **Muse Voice Transcribe** | Turn Bengali/English voice notes and assistant speech into editable text. |
-| **SAM 3.1** | Locate shipping labels and handbags before visual analysis, with full-photo fallback when a usable region is absent. |
+| Inspect the agreed price | See uncertainty before shipping | Ask in Bangla and inspect records |
+| --- | --- | --- |
+| ![Tote unit price BDT 450 linked to the original Bangla final-price quote](apps/web/public/product/order-quote.jpg) | ![Actual parcel check: unsure label, matching visible bags, and reshoot guidance](apps/web/public/product/parcel-check.jpg) | ![Typed Bangla question returns three pending orders with three supporting order chips](apps/web/public/product/bangla-answer.jpg) |
+| The price retains its original screenshot quote. | Unreadable label fields remain unsure. | The count comes from the three cited orders. |
 
-The Next.js app talks to FastAPI. Business rules calculate money, enforce shop isolation and gate changes behind seller confirmation. PostgreSQL stores records; private Supabase storage holds original images and model evidence.
+```mermaid
+flowchart LR
+    Chat["Sales screenshots"] --> Draft["Draft + seller confirmation"]
+    Draft --> Photo["Photo check + packing approval"]
+    Photo --> Courier["Approved courier booking"]
+```
+
+## Meta models at runtime
+
+All three integrations call the **Meta Model API at [`https://api.meta.ai/v1`](https://api.meta.ai/v1)** through the [audited provider client](apps/api/pocketdokani/integrations/model_api.py). Spark's OpenAI-compatible chat format is a protocol choice; Meta supplies the runtime models.
+
+| Model | Task and reason for using it | Implemented source |
+| --- | --- | --- |
+| `muse-spark-1.3` | Vision reads conversations and labels and compares visible bags with catalogue photos. Tool calling selects business lookups, proposals and metric references. | [Draft extraction](apps/api/pocketdokani/features/orders/drafting.py), [parcel vision](apps/api/pocketdokani/features/packing/pack_vision.py), [assistant loop](apps/api/pocketdokani/features/assistant/assistant.py) |
+| `muse-voice-transcribe-1.0` | Turns voice notes or assistant speech into text, with Bengali/English language bias and shop vocabulary. Assistant input is editable before sending; order voice notes are stored extraction evidence. | [Audio normalization and transcription](apps/api/pocketdokani/integrations/voice_notes.py) |
+| `sam-3.1` | Looks for shipping-label and handbag regions so Spark can inspect a crop. When no usable region exists, the pipeline records full-photo fallback. | [Segmentation and fallback](apps/api/pocketdokani/features/packing/pack_vision.py) |
+
+## How the pieces connect
+
+```mermaid
+flowchart TB
+    Web["Next.js UI + API proxy"] --> API["FastAPI: shop/session"]
+    API --> Pipelines["Draft · parcel · assistant"]
+    Pipelines --> Meta["Meta Model API"]
+    API --> Rules["Seller approval + money/state rules"]
+    Rules --> DB[("PostgreSQL records")]
+    API --> Storage["Private Supabase objects"]
+    Rules --> Booking["Courier invoice reconciliation"]
+    Booking --> Modes["Judge fake / seller gated live"]
+```
+
+[The architecture guide](docs/architecture.md) follows the actual request paths, local storage alternatives, isolation and failure handling. Four decisions make the model output reviewable:
+
+- **Keep evidence beside the draft.** Extracted fields retain original-script source quotes and screenshot references. The seller corrects values and confirms amounts; customer text cannot verify a payment. [Extraction and confirmation](apps/api/pocketdokani/features/orders/drafting.py).
+- **Read the label without the expected answer.** Spark reads the parcel label without seeing the order. Server code compares that reading with confirmed details. Unreadable fields remain unsure; only an unsure check permits a recorded override, and a fail cannot be overridden. This reduces confirmation bias but cannot recover an unreadable label. [Vision](apps/api/pocketdokani/features/packing/pack_vision.py), [comparison](apps/api/pocketdokani/features/packing/pack_comparison.py), [authorization](apps/api/pocketdokani/features/packing/pack_checks.py).
+- **Render validated numbers from records.** Spark selects tools and metric references; server code validates the references and renders stored-record values in the chosen language. Proposed writes use the ordinary confirmation paths. These controls reduce unsupported answers; tool selection can still be wrong. [Assistant](apps/api/pocketdokani/features/assistant/assistant.py), [tools](apps/api/pocketdokani/features/assistant/assistant_tools.py).
+- **Reconcile before retrying a courier request.** A durable attempt records the order reference as invoice before calling the courier. Interrupted or uncertain outcomes keep stock reserved and require an invoice lookup before retry. Fake and live paths remain distinct. [Booking workflow](apps/api/pocketdokani/features/courier/bookings.py).
+
+## Measured results and limits
+
+[**`evals/results.md` is the single results record**](evals/results.md), including exact inputs, denominators, timings, failed cases and reproduction steps. On November 4, the corrected local smoke run used real models with isolated synthetic records and a simulated courier. These are constructed development examples, not a held-out benchmark.
+
+| Check | Observed outcome | Sample / limit |
+| --- | --- | --- |
+| Order extraction | 11/11 checked values; 2/2 SKU suggestions correct | One two-line conversation; values and suggestions scored separately |
+| Business questions | 5/5 correct; 0/5 confidently wrong | Four record-backed answers and one correct unknown response |
+| Parcel labels | Clean: 1/1 pass; obscured phone: 1/1 unsure | Illustrative synthetic parcels |
+| Deliberately wrong COD | **0/1 detected as fail; returned unsure** | The blind reader could not read the label fields |
+| SAM localization | **0/6 usable regions** | All six attempts used full-photo fallback; no crop/full comparison |
+| Transcription | 1/1 English sentence correct | Synthetic speech; Bangla ASR and physical microphone untested |
+
+Fake booking, identifier/stock persistence, confirmation-gated delivery and independent judge sessions passed locally. **No genuine pilot shipment or time-saved measurement is claimed.** A live courier adapter is implemented; that alone is not evidence of a real shipment.
+
+Courier fee records are absent, so **payout due cannot currently be derived**. A parcel photo checks visible details and reveals nothing about sealed contents. Genuine chats, handwriting, real parcels and Bangla speech quality remain unevaluated in this record. These controls do not establish perfect model accuracy.
 
 ## Run locally
 
-Requires Python 3.12+, uv, Node 20.x ≥20.19 / 22.x ≥22.13 / ≥24, and ffmpeg for voice.
+Requires Python 3.12+, uv, Node 20.x ≥20.19 / 22.x ≥22.13 / ≥24, and ffmpeg for voice. Run from the repository root:
 
 ```sh
 uv sync --frozen
@@ -46,39 +99,13 @@ npm --prefix apps/web ci
 npm run hooks:install
 ```
 
-Copy `.env.example` to a new `.env`, set a random shop passcode and your Meta API key, and create `data/private/`. Then:
+Copy `.env.example` to a new `.env` without replacing existing secrets. Set a random shop passcode, `MODEL_API_KEY` and `MODEL_CALLS_ENABLED=true`; create `data/private/`. **Local AI requires your own Meta API key and available provider credits.** Record browsing/manual drafts work without models; analysis does not run offline or return substitute results.
 
 ```sh
-uv run alembic upgrade head
+uv run --frozen alembic upgrade head
 npm run dev:api
 ```
 
-In another terminal, run `npm run dev:web` and open [localhost:3000/judge](http://localhost:3000/judge). Local development uses SQLite and private files. [Configuration, deployment and contributor commands →](docs/setup.md)
+In another terminal, run `npm run dev:web`, then open [localhost:3000/judge](http://localhost:3000/judge). Local development uses SQLite and private files. [Setup, deployment, model allowances and troubleshooting](docs/setup.md) remain canonical there.
 
-## Project layout
-
-```text
-apps/
-  api/
-    pocketdokani/
-      main.py           FastAPI entrypoint and HTTP routes
-      core/             Configuration and request security
-      data/             Database, records and object storage
-      integrations/     Model calls and voice transcription
-      features/         Assistant, business, conversations, courier, orders and packing
-      demo/             Constructed shop fixtures and assets
-      commands/         Reviewed business and catalogue imports
-    migrations/         Database schema migrations
-  web/src/
-    app/                Next.js routes and global styles
-    features/           Orders, conversations, assistant and workspace
-    components/         Shared app shell and UI
-    lib/                API client, formatting and pending-action storage
-scripts/                COD, courier, privacy and source-partition checks
-evals/                  Source-group manifest; private evaluation inputs stay ignored
-docs/                   Setup, domain decisions and agent instructions
-```
-
-Screenshot import supports one-to-one mobile conversations with left/right bubbles; it does not connect directly to social-platform inboxes or record calls. A parcel photo checks visible details, not sealed contents. The seller remains responsible for confirming orders, payments and changes.
-
-Built for the **Meta Global AI Developer Hackathon**. The seller's pre-existing spreadsheet was a private data source; the application and model integrations were built for the event.
+Screenshot import supports one-to-one mobile conversations with left/right bubbles. It does not connect directly to social-platform inboxes or record phone calls. The seller remains responsible for confirming orders, payments and changes.
