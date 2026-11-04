@@ -12,13 +12,22 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#193d32",
+  colorScheme: "light dark",
 };
+
+const restoreTheme = `try {
+  const theme = localStorage.getItem("pocketdokani-theme");
+  if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+} catch {}`;
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: restoreTheme }} />
+      </head>
       <body>{children}</body>
     </html>
   );

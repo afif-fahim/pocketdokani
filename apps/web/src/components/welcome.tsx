@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import Image, { type StaticImageData } from "next/image";
 import { Brand, Icon } from "@/components/app-shell";
 import { ImagePreviewButton } from "@/components/image-viewer";
+import { ThemeSwitch } from "@/components/theme-switch";
 import orderQuote from "../../public/product/order-quote.jpg";
 import orderReview from "../../public/product/order-review.jpg";
 import parcelInput from "../../public/product/parcel-input.png";
@@ -11,6 +12,7 @@ import parcelCleanDome from "../../public/product/parcel-clean-dome.jpg";
 import parcelSwappedError from "../../public/product/parcel-swapped-error.jpg";
 import parcelPrepaidBag from "../../public/product/parcel-prepaid-bag.jpg";
 import parcelBlackDome from "../../public/product/parcel-black-dome.jpg";
+import parcelWrongBag from "../../public/product/parcel-wrong-bag.jpg";
 import workspaceOverview from "../../public/product/workspace-overview.jpg";
 
 type ShowcaseTab = "parcel" | "workspace" | "bangla";
@@ -101,6 +103,7 @@ export default function Welcome({
         </nav>
 
         <div className="welcome-header-actions">
+          <ThemeSwitch />
           <a className="quiet-link" href={judge ? "/" : "#seller-sign-in"}>
             {judge ? "Seller entry" : "Seller sign-in"}
           </a>
@@ -143,8 +146,9 @@ export default function Welcome({
             </h1>
 
             <p className="welcome-bangla-lead" lang="bn">
-              মেসেঞ্জার স্ক্রিনশট থেকে অর্ডার ড্রাফট, পার্সেল লেবেল যাচাই এবং
-              বাংলায় দোকানের হিসাব — প্রতিটি সিদ্ধান্ত আপনার হাতে।
+              Meta Business Suite, WhatsApp, TikTok বা অন্য সোশ্যাল অ্যাপের
+              চ্যাট স্ক্রিনশট থেকে অর্ডার ড্রাফট করুন। পার্সেল লেবেল যাচাই করুন
+              আর বাংলায় দোকানের হিসাব দেখুন। প্রতিটি সিদ্ধান্ত আপনার হাতে।
             </p>
 
             <p className="welcome-promise">
@@ -195,37 +199,6 @@ export default function Welcome({
                 if the service cannot be reached.
               </p>
             )}
-
-            <dl className="hero-trust-strip">
-              <div>
-                <dt>No login or key for judges</dt>
-                <dd>
-                  Isolated synthetic shop with live calls to{" "}
-                  <code>api.meta.ai</code>.
-                </dd>
-              </div>
-              <div>
-                <dt>Source-linked extraction</dt>
-                <dd>
-                  Every drafted field cites its Bangla/Banglish quote and
-                  screenshot.
-                </dd>
-              </div>
-              <div>
-                <dt>Blind label check</dt>
-                <dd>
-                  Spark reads the parcel label without seeing the expected
-                  order.
-                </dd>
-              </div>
-              <div>
-                <dt>Confirm-gated writes</dt>
-                <dd>
-                  Server code owns money math; assistant proposals require a
-                  tap.
-                </dd>
-              </div>
-            </dl>
           </div>
 
           <div className="welcome-showcase">
@@ -396,6 +369,56 @@ export default function Welcome({
                 </div>
               )}
             </div>
+
+            <div className="hero-highlights">
+              <p className="eyebrow">What’s built in</p>
+              <dl className="hero-trust-strip">
+                <div>
+                  <dt>
+                    <span className="hero-trust-icon">
+                      <Icon name="bag" />
+                    </span>
+                    No login or key for judges
+                  </dt>
+                  <dd>
+                    Isolated sample shop with live calls to{" "}
+                    <code>api.meta.ai</code>.
+                  </dd>
+                </div>
+                <div>
+                  <dt>
+                    <span className="hero-trust-icon">
+                      <Icon name="conversations" />
+                    </span>
+                    Trace every draft field
+                  </dt>
+                  <dd>See the Bangla or Banglish quote and its screenshot.</dd>
+                </div>
+                <div>
+                  <dt>
+                    <span className="hero-trust-icon">
+                      <Icon name="stock" />
+                    </span>
+                    Blind label check
+                  </dt>
+                  <dd>
+                    Spark reads the label without seeing the expected order.
+                  </dd>
+                </div>
+                <div>
+                  <dt>
+                    <span className="hero-trust-icon">
+                      <Icon name="orders" />
+                    </span>
+                    Approve every change
+                  </dt>
+                  <dd>
+                    The app calculates amounts. You approve the assistant’s
+                    proposed changes.
+                  </dd>
+                </div>
+              </dl>
+            </div>
           </div>
         </section>
 
@@ -517,19 +540,18 @@ export default function Welcome({
           <div className="section-header-row">
             <div>
               <p className="eyebrow">
-                REAL-ORDER SCENARIOS · GENERATED PACKING TABLE GALLERY
+                GENERATED SCENES · PACKING TABLE GALLERY
               </p>
               <h2 id="packing-heading">
                 Why handwritten labels and bag variants need a second pair of
                 eyes.
               </h2>
               <p className="section-subtext">
-                In a two-person home shop, one person negotiates in Messenger
-                and the other packs boxes on the floor. These generated parcel
-                scenes—modeled after real orders from the{" "}
-                <strong>Demo shop</strong> bag workbook with personal phone digits
-                and street details anonymized—show the exact failure modes
-                PocketDokani is built around.
+                In a two-person home shop, one person negotiates in chat and the
+                other packs boxes on the floor. These scenes draw on anonymized
+                orders from the <strong>Demo shop</strong> bag workbook and one
+                fictional bag mix-up to show what PocketDokani checks before
+                dispatch.
               </p>
             </div>
           </div>
@@ -652,14 +674,41 @@ export default function Welcome({
                 </p>
               </figcaption>
             </figure>
+
+            <figure className="parcel-scenario-card">
+              <div className="scenario-image-wrap">
+                <span className="photo-badge danger">
+                  05 · Bag style mismatch
+                </span>
+                <ProductImage
+                  src={parcelWrongBag}
+                  alt="White parcel labeled PD-SAMPLE-05 with COD 1,080 beside a blue canvas tote."
+                  label="Open full-size photo of the blue tote beside parcel PD-SAMPLE-05"
+                  sizes="(max-width: 760px) 100vw, 48vw"
+                />
+              </div>
+              <figcaption>
+                <div className="scenario-meta">
+                  <code>Order PD-SAMPLE-05</code>
+                  <span>COD: BDT 1,080</span>
+                  <span>Expected SKU: Black Shoulder Bag</span>
+                </div>
+                <h3>Catch a bag mix-up before sealing.</h3>
+                <p>
+                  The label shows the expected order reference and COD. The
+                  visible blue canvas tote differs from the compact black
+                  shoulder bag on the confirmed order.
+                </p>
+              </figcaption>
+            </figure>
           </div>
 
           <p className="proof-note">
-            <strong>Provenance &amp; privacy note:</strong> The four photos
-            above are AI-generated parcel scenes modeled after real packing
-            table orders; customer surnames, phone digits, and building details
-            are redacted. A parcel photo checks visible label and bag details
-            only and establishes nothing about sealed contents.
+            <strong>Provenance &amp; privacy note.</strong> All five photos are
+            AI-generated. The first four draw on packing table orders with
+            customer surnames, phone digits, and building details redacted. The
+            fifth is fictional. Parcel checks compare the label and any visible
+            bag with the confirmed order.
           </p>
         </section>
 
@@ -1024,8 +1073,8 @@ export default function Welcome({
                 </li>
                 <li>
                   <strong>No inbox scraping:</strong> PocketDokani works from
-                  seller-uploaded screenshots and voice notes; it never connects
-                  to Messenger inboxes or records phone calls.
+                  screenshots and voice notes you upload. It never connects to
+                  social inboxes or records phone calls.
                 </li>
                 <li>
                   <strong>Simulated judge courier:</strong> Judge sessions run
@@ -1043,37 +1092,59 @@ export default function Welcome({
           aria-labelledby="entry-heading"
         >
           <div className="seller-entry-info">
-            <p className="eyebrow">
-              {judge ? "INTERACTIVE JUDGE SANDBOX" : "TRY OR SIGN IN"}
-            </p>
-            <h2 id="entry-heading">
-              {judge
-                ? "Take one sample order from chat to courier."
-                : "Explore the judge sample shop or sign in to your shop."}
-            </h2>
-            <p className="muted">
-              {judge
-                ? "Your session gets an isolated synthetic shop with 8 sample orders, sample chat screenshots, synthetic parcel fixtures, and the Bangla/English assistant."
-                : "Judges can launch an isolated sample shop with no login. Sellers can sign in below with their shop passcode."}
-            </p>
+            <div className="seller-entry-intro">
+              <p className="eyebrow">
+                {judge ? "Interactive judge sandbox" : "Try the sample shop"}
+              </p>
+              <h2 id="entry-heading">
+                Take a sample order from chat to courier.
+              </h2>
+              <p className="muted">
+                {judge
+                  ? "Your isolated shop includes eight sample orders, chat screenshots, parcel photos, and a Bangla and English assistant."
+                  : "Launch an isolated sample shop without a login, or sign in with your seller passcode."}
+              </p>
+            </div>
 
-            <ol className="try-steps-list">
+            <ol className="try-steps-list" role="list">
               <li>
-                <strong>Extract sample chat:</strong> Review source quotes and
-                confirm COD BDT 1,080.
+                <span className="try-step-number" aria-hidden="true">
+                  01
+                </span>
+                <div>
+                  <strong>Extract a sample chat</strong>
+                  Review source quotes and confirm COD BDT 1,080.
+                </div>
               </li>
               <li>
-                <strong>Run pack check:</strong> Upload a parcel image and
-                inspect label &amp; bag verdicts.
+                <span className="try-step-number" aria-hidden="true">
+                  02
+                </span>
+                <div>
+                  <strong>Run a pack check</strong>
+                  Upload a parcel image and inspect the label and bag verdicts.
+                </div>
               </li>
               <li>
-                <strong>Book fake courier:</strong> Generate a simulated
-                consignment and verify stock deduction.
+                <span className="try-step-number" aria-hidden="true">
+                  03
+                </span>
+                <div>
+                  <strong>Book a simulated courier</strong>
+                  Generate a consignment and check the updated stock.
+                </div>
               </li>
               <li>
-                <strong>Ask in Bangla:</strong> Type{" "}
-                <span lang="bn">“এখন কয়টা পার্সেল পাঠানো বাকি?”</span> and
-                inspect the cited order chips.
+                <span className="try-step-number" aria-hidden="true">
+                  04
+                </span>
+                <div>
+                  <strong>Ask in Bangla</strong>
+                  Type <span lang="bn">
+                    “এখন কয়টা পার্সেল পাঠানো বাকি?”
+                  </span>{" "}
+                  and open the cited orders.
+                </div>
               </li>
             </ol>
           </div>
@@ -1148,6 +1219,8 @@ export default function Welcome({
           <a
             className="quiet-link"
             href="https://github.com/afif-fahim/pocketdokani"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             GitHub repository <span aria-hidden="true">↗</span>
           </a>

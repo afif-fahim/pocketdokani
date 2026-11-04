@@ -1,17 +1,20 @@
 :root {
-  --paper: oklch(0.973 0.004 165);
-  --surface: oklch(1 0 none);
-  --ink: oklch(0.295 0.022 162);
-  --muted: oklch(0.505 0.018 162);
-  --green: oklch(0.455 0.082 162);
-  --line: oklch(0.905 0.009 162);
+  --paper: light-dark(oklch(0.973 0.004 165), oklch(0.185 0.018 162));
+  --surface: light-dark(oklch(1 0 none), oklch(0.227 0.022 162));
+  --ink: light-dark(oklch(0.295 0.022 162), oklch(0.95 0.012 162));
+  --muted: light-dark(oklch(0.505 0.018 162), oklch(0.75 0.023 162));
+  --green: light-dark(oklch(0.455 0.082 162), oklch(0.79 0.113 157));
+  --on-green: light-dark(oklch(1 0 none), oklch(0.19 0.033 160));
+  --line: light-dark(oklch(0.905 0.009 162), oklch(0.365 0.027 162));
   --soft: color-mix(in oklch, var(--green) 7%, var(--paper));
-  --danger: oklch(0.495 0.145 27);
-  --accent: oklch(0.625 0.115 78);
+  --danger: light-dark(oklch(0.495 0.145 27), oklch(0.78 0.125 25));
+  --on-danger: light-dark(oklch(1 0 none), oklch(0.21 0.04 25));
+  --accent: light-dark(oklch(0.625 0.115 78), oklch(0.79 0.108 79));
+  --warning: light-dark(oklch(0.45 0.088 75), oklch(0.82 0.106 82));
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --space: clamp(1rem, 0.75rem + 1vw, 1.75rem);
   --heading: clamp(2.1rem, 1.5rem + 2.5vw, 3.9rem);
-  color-scheme: light;
+  color-scheme: light dark;
   scrollbar-gutter: stable;
   text-wrap: pretty;
   overflow-wrap: break-word;
@@ -19,6 +22,12 @@
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 html {
   scroll-padding-block-start: 5.5rem;
@@ -280,7 +289,7 @@ button.primary,
 a.primary {
   background: var(--green);
   border-color: var(--green);
-  color: var(--surface);
+  color: var(--on-green);
   padding-inline: 1.4rem;
 }
 button.danger {
@@ -292,8 +301,8 @@ button.danger {
   }
   button.primary:not(:disabled):hover,
   a.primary:hover {
-    background: color-mix(in oklch, var(--green), black 12%);
-    color: var(--surface);
+    background: color-mix(in oklch, var(--green), var(--on-green) 12%);
+    color: var(--on-green);
   }
   a:hover {
     color: var(--muted);
@@ -341,7 +350,7 @@ button.danger {
   block-size: 2rem;
   border-radius: 0.4rem;
   background: var(--green);
-  color: var(--surface);
+  color: var(--on-green);
   font-size: 1.6rem;
 }
 .context-tag {
@@ -392,7 +401,7 @@ button.danger {
 }
 .step-number {
   font-size: 2rem;
-  color: color-mix(in oklch, var(--muted), white 30%);
+  color: var(--muted);
 }
 .stack,
 .import-form,
@@ -452,13 +461,13 @@ textarea:disabled {
 }
 .error {
   color: var(--danger);
-  background: color-mix(in oklch, var(--danger) 5%, white);
-  border-color: color-mix(in oklch, var(--danger) 28%, white);
+  background: color-mix(in oklch, var(--danger) 5%, var(--surface));
+  border-color: color-mix(in oklch, var(--danger) 28%, var(--surface));
 }
 .success {
   color: var(--green);
   background: var(--soft);
-  border-color: color-mix(in oklch, var(--green) 28%, white);
+  border-color: color-mix(in oklch, var(--green) 28%, var(--surface));
 }
 .workspace-toolbar {
   padding-block-end: 1rem;
@@ -541,7 +550,7 @@ code {
   outline-offset: 4px;
 }
 .upload-box:active {
-  background: color-mix(in oklch, var(--green) 14%, white);
+  background: color-mix(in oklch, var(--green) 14%, var(--surface));
 }
 .upload-box > span:not(.upload-icon) {
   font-weight: 400;
@@ -944,7 +953,7 @@ footer {
 .mic-button[aria-pressed="true"] {
   background: var(--danger);
   border-color: var(--danger);
-  color: var(--surface);
+  color: var(--on-danger);
 }
 
 .pack-panel,
@@ -982,7 +991,7 @@ footer {
   color: var(--danger);
 }
 .pack-unsure {
-  color: oklch(42% 0.09 75);
+  color: var(--warning);
 }
 .pack-fields,
 .pack-fields > li {
@@ -1026,18 +1035,18 @@ footer {
   line-height: 1.6;
 }
 .status-badge[data-tone="success"] {
-  background: #edf5ef;
-  border-color: #cadfd2;
-  color: #245a40;
+  background: color-mix(in oklch, var(--green) 8%, var(--surface));
+  border-color: color-mix(in oklch, var(--green) 20%, var(--line));
+  color: var(--green);
 }
 .status-badge[data-tone="warning"] {
-  background: #fbf5e8;
-  border-color: #eadbb9;
-  color: #79591b;
+  background: color-mix(in oklch, var(--accent) 12%, var(--surface));
+  border-color: color-mix(in oklch, var(--accent) 28%, var(--line));
+  color: var(--warning);
 }
 .status-badge[data-tone="danger"] {
-  background: #fbedeb;
-  border-color: #edcbc5;
+  background: color-mix(in oklch, var(--danger) 8%, var(--surface));
+  border-color: color-mix(in oklch, var(--danger) 22%, var(--line));
   color: var(--danger);
 }
 .order-card > summary > .status-badge {

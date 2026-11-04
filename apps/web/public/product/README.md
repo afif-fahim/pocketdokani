@@ -45,6 +45,7 @@ The assistant selects tools through the live model; displayed counts come from s
 | `parcel-swapped-error.jpg` | 1199 × 800 | Generated parcel failure scene on the same order (`#PD-SAMPLE-01`) with swapped `NAME`/`NUMBER` rows and wrong `890/-` COD amount, redacted for privacy. |
 | `parcel-prepaid-bag.jpg` | 1200 × 696 | Generated parcel scene modeled after a real prepaid order (`#PD-SAMPLE-03`, scratched phone correction, `0/-` COD, brown leather chain shoulder bag), redacted for privacy. |
 | `parcel-black-dome.jpg` | 1199 × 800 | Generated parcel scene modeled after a real variant order (`#PD-SAMPLE-04`, `970/-`, black monogram dome bag), redacted for privacy. |
+| `parcel-wrong-bag.jpg` | 1200 × 800 | Fully synthetic gallery scene. Order `PD-SAMPLE-05` shows COD `1,080/-` and a blue canvas tote beside the parcel. The example order calls for a compact black shoulder bag. |
 
 Keep the synthetic-input disclosure near reused images. Captions must describe the visible crop and its observed result. A parcel check establishes nothing about sealed contents. Keep the distinction between live AI analysis and the simulated judge courier. Add no invented testimonials, impact counts, accuracy percentages or video links.
 

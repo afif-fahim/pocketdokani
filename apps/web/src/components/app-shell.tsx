@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ThemeSwitch } from "@/components/theme-switch";
 import type { Section } from "@/features/workspace/workspace-types";
 
 export function Icon({ name }: { name: Section | "plus" | "bag" | "arrow" }) {
@@ -115,6 +116,7 @@ export default function AppShell({
           {judge ? "Sample shop" : "Your shop"}
         </span>
         <div className="session-actions">
+          <ThemeSwitch />
           {judge && (
             <button className="text-button" disabled={busy} onClick={onReset}>
               Reset sample
