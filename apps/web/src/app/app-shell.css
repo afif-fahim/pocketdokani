@@ -227,15 +227,15 @@
 .welcome-content {
   padding: clamp(1.25rem, 4vw, 4rem);
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
+  grid-template-columns: 1fr 1.15fr;
   align-items: center;
-  gap: 3.5rem;
+  gap: 3rem;
 }
 .welcome-intro {
   padding-block: 1.25rem;
 }
 .welcome-intro h1 {
-  font-size: clamp(2.75rem, 5vw, 4.7rem);
+  font-size: clamp(2.65rem, 4.8vw, 4.5rem);
   font-weight: 650;
   letter-spacing: -0.055em;
   line-height: 1.1;
@@ -245,15 +245,9 @@
   color: var(--green);
 }
 .welcome-promise {
-  font-size: 1.15rem;
-  font-weight: 600;
-  line-height: 1.6;
-}
-.welcome-detail {
-  max-width: 29rem;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   color: var(--muted);
-  margin-top: 1rem;
+  line-height: 1.6;
 }
 .welcome-actions {
   display: flex;
@@ -262,9 +256,9 @@
   gap: 1rem;
   margin-top: 1.75rem;
 }
-.welcome-actions > span {
-  color: var(--muted);
-  font-size: 0.75rem;
+.welcome-actions > .quiet-link {
+  font-size: 0.85rem;
+  padding-block: 0.65rem;
 }
 .button-link {
   min-height: 48px;
@@ -277,74 +271,152 @@
   background: var(--green);
   color: white;
 }
-.welcome-assurance {
-  margin-top: 2rem;
+.welcome-disclosure {
+  margin-top: 1rem;
   font-size: 0.75rem;
   color: var(--muted);
 }
-.welcome-preview {
+.welcome-capture {
+  margin: 0;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 1rem;
-  padding: 1.75rem;
+  box-shadow: 0 16px 48px rgb(33 49 42 / 6%);
+  overflow: hidden;
+  max-width: 28rem;
+  justify-self: center;
 }
-.preview-topline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding-bottom: 0.5rem;
-}
-.welcome-steps > li {
-  display: flex;
-  gap: 1rem;
-  align-items: start;
-  padding-block: 1.65rem;
+.capture-label {
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 0.8rem 1rem;
   border-bottom: 1px solid var(--line);
 }
-.welcome-step-icon {
-  display: grid;
-  place-items: center;
-  background: var(--soft);
-  color: var(--green);
-  border: 1px solid var(--line);
-  min-width: 42px;
-  height: 42px;
-  border-radius: 0.6rem;
+.welcome-capture img,
+.proof-moments img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
-.welcome-steps h2 {
-  font-size: 1rem;
-  margin-top: 0.2rem;
-  margin-bottom: 0.6rem;
-  letter-spacing: -0.02em;
+.welcome-capture figcaption {
+  padding: 0.9rem 1rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
 }
-.welcome-steps p {
+.welcome-evidence,
+.welcome-story,
+.welcome-models {
+  grid-column: 1 / -1;
+}
+.welcome-evidence {
+  scroll-margin-top: 1.5rem;
+  padding-top: 1.5rem;
+}
+.welcome-section-heading {
+  max-width: 42rem;
+  margin-bottom: 1.75rem;
+}
+.welcome-section-heading h2,
+.welcome-story h2 {
+  font-size: clamp(1.5rem, 2.5vw, 2.1rem);
+  margin-block: 0.55rem;
+}
+.welcome-section-heading > p:last-child,
+.proof-moments p,
+.welcome-story p,
+.welcome-models dd {
   font-size: 0.85rem;
   color: var(--muted);
 }
-.welcome-steps [lang="bn"] {
-  color: var(--green);
-  font-size: 1rem;
-  margin-bottom: 0.3rem;
+.proof-moments {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.75rem;
 }
-.step-count {
-  flex: none;
-  white-space: nowrap;
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 0.7rem;
+.proof-moments figure {
+  margin: 0;
 }
-.sample-note {
-  display: flex;
-  align-items: baseline;
-  gap: 0.25rem;
-  margin-top: 1.25rem;
+.proof-moments a {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--surface);
+}
+.proof-moments .proof-input {
+  margin-bottom: 0.75rem;
+  height: 11rem;
+}
+.proof-input img {
+  height: 100%;
+  object-fit: cover;
+  background: var(--soft);
+}
+.proof-input--conversation img {
+  width: 135%;
+  max-width: none;
+  margin-left: -20%;
+  object-position: center 56%;
+}
+.proof-input--parcel img {
+  width: 165%;
+  max-width: none;
+  height: auto;
+  transform: translate(-3%, -14%);
+}
+.proof-input-label {
+  margin-bottom: 0.45rem;
+  font-size: 0.75rem;
+}
+.proof-moments figcaption {
+  padding-top: 1.1rem;
+}
+.proof-moments .eyebrow {
+  font-size: 0.62rem;
+}
+.proof-moments h3 {
+  margin-block: 0.5rem;
+  font-size: 1.05rem;
+}
+.proof-note,
+.welcome-models > p {
+  margin-top: 1.5rem;
   color: var(--muted);
   font-size: 0.75rem;
 }
-.sample-note .status-dot {
-  flex: none;
+.welcome-story {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 2rem;
+  background: var(--soft);
+  border-radius: 0.75rem;
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+}
+.welcome-story .eyebrow {
+  color: var(--green);
+  font-size: 0.65rem;
+}
+.welcome-story p + p {
+  margin-top: 0.8rem;
+}
+.welcome-models h2 {
+  font-size: 1.25rem;
+}
+.welcome-models dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.75rem;
+  margin-block: 1.25rem 0;
+}
+.welcome-models dt {
+  font-size: 0.85rem;
+  font-weight: 650;
+  margin-bottom: 0.35rem;
+}
+.welcome-models dd {
+  margin: 0;
 }
 .seller-entry {
   grid-column: 1 / -1;
@@ -366,6 +438,9 @@
   grid-column: 1 / -1;
   margin: 0;
 }
+.seller-entry-controls .message {
+  margin-bottom: 1rem;
+}
 .seller-form {
   display: flex;
   flex-wrap: wrap;
@@ -383,6 +458,15 @@
 .welcome-footer {
   margin: 0 clamp(1.25rem, 4vw, 4rem);
   font-size: 0.72rem;
+}
+@media (min-width: 761px) and (max-width: 1050px) {
+  .welcome-content {
+    gap: 2rem;
+    grid-template-columns: 1fr 1fr;
+  }
+  .proof-moments {
+    gap: 1rem;
+  }
 }
 @media (max-width: 760px) {
   .app-header {
@@ -480,18 +564,26 @@
   .welcome-promise {
     font-size: 1rem;
   }
-  .welcome-detail {
-    font-size: 0.85rem;
+  .welcome-intro h1 {
+    max-width: 13ch;
+    margin-block: 0.85rem;
   }
-  .welcome-assurance {
-    margin-top: 1.5rem;
+  .welcome-actions {
+    margin-top: 1.25rem;
   }
-  .welcome-preview {
-    padding: 1.25rem;
+  .proof-moments,
+  .welcome-story,
+  .welcome-models dl {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
   }
-  .welcome-steps > li {
-    gap: 0.75rem;
-    padding-block: 1.25rem;
+  .proof-moments figure {
+    max-width: 28rem;
+    width: 100%;
+    margin-inline: auto;
+  }
+  .welcome-evidence {
+    padding-top: 0.5rem;
   }
   .seller-entry {
     display: flex;
