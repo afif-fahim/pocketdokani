@@ -30,7 +30,7 @@ These are crops of the working app after live Meta calls on **constructed local 
 
 | Inspect the agreed price | See uncertainty before shipping | Ask in Bangla and inspect records |
 | --- | --- | --- |
-| ![Tote unit price BDT 450 linked to the original Bangla final-price quote](apps/web/public/product/order-quote.jpg) | ![Actual parcel check: unsure label, matching visible bags, and reshoot guidance](apps/web/public/product/parcel-check.jpg) | ![Typed Bangla question returns three pending orders with three supporting order chips](apps/web/public/product/bangla-answer.jpg) |
+| ![Tote unit price BDT 450 linked to the original Bangla final-price quote](apps/web/public/product/order-quote.jpg) | ![Actual parcel check: unsure label, matching visible bags, and reshoot guidance](apps/web/public/product/parcel-check.jpg) | ![Typed Bangla question returns three orders awaiting dispatch with three supporting order chips](apps/web/public/product/bangla-answer.jpg) |
 | The price retains its original screenshot quote. | Unreadable label fields remain unsure. | The count comes from the three cited orders. |
 
 ```mermaid

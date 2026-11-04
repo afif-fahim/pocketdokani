@@ -25,7 +25,7 @@ Times below are audit timestamps on November 4, 2026, in Asia/Dhaka (UTC+6).
 | Extract the conversation | `muse-spark-1.3`, 15:34:19 | Tote unit price BDT 450 and shoulder-bag unit price BDT 550, both linked to the original Bangla final-price quote. Seller review and confirmation produced COD BDT 1,080, including BDT 80 delivery and no verified prior payment. |
 | Check the parcel | `sam-3.1`, 15:35:53 and 15:35:55; `muse-spark-1.3`, 15:35:57 and 15:36:08 | SAM found no usable label or bag region, so both comparisons used the full photo. The blind label reader marked all five label fields unreadable. The overall and label verdicts were **unsure**; the visible bags returned **match**. The stored check time is 15:36:13. This capture does not demonstrate a specific mismatch or a passing label. |
 | Ask the shop, English answer selected | `muse-spark-1.3`, 15:37:03 and 15:37:06 | Typed Bangla question returned `Orders: 3`, backed by three order records. This is not the Bangla-answer asset. |
-| Ask the shop, Bangla answer selected | `muse-spark-1.3`, 15:39:13 and 15:39:16 | `কয়টা অর্ডার পাঠানো বাকি আছে?` returned `অর্ডার: 3`, with supporting chips for the new order, `PD-DEMO-0003` and `PD-DEMO-0002`. The new order remained confirmed after the unsure check, so it was included in the pending count. |
+| Ask the shop, Bangla answer selected | `muse-spark-1.3`, 15:39:13 and 15:39:16 | `কয়টা অর্ডার পাঠানো বাকি আছে?` returned `অর্ডার: 3`, with supporting chips for the new order, `PD-DEMO-0003` and `PD-DEMO-0002`. The new order remained confirmed after the unsure check, so it was included in the count of orders awaiting dispatch. |
 | Recapture the same Bangla question | `muse-spark-1.3`, 15:45:53 and 15:45:55 | The same `অর্ডার: 3` answer and the same three supporting order chips were returned. This final turn is shown in `bangla-answer.jpg`. |
 
 The assistant selects tools through the live model; displayed counts come from stored records. These observations establish only what happened in this constructed walkthrough. They do not establish Bangla speech quality, general extraction accuracy, mismatch-detection accuracy, real shipping outcomes or time saved.
@@ -39,7 +39,7 @@ The assistant selects tools through the live model; displayed counts come from s
 | `order-review.jpg` | 303 × 379 | Extracted recipient details retain source quotes; the phone is the non-contactable demo marker `01X-EXAMPLE`. |
 | `parcel-input.png` | 1000 × 820 | Constructed parcel input for the same order, with the phone obscured and two illustrated bags. |
 | `parcel-check.jpg` | 291 × 298 | Actual check returns unsure because the label fields could not be read; reshoot before proceeding. |
-| `bangla-answer.jpg` | 305 × 335 | A typed Bangla question returns three pending orders, with three supporting order chips. |
+| `bangla-answer.jpg` | 305 × 335 | A typed Bangla question returns three orders awaiting dispatch, with three supporting order chips. |
 
 Keep the synthetic-input disclosure near reused images. Captions must describe the visible crop and its observed result. A parcel check establishes nothing about sealed contents. Keep the distinction between live AI analysis and the simulated judge courier. Add no invented testimonials, impact counts, accuracy percentages or video links.
 

@@ -27,15 +27,3 @@ Both routes show the seller, concrete outcome, Bangla capability, demo action an
 ## Validation
 
 `npm run check`, `npm run test` and `npm run build` passed. The existing test suite contains 3 COD checks and 13 courier/workflow checks. The sandboxed courier run stalled under local socket restrictions; the complete suite passed outside the sandbox with mocked providers. No new tests or dependencies were added for this presentation change.
-
-## Standards
-
-No findings. The scoped diff introduces no documented-standard violations or actionable baseline smells. Synthetic evidence disclosures, glossary terminology, seller confirmation language, and Next.js image usage are consistent with the repository's guidance.
-
-## Spec
-
-No findings. The first screen explains the seller, concrete outcome, Bangla support and demo entry, with an actual source-linked extraction capture. All three proof moments match the documented synthetic walkthrough, including the parcel's unsure result and the Bangla answer's three supporting records. Seller sign-in, simulated-courier disclosure, repository link and reusable asset provenance are present.
-
-The two review agents inspected code and screenshots independently. Runtime and command checks above were performed by the implementing agent. Review baseline: `2d802c582f7be30d1c8d0523ec83256cbf8df3d0`, scoped to the welcome component, landing styles, product assets and these captures; separate #21 work was excluded.
-
-Total findings: Standards 0; Spec 0.

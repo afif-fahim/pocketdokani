@@ -347,7 +347,7 @@
 }
 .proof-moments .proof-input {
   margin-bottom: 0.75rem;
-  height: 11rem;
+  aspect-ratio: 5 / 3;
 }
 .proof-input img {
   height: 100%;
@@ -558,9 +558,6 @@
   .welcome-intro {
     padding: 0;
   }
-  .welcome-intro h1 {
-    margin-block: 1.25rem;
-  }
   .welcome-promise {
     font-size: 1rem;
   }
@@ -589,9 +586,6 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-  }
-  .desktop-break {
-    display: none;
   }
 }
 @media (max-width: 410px) {
