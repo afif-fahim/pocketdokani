@@ -32,7 +32,7 @@ Negative COD is rejected. Customer payment claims cannot establish verified paym
 
 ## Parcel photo to packing decision
 
-[Parcel vision](../apps/api/pocketdokani/features/packing/pack_vision.py) calls `sam-3.1` separately for shipping-label and handbag regions. Unusable or ambiguous geometry falls back to the full photo; the seller can also request full-photo analysis without SAM. Provider failure remains an error.
+[Parcel vision](../apps/api/pocketdokani/features/packing/pack_vision.py) calls `sam-3.1` separately for the label and handbag regions, trying a second noun phrase when the first finds nothing. Unusable or ambiguous geometry falls back to the full photo; the seller can also request full-photo analysis without SAM. A label read with no legible field is re-read once on the full photo. Provider failure remains an error.
 
 Spark reads the label in a **blind call**, without the expected order. A separate call compares visible bags against the order's SKU photographs. [Deterministic comparison](../apps/api/pocketdokani/features/packing/pack_comparison.py) then checks the label reading against the stored label order number, phone, COD, name and address. Historical label numbers remain distinct from courier identifiers, as defined in [ADR 0001](adr/0001-order-references-independent-of-couriers.md).
 

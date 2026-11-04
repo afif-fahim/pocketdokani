@@ -60,7 +60,7 @@ const JOURNEY: {
     name: "Pack check",
     voice: "code",
     role: "SAM 3.1 + blind Spark",
-    body: "SAM 3.1 segments the shipping label and handbag, with full-photo fallback. Spark reads the label blind, without the expected order. A second call compares visible bags with catalog SKU photos. Code compares the fields.",
+    body: "SAM 3.1 crops the label and handbag, trying a second phrase before falling back to the full photo. Spark reads the label blind, without the expected order. A second call compares visible bags with catalog SKU photos. Code compares the fields.",
     guardrail:
       "A failed check cannot be overridden: fix and reshoot. An unsure read allows a separately recorded seller override.",
   },
@@ -91,7 +91,7 @@ const MODELS = [
   {
     name: "sam-3.1",
     role: "Promptable segmentation",
-    body: 'Called separately for "shipping label" and "handbag" crops before Spark inspection. When no usable region comes back, the pipeline records a full-photo fallback.',
+    body: 'Called separately for label and handbag crops before Spark inspection, using the noun phrases "paper label" then "paper", and "handbag" then "bag". When no usable region comes back, the pipeline records a full-photo fallback.',
   },
   {
     name: "muse-voice-transcribe-1.0",
@@ -109,46 +109,52 @@ const MEASURED: {
   note: string;
 }[] = [
   {
-    check: "Order extraction values",
-    outcome: "11 / 11 correct",
+    check: "Real chat extraction",
+    outcome: "8 / 8 fields, 3 / 3 repeats",
     tone: "pass",
-    note: "5 header fields + qty/price/discount across 2 item lines",
+    note: "One real seller chat with a voice note; values agree with the seller's workbook. Quantity and discount, not stated in the chat, were left for the seller",
   },
   {
-    check: "Catalog SKU suggestions",
-    outcome: "2 / 2 correct",
+    check: "Questions on the real workbook",
+    outcome: "20 / 20 correct · 0 wrong",
     tone: "pass",
-    note: "Blue canvas tote & black shoulder bag matched",
+    note: "Bangla, Banglish and English, including 3 correct “unknown” answers",
   },
   {
-    check: "Grounded business questions",
-    outcome: "5 / 5 correct · 0 wrong",
+    check: "Wrong labels and bags",
+    outcome: "10 / 10 caught",
     tone: "pass",
-    note: "4 record-backed answers + 1 correct “unknown” refusal",
+    note: "7 wrong labels (COD, phone digit, swapped fields) and 3 wrong bags. Constructed labels, some beside real catalog photos",
   },
   {
-    check: "Synthetic pack checks",
-    outcome: "1 pass · 2 unsure",
+    check: "Clean parcels",
+    outcome: "5 / 6 passed",
     tone: "neutral",
-    note: "Clean parcel passed (1/1); obscured phone returned unsure (1/1)",
+    note: "The miss returned unsure, not fail: a tight crop hid part of the bag",
   },
   {
-    check: "Wrong-COD synthetic parcel",
-    outcome: "0 / 1 fail (returned unsure)",
-    tone: "warning",
-    note: "Blind reader marked fields illegible on the earlier 1,180 vs 1,080 image; the redrawn label above returned fail",
+    check: "Unclear labels",
+    outcome: "3 / 3 unsure",
+    tone: "pass",
+    note: "Obscured or scribbled phone was not guessed",
   },
   {
     check: "SAM 3.1 region crops",
-    outcome: "0 / 6 usable crops",
-    tone: "warning",
-    note: "All 6 calls on synthetic illustrations used full-photo fallback",
+    outcome: "19 / 19 checks cropped",
+    tone: "pass",
+    note: "Both label and bag, up from 0 after changing the noun phrases",
   },
   {
-    check: "Voice transcription",
-    outcome: "1 / 1 exact",
-    tone: "pass",
-    note: "Synthetic English WAV (2.09 s); Bangla mic ASR untested in smoke run",
+    check: "Crop vs full photo",
+    outcome: "10 / 11 vs 11 / 11",
+    tone: "neutral",
+    note: "Same parcels. Crops added latency and one false alarm, with no accuracy gain here",
+  },
+  {
+    check: "Real Bangla voice note",
+    outcome: "Accuracy not verified",
+    tone: "warning",
+    note: "One 4 s clip gave the same meaning on 6 / 6 calls; no person has checked it against the audio",
   },
 ];
 
@@ -516,9 +522,9 @@ export default function Welcome({
             </h2>
             <p>
               Cropped browser captures, values unchanged, from the November 5
-              (Asia/Dhaka) local walkthrough, recaptured after the Khata
-              restyle, on constructed synthetic inputs, using live{" "}
-              <code>muse-spark-1.3</code> and <code>sam-3.1</code> calls at{" "}
+              (Asia/Dhaka) local walkthrough, recaptured after the Khata restyle
+              and before the SAM fix, on constructed synthetic inputs, using
+              live <code>muse-spark-1.3</code> and <code>sam-3.1</code> calls at{" "}
               <code>api.meta.ai</code>. Select any image to inspect it at full
               resolution.
             </p>
@@ -574,11 +580,12 @@ export default function Welcome({
                 <p>
                   This synthetic label says{" "}
                   <span className="ai-mark">1180/-</span> for an order confirmed
-                  at BDT 1,080. SAM fell back to the full photo; the blind label
-                  reader returned the written amount, and server code marked the
-                  check <strong>fail</strong>. The matching-label image then
-                  passed; SAM again fell back to the full photo. One example of
-                  each, not an accuracy rate.
+                  at BDT 1,080. The blind label reader returned the written
+                  amount, and server code marked the check <strong>fail</strong>
+                  . These images predate the SAM fix and used the full photo. In
+                  a later walkthrough on the redrawn sample, SAM cropped both
+                  regions, the wrong label again failed and the matching label
+                  passed. One example of each, not an accuracy rate.
                 </p>
                 <ImagePreviewButton
                   className="evidence-link"
@@ -684,10 +691,12 @@ export default function Welcome({
               Measured: what passed, what fell back, what is unevaluated
             </h2>
             <p>
-              Recorded November 4, 2026 on constructed development fixtures with
-              live Meta API calls (28 provider attempts: 21 Spark, 6 SAM, 1
-              Voice) and an isolated simulated courier. No held-out accuracy or
-              genuine pilot shipment is claimed.
+              Recorded November 5, 2026 with live Meta API calls (214 provider
+              attempts: 153 Spark, 55 SAM, 6 Voice) on one real seller chat, the
+              real seller workbook and 19 constructed parcel checks, with fixes
+              made during the run. These are development results, not held-out
+              accuracy. No real label photo or genuine pilot shipment is
+              claimed.
             </p>
           </div>
 

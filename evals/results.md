@@ -1,6 +1,39 @@
-# Judge smoke results — November 4, 2026
+# Evaluation results
 
-**Hosted walkthrough: FAIL, blocked before extraction. Corrected local walkthrough: completed with live models and a simulated courier; wrong-COD detection failed.** These are constructed development smoke results, not held-out accuracy, genuine shipments, pilot observations or time-saved measurements.
+## Latest development run — November 5, 2026
+
+Local run with live `muse-spark-1.3`, `sam-3.1` and `muse-voice-transcribe-1.0`, on an isolated database, with the seller's real workbook and one real conversation kept private under `evals/private/`. No customer values appear here. Everything is in the **development** split: the fixes below were made after seeing these sources, so this is **not held-out accuracy**. No pilot, real shipment or time saving was measured, and these changes are **not yet confirmed on the hosted site**.
+
+| Suite | Result | Data and limits |
+| --- | --- | --- |
+| Extraction, real chat | **8/8 fields on 3/3 repeats** (was 7/8, 8/8, 7/8 before the address fix) | One real four-screenshot chat plus voice note. Price, delivery, COD and SKU agree with the seller's workbook. Scored: name, phone, address, delivery, agreement, line count, unit price, SKU. Quantity and discount were not stated in the chat; the model left them blank for the seller, and they are not scored. One unit of stock was restored for the run, because the workbook is dated after delivery. |
+| Business questions, real workbook | **20/20 correct, 0 confidently wrong** (was 13/20 with 7 "I don't know") | 17 count/amount/stock questions in Bangla, Banglish and English, with answers computed from workbook rows, plus 3 that must be unknown. Before the fix, seven questions whose true answer was zero returned "I don't know". One expected value was corrected after the first run: two SKUs share that name and colour, and the app's total was right. |
+| Wrong labels caught | **7/7** | Wrong COD, wrong phone digit, swapped fields. |
+| Wrong bags caught | **3/3** | Two use the seller's catalogue photos, one a gallery scene against a drawn reference. |
+| Clean parcels passed | **5/6** | The miss was **unsure**, not fail: a tight crop hid part of the bag. Two of the six are label-only gallery scenes. |
+| Unclear labels returned unsure | **3/3** | Obscured or scribbled phone. |
+| SAM crops | **19/19 label, 19/19 bag** (was 0/10 checks) | Trying `paper label` then `paper`, and `handbag` then `bag`. |
+| Crop vs full photo | **Crop 10/11, full photo 11/11**, same 11 parcels | Mean 22.7 s with SAM against 14.8 s with the full photo, across the suites run in each mode. On these inputs crops added latency and one false alarm, and showed no accuracy gain. |
+| Voice note, real Bangla | Same meaning on 6/6 calls; **accuracy not verified** | One 4 s customer clip. The transcript has not been checked against the audio by a person. |
+
+Pack checks total 19: 11 constructed labels using the seller's real catalogue photos, 5 AI-generated gallery scenes and 3 samples from the judge fixture. All labels are constructed, printed-style text with no real customer data; **no real handwritten label or real parcel photo was tested**. In the catalogue cases the bag in the scene is the same photo as its reference, which is an easier test than a real packing photo. The new re-read of all-illegible labels never triggered in this run, so it is unmeasured live.
+
+The run used **214 provider attempts** (Spark 153, SAM 55, Voice 6), including the first pass and the rerun after the fixes. A further 22 SAM calls chose the phrases, on public synthetic images only. A SAM check now costs 4–6 attempts, or one more if a re-read is needed, so the shorter judge walkthrough below costs about 18 rather than 14. Manifest SHA-256: `506465e008fb7c56287ac2808db1041a649ee200ef42058ef4ceaf51d5a2c1d8`.
+
+Changes made from this run:
+
+- SAM noun phrases with a fallback, and a judge sample redrawn as a sheet of paper on a parcel so SAM can find it.
+- One re-read on the full photo when a label read returns nothing legible.
+- Multi-line addresses no longer blanked by the source-quote check.
+- A true zero from an order search is answered as zero. An unmatched product remains unknown.
+
+A later local walkthrough on the fixed code confirmed the redrawn sample end to end: SAM cropped both regions, wrong COD failed and the matching label passed (13 attempts; details in the [product evidence record](../apps/web/public/product/README.md)).
+
+Sections below are earlier results, measured before these changes. Their hosted failure was later resolved; see the README's hosted status.
+
+## Judge smoke results — November 4, 2026
+
+**Hosted walkthrough at that time: FAIL, blocked before extraction. Corrected local walkthrough: completed with live models and a simulated courier; wrong-COD detection failed.** These are constructed development smoke results, not held-out accuracy, genuine shipments, pilot observations or time-saved measurements.
 
 ## Provenance and evidence
 

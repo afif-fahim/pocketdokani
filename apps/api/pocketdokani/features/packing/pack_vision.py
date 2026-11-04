@@ -31,6 +31,9 @@ LABEL_FIELDS = ("order_reference", "phone", "cod_amount", "customer_name", "addr
 MAX_SAM_BYTES = 8 * 1024 * 1024
 MAX_SAM_SECONDS = 45
 MAX_EDGE = 1600
+# SAM returns nothing for "shipping label"; it recognises the sheet of paper.
+# "bag" alone can also select a wrapped parcel, so it is only the fallback.
+REGION_PHRASES = {"label": ("paper label", "paper"), "bag": ("handbag", "bag")}
 
 
 class LabelField(BaseModel):
@@ -261,7 +264,7 @@ def _completion(response: dict[str, Any]) -> str:
 
 def _blind_read(
     db: Session, actor: BrowserSession, data: bytes, check_id: str
-) -> dict[str, object]:
+) -> dict[str, Any]:
     response = model_call(
         db,
         actor,
@@ -406,18 +409,24 @@ def analyse_pack(
     full_photo = _jpeg(image)
     crops: dict[str, bytes | None] = {"label": None, "bag": None}
     paths: dict[str, dict[str, str]] = {}
-    for region, phrase in (("label", "shipping label"), ("bag", "handbag")):
+    for region, phrases in REGION_PHRASES.items():
         if segmentation == "full_photo":
             paths[region] = {
                 "path": "full_photo",
                 "reason": "Seller requested a full-photo comparison without SAM.",
             }
-        else:
+            continue
+        for phrase in phrases:
             crops[region], paths[region] = _crop(
                 db, actor, image, _data_url(full_photo), check_id, region, phrase
             )
+            if crops[region]:
+                break
+    reading = _blind_read(db, actor, crops["label"] or full_photo, check_id)
+    if not any(field["legible"] for field in reading["fields"]):
+        reading = _blind_read(db, actor, full_photo, check_id)
     return {
-        "reading": _blind_read(db, actor, crops["label"] or full_photo, check_id),
+        "reading": reading,
         "bag_results": _bags(
             db, actor, crops["bag"] or full_photo, check_id, sku_photos
         ),

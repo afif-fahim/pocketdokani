@@ -129,6 +129,11 @@ def image_part(data: bytes, max_edge: int = 1600) -> dict[str, object]:
     }
 
 
+def appears_in_quote(value: str, quote: str) -> bool:
+    """Chat bubbles wrap across lines, so line breaks are not evidence of difference."""
+    return " ".join(value.split()) in " ".join(quote.split())
+
+
 def extract(
     db: Session, actor: BrowserSession, workspace: Workspace
 ) -> dict[str, object]:
@@ -312,10 +317,9 @@ def extract(
             elif name == "order_confirmed":
                 valid = value in ("true", "false")
             else:
-                valid = (
-                    len(value) <= (2000 if name == "address" else 160)
-                    and value in quote
-                )
+                valid = len(value) <= (
+                    2000 if name == "address" else 160
+                ) and appears_in_quote(value, quote)
         field["issue"] = None if valid else problem
         field["edited"] = False
         if not valid:
