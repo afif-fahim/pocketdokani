@@ -256,8 +256,8 @@ export default function Welcome({
                         preload
                       />
                       <figcaption>
-                        <strong>Order #PD-SAMPLE-01:</strong> Name &amp; phone in
-                        correct rows, <code>980/-</code> matches COD, brown
+                        <strong>Order #PD-SAMPLE-01:</strong> Name &amp; phone
+                        in correct rows, <code>980/-</code> matches COD, brown
                         monogram dome bag beside parcel.
                       </figcaption>
                     </figure>
@@ -540,7 +540,7 @@ export default function Welcome({
           <div className="section-header-row">
             <div>
               <p className="eyebrow">
-                GENERATED SCENES · PACKING TABLE GALLERY
+                AI-GENERATED ILLUSTRATIONS · PACKING TABLE GALLERY
               </p>
               <h2 id="packing-heading">
                 Why handwritten labels and bag variants need a second pair of
@@ -548,10 +548,9 @@ export default function Welcome({
               </h2>
               <p className="section-subtext">
                 In a two-person home shop, one person negotiates in chat and the
-                other packs boxes on the floor. These scenes draw on anonymized
-                orders from the <strong>Demo shop</strong> bag workbook and one
-                fictional bag mix-up to show what PocketDokani checks before
-                dispatch.
+                other packs boxes on the floor. All five photos are AI-generated
+                illustrations using fictional orders. They are not app results;
+                they show what PocketDokani checks before dispatch.
               </p>
             </div>
           </div>
@@ -704,11 +703,10 @@ export default function Welcome({
           </div>
 
           <p className="proof-note">
-            <strong>Provenance &amp; privacy note.</strong> All five photos are
-            AI-generated. The first four draw on packing table orders with
-            customer surnames, phone digits, and building details redacted. The
-            fifth is fictional. Parcel checks compare the label and any visible
-            bag with the confirmed order.
+            <strong>Provenance note.</strong> All five photos are AI-generated
+            illustrations using fictional orders, and are not app results. A
+            pack check compares the label and any visible bag with the confirmed
+            order.
           </p>
         </section>
 
