@@ -12,7 +12,7 @@ import httpx
 import pytest
 from pocketdokani.core.config import settings
 from pocketdokani.data.db import now
-from pocketdokani.data.records import Order
+from pocketdokani.data.records import Order, OrderDraft
 from pocketdokani.main import app
 from pydantic import SecretStr
 from sqlalchemy.engine import Engine
@@ -93,7 +93,9 @@ def provider(**results: dict[str, Any]) -> Iterator[None]:
         yield
 
 
-async def extracted_draft(client: httpx.AsyncClient) -> tuple[str, dict[str, Any]]:
+async def extracted_draft(
+    client: httpx.AsyncClient, address: str = "Example Road, Dhaka"
+) -> tuple[str, dict[str, Any]]:
     (await client.post("/api/judge/session")).raise_for_status()
     workspace = (await client.post("/api/judge/example", json={})).json()
     path = f"/api/judge/workspaces/{workspace['id']}/draft"
@@ -109,7 +111,7 @@ async def extracted_draft(client: httpx.AsyncClient) -> tuple[str, dict[str, Any
     reading = {
         "customer_name": field("AI test recipient", "Name: AI test recipient", 2),
         "phone": field("01X-EXAMPLE", "Phone: 01X-EXAMPLE", 2),
-        "address": field("Example Road, Dhaka", "Address: Example Road, Dhaka", 2),
+        "address": field(address, f"Address: {address}", 2),
         "customer_delivery_charge": field("80", "Customer delivery charge 80 BDT.", 2),
         "order_confirmed": field("true", "order confirmed", 1),
         "lines": [
@@ -222,6 +224,68 @@ async def test_ai_draft_confirms_with_non_contactable_judge_phone(
     assert order["phone"] == "01X-EXAMPLE"
     assert order["status"] == "confirmed"
     assert Decimal(str(order["cod_amount"])) == Decimal("1080")
+
+
+def saved_values(content: dict[str, Any]) -> dict[str, Any]:
+    def values(fields: dict[str, Any]) -> dict[str, Any]:
+        return {key: entry["value"] for key, entry in fields.items() if key != "lines"}
+
+    return {
+        **values(content),
+        "lines": [
+            {**values(line), "source_line": index}
+            for index, line in enumerate(content["lines"])
+        ],
+    }
+
+
+async def test_extracted_address_line_breaks_become_spaces(
+    client: httpx.AsyncClient,
+) -> None:
+    _, draft = await extracted_draft(client, address="Flat A1\nExample Road")
+    address = draft["content"]["address"]
+    assert address["value"] == "Flat A1 Example Road"
+    assert address["quote"] == "Address: Flat A1\nExample Road"
+    assert address["issue"] is None
+
+
+async def test_saving_address_with_line_breaks_stores_one_line(
+    client: httpx.AsyncClient,
+) -> None:
+    path, draft = await extracted_draft(client)
+    values = saved_values(draft["content"])
+    values["address"] = "Flat A1\r\nExample Road"
+    response = await client.put(
+        path, json={"revision": draft["revision"], "values": values}
+    )
+    assert response.status_code == 200
+    address = response.json()["content"]["address"]
+    assert address["value"] == "Flat A1 Example Road"
+    assert address["edited"] is True
+
+
+async def test_normalising_a_stored_multiline_address_is_not_a_seller_edit(
+    client: httpx.AsyncClient, engine: Engine
+) -> None:
+    path, draft = await extracted_draft(client)
+    with Session(engine) as db:
+        record = db.get(OrderDraft, draft["workspace_id"])
+        assert record is not None
+        content = dict(record.content)
+        content["address"] = {**content["address"], "value": "Example Road,\nDhaka"}
+        record.content = content
+        db.commit()
+    response = await client.put(
+        path,
+        json={
+            "revision": draft["revision"],
+            "values": saved_values(draft["content"]),
+        },
+    )
+    assert response.status_code == 200
+    address = response.json()["content"]["address"]
+    assert address["value"] == "Example Road, Dhaka"
+    assert address["edited"] is False
 
 
 async def test_ai_mismatch_then_correction_books_same_order_once(

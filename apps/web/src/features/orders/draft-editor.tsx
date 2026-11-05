@@ -78,11 +78,12 @@ function cents(value: string): number | null {
     ? result
     : null;
 }
+const singleLine = (value: string) => value.trim().replace(/\s+/g, " ");
 function unpack(content: Content): Values {
   return {
-    customer_name: content.customer_name.value || "",
+    customer_name: singleLine(content.customer_name.value || ""),
     phone: content.phone.value || "",
-    address: content.address.value || "",
+    address: singleLine(content.address.value || ""),
     customer_delivery_charge: content.customer_delivery_charge.value || "",
     order_confirmed: content.order_confirmed.value || "",
     lines: content.lines.map(
@@ -209,6 +210,9 @@ export default function DraftEditor({
     markEdited();
     setSuccess("");
   }
+  function savedQuantity(line: LineValues) {
+    return draft?.content.lines[line.source_line ?? -1]?.quantity.value;
+  }
   function changeLine(index: number, key: keyof Line, value: string) {
     setValues(
       (current) =>
@@ -219,7 +223,8 @@ export default function DraftEditor({
               ? {
                   ...line,
                   [key]: value,
-                  ...(key === "sku" || key === "quantity"
+                  ...(key === "sku" ||
+                  (key === "quantity" && savedQuantity(line))
                     ? { unit_price: "", line_discount: "" }
                     : {}),
                 }
@@ -277,7 +282,7 @@ export default function DraftEditor({
   }
 
   function fieldState(field: Evidence | undefined, current: string) {
-    const original = field?.value || "";
+    const original = singleLine(field?.value || "");
     const readByAi = Boolean(
       original && !field?.edited && current === original,
     );
@@ -776,8 +781,9 @@ export default function DraftEditor({
                         ))}
                       </div>
                       <p className="fine-print">
-                        Changing the SKU or quantity clears its prices and
-                        discount for review. Enter 0 for no line discount.
+                        Changing the SKU or a saved quantity clears its prices
+                        and discount for review. Filling in a blank quantity
+                        keeps them. Enter 0 for no line discount.
                       </p>
                       <button
                         type="button"
