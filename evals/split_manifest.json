@@ -51,6 +51,51 @@
       ]
     },
     {
+      "source_id": "private-conversation-001",
+      "kind": "conversation",
+      "split": "development",
+      "provenance": "private",
+      "artifact_ids": [
+        "private-screenshot-001",
+        "private-screenshot-002",
+        "private-screenshot-003",
+        "private-screenshot-004",
+        "private-voice-note-001"
+      ]
+    },
+    {
+      "source_id": "constructed-label-real-catalogue-001",
+      "kind": "label",
+      "split": "development",
+      "provenance": "private",
+      "artifact_ids": [
+        "constructed-catalogue-parcel-clean-a",
+        "constructed-catalogue-parcel-clean-b",
+        "constructed-catalogue-parcel-clean-c",
+        "constructed-catalogue-parcel-wrong-cod-a",
+        "constructed-catalogue-parcel-wrong-cod-b",
+        "constructed-catalogue-parcel-wrong-digit-a",
+        "constructed-catalogue-parcel-wrong-digit-b",
+        "constructed-catalogue-parcel-swapped",
+        "constructed-catalogue-parcel-wrong-bag-a",
+        "constructed-catalogue-parcel-wrong-bag-b",
+        "constructed-catalogue-parcel-unreadable"
+      ]
+    },
+    {
+      "source_id": "constructed-gallery-scenes-001",
+      "kind": "label",
+      "split": "development",
+      "provenance": "constructed",
+      "artifact_ids": [
+        "constructed-gallery-clean-dome",
+        "constructed-gallery-swapped-error",
+        "constructed-gallery-prepaid-bag",
+        "constructed-gallery-black-dome",
+        "constructed-gallery-wrong-bag"
+      ]
+    },
+    {
       "source_id": "constructed-label-001",
       "kind": "label",
       "split": "development",

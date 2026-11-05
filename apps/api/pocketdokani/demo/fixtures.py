@@ -89,10 +89,14 @@ def parcel_input(
     label_bottom = 210 + sum(
         max(78, 26 + 38 * len(wrapped)) for _, _, wrapped in written_rows
     )
-    _soft_shadow(image, (44, 96, 626, label_bottom + 58))
+    # Segmentation finds a paper sheet on a parcel, not a flat card on a flat floor.
+    _soft_shadow(image, (22, 62, 650, label_bottom + 92))
     draw = ImageDraw.Draw(image)
-    draw.rounded_rectangle((36, 84, 618, label_bottom + 46), radius=14, fill="#f7f5f0")
-
+    draw.rounded_rectangle((14, 50, 642, label_bottom + 80), radius=8, fill="#b9bfc4")
+    draw.rectangle((14, 300, 642, 344), fill="#a9b0b6")
+    sheet = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(sheet)
+    draw.rectangle((44, 94, 610, label_bottom + 36), fill="#fbfaf6")
     draw.rectangle(
         (70, 130, 584, label_bottom), fill="white", outline="#2a2f33", width=3
     )
@@ -124,6 +128,8 @@ def parcel_input(
             )
         y += height
         draw.line((70, y, 584, y), fill="#2a2f33", width=2)
+    sheet = sheet.rotate(-1.5, Image.Resampling.BICUBIC, center=(327, 400))
+    image.paste(sheet, (0, 0), sheet)
 
     for index, line in enumerate(lines):
         colour = _product_colour(str(line["sku"]).rsplit("-", 1)[0])

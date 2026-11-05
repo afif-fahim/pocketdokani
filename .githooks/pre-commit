@@ -2,4 +2,5 @@
 set -eu
 
 uv run --frozen python scripts/check_staged_privacy.py
-exec npm run check
+npm run check
+exec npm test

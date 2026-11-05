@@ -129,6 +129,15 @@ def image_part(data: bytes, max_edge: int = 1600) -> dict[str, object]:
     }
 
 
+def single_line(value: str) -> str:
+    return " ".join(value.split())
+
+
+def appears_in_quote(value: str, quote: str) -> bool:
+    """Chat bubbles wrap across lines, so line breaks are not evidence of difference."""
+    return single_line(value) in single_line(quote)
+
+
 def extract(
     db: Session, actor: BrowserSession, workspace: Workspace
 ) -> dict[str, object]:
@@ -312,10 +321,10 @@ def extract(
             elif name == "order_confirmed":
                 valid = value in ("true", "false")
             else:
-                valid = (
-                    len(value) <= (2000 if name == "address" else 160)
-                    and value in quote
-                )
+                valid = len(value) <= (
+                    2000 if name == "address" else 160
+                ) and appears_in_quote(value, quote)
+                field["value"] = single_line(value)
         field["issue"] = None if valid else problem
         field["edited"] = False
         if not valid:
@@ -414,9 +423,11 @@ def save_draft(db: Session, draft: OrderDraft, payload: SaveDraft) -> None:
     prior: dict[str, Any] = draft.content
 
     def edit(value: str | None, old: Any) -> dict[str, object]:
-        value = value.strip() if value else None
-        if isinstance(old, dict) and old.get("value") == value:
-            return dict(old)
+        value = single_line(value) if value else None
+        if isinstance(old, dict) and single_line(old.get("value") or "") == (
+            value or ""
+        ):
+            return {**old, "value": value}
         return {
             **(old if isinstance(old, dict) else {}),
             "value": value,

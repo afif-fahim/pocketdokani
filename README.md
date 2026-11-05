@@ -10,7 +10,7 @@ Built for the **Meta Global AI Developer Hackathon · Indie Developer · Build f
 
 **[Try the hosted sample shop](https://pocketdokani.vercel.app/judge)** · [Repository](https://github.com/afif-fahim/pocketdokani) · [Measured results](evals/results.md) · [Architecture](docs/architecture.md) · [Setup](docs/setup.md)
 
-> **Hosted status, November 4:** one fresh `/judge` walkthrough on the deployed site completed with live model calls and no API errors: extraction, confirmation, a wrong-COD check (fail on the COD row), a matching-label check (pass), a fake booking, and a typed Bangla question answered from two order records. SAM fell back to the full photo on both checks. Parcel photos were submitted by script, and the answer language stayed on English. A physical phone, camera capture and voice input were not exercised. This is one run, not an accuracy evaluation. The results below are from separate recorded runs.
+> **Hosted status, November 4:** one fresh `/judge` walkthrough on the deployed site completed with live model calls and no API errors: extraction, confirmation, a wrong-COD check (fail on the COD row), a matching-label check (pass), a fake booking, and a typed Bangla question answered from two order records. SAM fell back to the full photo on both checks; that run predates the SAM fix, which is not yet confirmed on the hosted site. Parcel photos were submitted by script, and the answer language stayed on English. A physical phone, camera capture and voice input were not exercised. This is one run, not an accuracy evaluation. The results below are from separate recorded runs.
 
 ## Try one order
 
@@ -26,7 +26,7 @@ Each judge gets isolated synthetic records. Reset restores only that shop and pr
 
 ## What the app actually showed
 
-These are captures of the working app after live Meta calls on **constructed local inputs**. The wrong-COD label failed and the matching label passed, one example of each; the Bangla question was typed. This separate landing walkthrough is not the evaluation run summarized below. [Input provenance, exact captions and observations](apps/web/public/product/README.md).
+These are captures of the working app after live Meta calls on **constructed local inputs**. The wrong-COD label failed and the matching label passed, one example of each; the Bangla question was typed. This separate landing walkthrough predates the SAM fix and is not the evaluation run summarized below. [Input provenance, exact captions and observations](apps/web/public/product/README.md).
 
 | Inspect the agreed price | Catch a wrong COD before shipping | Ask in Bangla and inspect records |
 | --- | --- | --- |
@@ -41,7 +41,7 @@ All three integrations call the **Meta Model API at [`https://api.meta.ai/v1`](h
 | --- | --- | --- |
 | `muse-spark-1.3` | Vision reads conversations and labels and compares visible bags with catalogue photos. Tool calling selects business lookups, proposals and metric references. | [Draft extraction](apps/api/pocketdokani/features/orders/drafting.py), [parcel vision](apps/api/pocketdokani/features/packing/pack_vision.py), [assistant loop](apps/api/pocketdokani/features/assistant/assistant.py) |
 | `muse-voice-transcribe-1.0` | Turns voice notes or assistant speech into text, with Bengali/English language bias and shop vocabulary. Assistant input is editable before sending; order voice notes are stored extraction evidence. | [Audio normalization and transcription](apps/api/pocketdokani/integrations/voice_notes.py) |
-| `sam-3.1` | Looks for shipping-label and handbag regions so Spark can inspect a crop. When no usable region exists, the pipeline records full-photo fallback. | [Segmentation and fallback](apps/api/pocketdokani/features/packing/pack_vision.py) |
+| `sam-3.1` | Looks for label and handbag regions so Spark can inspect a crop, trying a second noun phrase before giving up. When no usable region exists, the pipeline records full-photo fallback. | [Segmentation and fallback](apps/api/pocketdokani/features/packing/pack_vision.py) |
 
 ## Design decisions
 
@@ -54,20 +54,20 @@ All three integrations call the **Meta Model API at [`https://api.meta.ai/v1`](h
 
 ## Measured results and limits
 
-[**`evals/results.md` is the single results record**](evals/results.md), including exact inputs, denominators, timings, failed cases and reproduction steps. On November 4, the corrected local smoke run used real models with isolated synthetic records and a simulated courier. These are constructed development examples, not a held-out benchmark.
+[**`evals/results.md` is the single results record**](evals/results.md), including denominators, failed cases and limits. On November 5, a local run used real models with one real seller chat, the real seller workbook (both kept private) and 19 constructed parcel checks. Bugs were fixed during the run, so these are development results, not a held-out benchmark.
 
 | Check | Observed outcome | Sample / limit |
 | --- | --- | --- |
-| Order extraction | 11/11 checked values; 2/2 SKU suggestions correct | One two-line conversation; values and suggestions scored separately |
-| Business questions | 5/5 correct; 0/5 confidently wrong | Four record-backed answers and one correct unknown response |
-| Parcel labels | Clean: 1/1 pass; obscured phone: 1/1 unsure | Illustrative synthetic parcels |
-| Deliberately wrong COD | **0/1 detected as fail; returned unsure** | The blind reader could not read the label fields. A later walkthrough on a redrawn label did return fail (1/1); see below |
-| SAM localization | **0/6 usable regions** | All six attempts used full-photo fallback; no crop/full comparison |
-| Transcription | 1/1 English sentence correct | Synthetic speech; Bangla ASR and physical microphone untested |
+| Real chat extraction | 8/8 fields on 3/3 repeats | One conversation, checked against the workbook; quantity and discount, not stated in the chat, were left for the seller |
+| Business questions | 20/20 correct; 0 confidently wrong | Real workbook; Bangla, Banglish and English, including 3 correct unknown responses |
+| Wrong labels / wrong bags | 7/7 and 3/3 caught | Constructed labels, some beside real catalogue photos; no real handwritten label |
+| Clean parcels / unclear labels | 5/6 passed; 3/3 unsure | The clean miss returned unsure, not fail |
+| SAM localization | 19/19 checks cropped both regions | Crop 10/11 against full photo 11/11 on the same parcels: no accuracy gain here, and slower |
+| Real Bangla voice note | Accuracy not verified | One 4 s clip gave the same meaning on 6/6 calls; not yet checked against the audio by a person |
 
-Fake booking, identifier/stock persistence, confirmation-gated delivery and independent judge sessions passed locally. **No genuine pilot shipment or time-saved measurement is claimed.** A live courier adapter is implemented; that alone is not evidence of a real shipment.
+**No genuine pilot shipment or time-saved measurement is claimed.** A live courier adapter is implemented; that alone is not evidence of a real shipment.
 
-Courier fee records are absent, so **payout due cannot currently be derived**. A parcel photo checks visible details and reveals nothing about sealed contents. Genuine chats, handwriting, real parcels and Bangla speech quality remain unevaluated in this record. These controls do not establish perfect model accuracy.
+Courier fee records are absent, so **payout due cannot currently be derived**. A parcel photo checks visible details and reveals nothing about sealed contents. Handwriting, real parcels, Bangla speech quality and more than one real chat remain unevaluated in this record. These controls do not establish perfect model accuracy.
 
 ## Run locally
 

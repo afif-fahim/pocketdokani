@@ -20,6 +20,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "mypy>=1.19,<2",
+    "pytest>=9,<10",
+    "pytest-asyncio>=1,<2",
     "ruff>=0.17.3",
     "types-openpyxl>=3.1,<4",
 ]
@@ -35,6 +37,13 @@ packages = ["apps/api/pocketdokani"]
 files = ["apps/api/pocketdokani"]
 strict = true
 plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib", "--strict-config", "--strict-markers", "-ra"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
 
 [tool.ruff]
 target-version = "py312"
