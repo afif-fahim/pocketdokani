@@ -8,7 +8,7 @@ PocketDokani brings that work into a phone web app. It turns conversation screen
 
 Built for the **Meta Global AI Developer Hackathon · Indie Developer · Build for Your World**. The application and model integrations were built during the event ([build history](https://github.com/afif-fahim/pocketdokani/commits)); the seller's pre-existing spreadsheet was a private data source.
 
-**[Try the hosted sample shop](https://pocketdokani.vercel.app/judge)** · [Repository](https://github.com/afif-fahim/pocketdokani) · [Measured results](evals/results.md) · [Architecture](docs/architecture.md) · [Setup](docs/setup.md)
+**[Watch the demo video](https://youtu.be/gRwP7_oYYyM)** · **[Try the hosted sample shop](https://pocketdokani.vercel.app/judge)** · [Repository](https://github.com/afif-fahim/pocketdokani) · [Measured results](evals/results.md) · [Architecture](docs/architecture.md) · [Setup](docs/setup.md)
 
 > **Hosted status, November 4:** one fresh `/judge` walkthrough on the deployed site completed with live model calls and no API errors: extraction, confirmation, a wrong-COD check (fail on the COD row), a matching-label check (pass), a fake booking, and a typed Bangla question answered from two order records. SAM fell back to the full photo on both checks; that run predates the SAM fix, which is not yet confirmed on the hosted site. Parcel photos were submitted by script, and the answer language stayed on English. A physical phone, camera capture and voice input were not exercised. This is one run, not an accuracy evaluation. The results below are from separate recorded runs.
 
