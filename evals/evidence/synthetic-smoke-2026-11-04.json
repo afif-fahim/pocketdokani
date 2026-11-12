@@ -411,7 +411,7 @@
     "included_in_quality_denominators_above": false
   },
   "hosted": {
-    "origin": "https://pocketdokani.vercel.app",
+    "origin": "hackathon hosted demo (retired)",
     "started_at": "2026-11-04T09:13:25.559629+00:00",
     "completed_at": "2026-11-04T09:13:33.955387+00:00",
     "deployed_revision": "unverified; not exposed by public API",

@@ -34,7 +34,7 @@ The API reads the root `.env`. Next.js uses `apps/web/.env.local`; copy its `.en
 | `WEB_ORIGIN` | Exact browser origin, default `http://localhost:3000`, no trailing slash |
 | `STORAGE_BACKEND`, `LOCAL_STORAGE_PATH` | Local defaults: `local`, `data/private/objects` |
 | `MODEL_CALLS_ENABLED`, `MODEL_API_KEY` | True flag plus a server key; all analysis uses the real providers |
-| `JUDGE_MODEL_CALLS_PER_HOUR`, `SELLER_MODEL_CALLS_PER_HOUR` | Code defaults: 12 / 60 provider attempts, including retries. Root `.env.example`: 60 / 100; Render blueprint sets judge allowance to 60. Existing hosted overrides require verification. |
+| `JUDGE_MODEL_CALLS_PER_HOUR`, `SELLER_MODEL_CALLS_PER_HOUR` | Code defaults: 12 / 60 provider attempts, including retries. Root `.env.example`: 60 / 100. |
 | `STEADFAST_LIVE_ENABLED` | False by default: development sellers and all judges use the fake courier; production seller booking is disabled |
 | `STEADFAST_API_KEY`, `STEADFAST_SECRET_KEY` | Both required before enabling live seller booking |
 | `API_ORIGIN` (web server) | Default `http://127.0.0.1:8000`; same-origin API proxy target, set before production builds |
@@ -73,17 +73,9 @@ uv run --frozen python -m pocketdokani.commands.seed_business data/private/busin
 
 Run without `--dry-run` only against the intended database. Cached formula results are required. Repeated identical inputs do not write; changed imports can overwrite matching historical snapshots and are not operational synchronisation. Use `uv run --frozen python -m pocketdokani.commands.seed_catalogue --help` for the catalogue-only input contract.
 
-## Deployment
+## Self-hosting
 
-The API uses the root [Dockerfile](../Dockerfile) and [Render blueprint](../render.yaml); the web app uses Vercel. Supabase supplies PostgreSQL and a **private** `pocketdokani-evidence` bucket.
-
-1. Create a private Supabase bucket, disable client Data API access and automatic table exposure, and use a server-only database role. Migrations retain RLS and revoke client/public grants. Use a direct or session-pooler connection, not the transaction pooler.
-2. Configure the API: `ENVIRONMENT=production`, a `postgresql+psycopg://` database URL with SSL, `STORAGE_BACKEND=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET`, `SHOP_PASSCODE`, `WEB_ORIGIN`, `MODEL_CALLS_ENABLED=true` and `MODEL_API_KEY`. URL-encode database passwords. Keep courier booking disabled until a genuine order is ready and both keys exist.
-3. Deploy the root Dockerfile. It installs ffmpeg and runs `alembic upgrade head` before starting the API with access logs disabled. Use one API instance while startup migrations run. Back up database records and original objects together before migrations. Migration `0006` expires existing judge sessions to retire preloaded results; visitors start fresh synthetic shops afterward.
-4. On Vercel set **Root Directory `apps/web`**, Next.js preset, install `npm ci` and build `npm run build`. Existing projects previously rooted at `web` must update that setting. Set server-side `API_ORIGIN=https://pocketdokani-api.onrender.com` before building; rebuild when it changes.
-5. Set API `WEB_ORIGIN=https://pocketdokani.vercel.app` with no trailing slash and redeploy. Preview domains need a matching API origin policy; do not allow arbitrary origins.
-
-Use the stable web domain. Health URLs are [the web proxy](https://pocketdokani.vercel.app/api/health) and [the API](https://pocketdokani-api.onrender.com/api/health). Health checks query the database; they do not prove storage/model/courier readiness.
+No hosted instance is maintained. To self-host, build the API from the root [Dockerfile](../Dockerfile); it installs ffmpeg and runs `alembic upgrade head` before starting the API with access logs disabled. Production mode requires a `postgresql+psycopg://` database URL with SSL, Supabase-compatible private object storage (`STORAGE_BACKEND=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET`) and an HTTPS `WEB_ORIGIN`. Build the web app from `apps/web` with `npm ci && npm run build`, setting server-side `API_ORIGIN` to the API before building. `/api/health` queries the database; it does not prove storage/model/courier readiness.
 
 ## Smoke checks and operations
 

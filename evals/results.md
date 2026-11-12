@@ -29,7 +29,7 @@ Changes made from this run:
 
 A later local walkthrough on the fixed code confirmed the redrawn sample end to end: SAM cropped both regions, wrong COD failed and the matching label passed (13 attempts; details in the [product evidence record](../apps/web/public/product/README.md)).
 
-Sections below are earlier results, measured before these changes. Their hosted failure was later resolved; see the README's hosted status.
+Sections below are earlier results, measured before these changes. Their hosted failure was later resolved; the hackathon-era hosted demo has since been retired.
 
 ## Judge smoke results — November 4, 2026
 
@@ -98,15 +98,13 @@ The corrected local run used **28 provider attempts**: Spark 21, SAM 6, Voice 1,
 
 Client elapsed uses `perf_counter` around HTTP requests. Provider latency is the application's `ModelRun.latency_ms` around each external HTTP exchange, excluding `assistant_turn` orchestration audits. Neither includes human review/capture or browser rendering; this is not an end-to-end user-time estimate.
 
-A normal shorter walkthrough costs roughly **14 attempts**: extraction 1 + two parcel checks 8 + voice 1 + read answer 2 + proposal 2. One retry for every call needs 28; the existing maximum seven steps per assistant turn gives a conservative **48-attempt** bound with retries. A finite allowance of 60 provides headroom. Code defaults remain 12 judge / 60 seller; root `.env.example` now specifies the owner's 60/100 and the Render blueprint explicitly specifies judge 60. Existing budget accounting is unchanged.
+A normal shorter walkthrough costs roughly **14 attempts**: extraction 1 + two parcel checks 8 + voice 1 + read answer 2 + proposal 2. One retry for every call needs 28; the existing maximum seven steps per assistant turn gives a conservative **48-attempt** bound with retries. A finite allowance of 60 provides headroom. Code defaults remain 12 judge / 60 seller; root `.env.example` now specifies the owner's 60/100. Existing budget accounting is unchanged.
 
 ## Hosted outcome and #7 handoff
 
-At **15:13:25–15:13:33 Dhaka**, `https://pocketdokani.vercel.app` returned health 200 and enabled-model sessions, but `POST /api/judge/example` returned **503 in 0.467 s**, and reset returned **503 in 0.169 s** (hosted timings are not recorded in the JSON). Hosted transcription succeeded in 4.394 s (also not recorded there) with the expected English transcript. Independent-session records and sign-out checks passed. Extraction, parcel analysis, booking, the Bangla answer and proposal could not be rehearsed there. The local rendering failure is consistent with this blocker; hosted exception logs were inaccessible, so its exact cause is not independently proven.
+At **15:13:25–15:13:33 Dhaka**, the hosted demo (since retired) returned health 200 and enabled-model sessions, but `POST /api/judge/example` returned **503 in 0.467 s**, and reset returned **503 in 0.169 s** (hosted timings are not recorded in the JSON). Hosted transcription succeeded in 4.394 s (also not recorded there) with the expected English transcript. Independent-session records and sign-out checks passed. Extraction, parcel analysis, booking, the Bangla answer and proposal could not be rehearsed there. The local rendering failure is consistent with this blocker; hosted exception logs were inaccessible, so its exact cause is not independently proven.
 
 The separate browser entry check opened eight synthetic orders after an initial saved-session timeout recovered through **Start sample shop**. [Reviewed entry capture](evidence/judge-entry-2026-11-04.jpg) shows the judge entry and eight-order sample shop only; the host it was captured on (hosted or local browser) is not established. Hosted code revision, actual judge allowance, remaining credits, provider attempt count and provider latency were not exposed; **none is claimed verified**.
-
-**Release blocker for #7:** deploy the RGBA correction, verify the running Render setting `JUDGE_MODEL_CALLS_PER_HOUR=60` and available provider credits, then record one complete fresh hosted walkthrough after the presentation deployment. The blueprint change alone does not prove the running service adopted it. Retain the wrong-COD miss as a quality limitation; do not promise a red result. Reusable evidence for #22/#23 is the linked synthetic JSON, entry capture and tables here; entry footage is not the seller video requested in #24.
 
 Physical-phone HTTPS microphone permission denial/recording/transcript review, camera upload, actual host upload-size ceilings, unsaved-edit warnings, interrupted-write recovery and authenticated seller isolation remain untested here. Genuine conversations, handwriting, real parcels, sealed contents, Bangla speech quality and genuine pilot outcomes were not evaluated. Larger evaluation targets remain unrun.
 
@@ -122,4 +120,4 @@ Validation passed: `npm run test` (3 COD and 13 courier/workflow checks), `npm r
 2. In a fresh `/judge` shop, start the sample order and extract once. Compare the eleven values and two SKU suggestions above, inspect original quotes, save reviewed values without verifying the claimed payment, and confirm COD 1,080.
 3. Download/upload the wrong-COD, unreadable and correct synthetic parcel inputs in that order; run actual SAM analysis and record every verdict/reason. Never substitute a reading or force a pass. Fake-book only an authorized packed order; reload stock and identifiers.
 4. Transcribe the stated synthetic English sentence separately, then ask the five exact questions above. Propose delivery of the newly booked reference, inspect unchanged records, explicitly confirm and reload. Check a second session, first-session-only reset, unchanged budget and sign-out revocation. Stop on rate limits; do not rotate sessions for additional allowance.
-5. Repeat the shorter connected flow on the deployed host after its settings/revision are verified. Run `npm run test`, `uv run --frozen python scripts/check_split_manifest.py`, `npm run check` and `npm run build`. Automated provider-mocked invariant checks are separate from the live results above.
+5. Run `npm run test`, `uv run --frozen python scripts/check_split_manifest.py`, `npm run check` and `npm run build`. Automated provider-mocked invariant checks are separate from the live results above.

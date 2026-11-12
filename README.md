@@ -8,21 +8,21 @@ PocketDokani brings that work into a phone web app. It turns conversation screen
 
 Built for the **Meta Global AI Developer Hackathon · Indie Developer · Build for Your World**. The application and model integrations were built during the event ([build history](https://github.com/afif-fahim/pocketdokani/commits)); the seller's pre-existing spreadsheet was a private data source.
 
-**[Watch the demo video](https://youtu.be/gRwP7_oYYyM)** · **[Try the hosted sample shop](https://pocketdokani.vercel.app/judge)** · [Repository](https://github.com/afif-fahim/pocketdokani) · [Measured results](evals/results.md) · [Architecture](docs/architecture.md) · [Setup](docs/setup.md)
+**[Watch the demo video](https://youtu.be/gRwP7_oYYyM)** · **[Hackathon gallery entry](https://cerebralvalley.ai/e/meta-ai-developer-hackathon/hackathon/gallery/4078)** · [Repository](https://github.com/afif-fahim/pocketdokani) · [Measured results](evals/results.md) · [Architecture](docs/architecture.md) · [Setup](docs/setup.md)
 
-> **Hosted status, November 4:** one fresh `/judge` walkthrough on the deployed site completed with live model calls and no API errors: extraction, confirmation, a wrong-COD check (fail on the COD row), a matching-label check (pass), a fake booking, and a typed Bangla question answered from two order records. SAM fell back to the full photo on both checks; that run predates the SAM fix, which is not yet confirmed on the hosted site. Parcel photos were submitted by script, and the answer language stayed on English. A physical phone, camera capture and voice input were not exercised. This is one run, not an accuracy evaluation. The results below are from separate recorded runs.
+> The hosted demo used during the hackathon has been retired. [Run it locally](#run-locally) to try it.
 
 ## Try one order
 
-The hosted judge entry needs no seller login or visitor API key. Its AI still needs the operator's configured Meta service, available credits and a finite call allowance. Every analysis calls real models; unavailable service or exhausted allowance produces an error.
+Run the app [locally](#run-locally). The judge entry needs no seller login. Every analysis calls real models with your configured Meta API key and a finite call allowance; a missing key or exhausted allowance produces an error.
 
-1. Open the [demo](https://pocketdokani.vercel.app/judge), choose **Start sample shop**, then **Start sample order**.
+1. Open [localhost:3000/judge](http://localhost:3000/judge), choose **Start sample shop**, then **Start sample order**.
 2. Extract the sample screenshots. Inspect the source quotes, review the two item lines and recipient details, then save and confirm. A customer's payment claim does not count as verified prior payment.
 3. Download a synthetic parcel image from **Check parcel**, upload it and analyze. Inspect the actual label/bag reasons. A fail requires correction and a new photo; an unsure result permits a separately recorded seller override after review.
 4. Once packed, choose **Simulate booking · Fake**. Reload to inspect the order reference, COD and fake courier identifiers. Judge bookings never dispatch a parcel.
 5. Open **Assistant**, select Bangla answers and type **“এখন কয়টা পার্সেল পাঠানো বাকি?”** Inspect the supporting order chips. Then ask to mark a booked sample order delivered using its actual reference; inspect the proposal before explicitly confirming it. Voice input offers an editable transcript before sending.
 
-Each judge gets isolated synthetic records. Reset restores only that shop and preserves its model-call budget. Seller access is at [the main entry](https://pocketdokani.vercel.app/).
+Each judge gets isolated synthetic records. Reset restores only that shop and preserves its model-call budget. Seller access is at [the main entry](http://localhost:3000/).
 
 ## What the app actually showed
 
@@ -79,6 +79,6 @@ uv run --frozen alembic upgrade head
 npm run dev:api   # then, in another terminal: npm run dev:web
 ```
 
-Open [localhost:3000/judge](http://localhost:3000/judge). Full env config, deployment and troubleshooting: [docs/setup.md](docs/setup.md).
+Open [localhost:3000/judge](http://localhost:3000/judge). Full env config and troubleshooting: [docs/setup.md](docs/setup.md).
 
 Screenshot import supports one-to-one mobile conversations with left/right bubbles. It does not connect directly to social-platform inboxes or record phone calls. The seller remains responsible for confirming orders, payments and changes.
